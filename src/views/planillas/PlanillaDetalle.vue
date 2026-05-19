@@ -421,6 +421,7 @@ const esCerrada = computed(() => store.planilla?.estado === 'Cerrado')
 </template>
 
 <style scoped>
+@reference "tailwindcss";
 .field-label { @apply block text-xs font-medium text-slate-600 mb-1; }
 .field-input { @apply w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition; }
 </style>

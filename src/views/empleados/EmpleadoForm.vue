@@ -356,6 +356,7 @@ function salariosCalculados() {
 </template>
 
 <style scoped>
+@reference "tailwindcss";
 .label {
   @apply block text-sm font-medium text-slate-700 mb-1.5;
 }
