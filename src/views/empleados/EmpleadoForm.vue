@@ -146,7 +146,7 @@ function salariosCalculados() {
           </div>
           <div>
             <label class="label">Cédula <span class="text-red-500">*</span></label>
-            <input v-model="form.cedula" required maxlength="13" class="input font-mono" placeholder="0000-0000-00000" />
+            <input v-model="form.cedula" required maxlength="13" class="input font-mono" placeholder="0000000000000" />
           </div>
 
           <div>
