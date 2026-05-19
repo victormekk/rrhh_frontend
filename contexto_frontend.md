@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-05-19  
 **Rama:** `main`  
-**Commit de referencia:** `e198ccd` — _"Cambio varios en los modulos de RRHH"_
+**Último commit:** `df639d0` — _"fix: agregar @reference "tailwindcss" en bloques `<style scoped>` con @apply"_
 
 ---
 
@@ -129,7 +129,35 @@ Todas requieren `meta: { requiresAuth: true }`. El guard global ya existía; no 
 
 ---
 
+## Fix aplicado — Tailwind CSS v4 (`@reference`)
+
+**Commit:** `df639d0`
+
+En Tailwind CSS v4, los bloques `<style scoped>` que usan `@apply` requieren la directiva `@reference "tailwindcss";` al inicio, de lo contrario el compilador no puede resolver las utilidades y lanza un error en tiempo de desarrollo.
+
+Archivos corregidos:
+- `src/views/empleados/EmpleadoForm.vue`
+- `src/views/planillas/PlanillaCrear.vue`
+- `src/views/planillas/PlanillaDetalle.vue`
+- `src/views/aguinaldo/AguinaldoCrear.vue`
+- `src/views/aguinaldo/AguinaldoDetalle.vue`
+
+---
+
+## Historial de commits
+
+| Commit | Descripción |
+|---|---|
+| `df639d0` | fix: `@reference "tailwindcss"` en bloques `<style scoped>` con `@apply` |
+| `ab7f72a` | Cambios varios en los módulos de RRHH |
+| `e198ccd` | Cambio varios en los modulos de RRHH |
+| `da8cdd2` | fix: placeholder cédula sin guiones (max 13 dígitos) |
+| `962622e` | feat: Módulo 2 - Empleados (frontend completo) |
+| `9b8de80` | feat: Módulo 1 - Autenticación y layout base |
+
+---
+
 ## Estado pendiente
 
 - Las vistas del módulo **Incidencias** aún no existen (solo el store). Falta implementar `IncidenciasIndex`, `IncidenciaForm` y registrar las rutas.
-- Las rutas de Planillas y Aguinaldo ya están en el router pero **no aparecen en el sidebar** del `AppLayout` — pendiente agregar los ítems de navegación correspondientes.
+- Los módulos de Planillas y Aguinaldo ya están en el router pero **no aparecen en el sidebar** del `AppLayout` — pendiente agregar los ítems de navegación correspondientes.
