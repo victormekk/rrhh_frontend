@@ -1,7 +1,27 @@
 {
   "permissions": {
     "allow": [
-      "Bash(Rename-Item *)"
+      "Bash(Rename-Item *)",
+      "Bash(git -C \"C:/Users/victo/Desktop/rrhh_frontend\" add src/views/aguinaldo/AguinaldoCrear.vue src/views/aguinaldo/AguinaldoDetalle.vue src/views/empleados/EmpleadoForm.vue src/views/planillas/PlanillaCrear.vue src/views/planillas/PlanillaDetalle.vue)",
+      "Bash(git -C C:/Users/victo/Desktop/rrhh_frontend commit -m ' *)",
+      "Bash(git -C \"C:/laragon/www/rrhh-frontend\" diff)",
+      "Bash(git -C \"C:/laragon/www/rrhh-frontend\" status --short)",
+      "Bash(git -C C:/laragon/www/rrhh-frontend add src/App.vue src/assets/main.css src/router/index.js src/components/ src/services/ src/stores/aguinaldo.js src/stores/auth.js src/stores/empleados.js src/stores/planillas.js src/views/DashboardView.vue src/views/LoginView.vue src/views/aguinaldo/ src/views/empleados/ src/views/planillas/)",
+      "Bash(git -C \"C:/Users/victo/Desktop/rrhh_frontend\" status --short)",
+      "Bash(git -C \"C:/Users/victo/Desktop/rrhh_frontend\" log --oneline -6)",
+      "Bash(git -C \"C:/Users/victo/Desktop/rrhh_frontend\" add contexto_frontend.md)",
+      "Bash(git -C \"C:/Users/victo/Desktop/rrhh_frontend\" push origin main)",
+      "Bash(git *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\victo\\\\Desktop\\\\rrhh-backend\\\\database\\\\migrations\" | Where-Object { $_.Name -match \"puesto\" })",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\victo\\\\Desktop\\\\rrhh-backend\\\\database\\\\migrations\" | Where-Object { $_.Name -match \"banco\" })",
+      "PowerShell(New-Item *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\victo\\\\Desktop\\\\rrhh-backend\\\\database\\\\migrations\" | Where-Object { $_.Name -match \"incidencia\" })",
+      "Read(//c/Users/victo/Desktop/rrhh-backend/**)",
+      "Bash(php artisan *)",
+      "Bash(php -r ' *)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\victo\\\\Desktop\\\\rrhh_frontend\\\\src\\\\views\\\\campos-variables\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"ok\")"
     ]
   }
 }

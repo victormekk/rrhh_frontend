@@ -17,9 +17,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    if (status === 401) {
       localStorage.removeItem('token')
       window.location.href = '/login'
+    }
+    if (status >= 500) {
+      error.friendlyMessage = 'Error interno del servidor. Intente más tarde.'
     }
     return Promise.reject(error)
   },

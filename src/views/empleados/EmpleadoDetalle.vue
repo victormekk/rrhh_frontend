@@ -33,7 +33,34 @@ function formatCurrency(val, moneda = 'HNL') {
 
 function formatDate(d) {
   if (!d) return '—'
-  return new Date(d + 'T00:00:00').toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' })
+  const date = new Date(String(d).slice(0, 10) + 'T00:00:00')
+  if (isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+function tiempoLaborando(fechaInicio) {
+  if (!fechaInicio) return null
+  const inicio = new Date(String(fechaInicio).slice(0, 10) + 'T00:00:00')
+  if (isNaN(inicio.getTime())) return null
+
+  const hoy = new Date()
+  let years  = hoy.getFullYear() - inicio.getFullYear()
+  let months = hoy.getMonth() - inicio.getMonth()
+
+  if (months < 0) { years--; months += 12 }
+  if (hoy.getDate() < inicio.getDate()) {
+    months--
+    if (months < 0) { years--; months += 12 }
+  }
+
+  const parts = []
+  if (years  > 0) parts.push(`${years}  ${years  === 1 ? 'año'  : 'años'}`)
+  if (months > 0) parts.push(`${months} ${months === 1 ? 'mes'  : 'meses'}`)
+  if (parts.length === 0) {
+    const dias = Math.floor((hoy - inicio) / 86400000)
+    return `${dias} ${dias === 1 ? 'día' : 'días'}`
+  }
+  return parts.join(' ')
 }
 
 function estadoClass(estado) {
@@ -100,7 +127,7 @@ function estadoClass(estado) {
               </span>
             </div>
             <p class="text-slate-500 text-sm">{{ store.empleado.puesto?.nombre ?? '—' }} · {{ store.empleado.departamento?.nombre ?? '—' }}</p>
-            <p class="text-slate-400 text-xs mt-1">Cédula: {{ store.empleado.cedula }}</p>
+            <p class="text-slate-400 text-xs mt-1">DNI: {{ store.empleado.cedula }}</p>
           </div>
 
           <!-- Acciones -->
@@ -124,7 +151,7 @@ function estadoClass(estado) {
           <h4 class="font-semibold text-slate-700 mb-4 text-sm uppercase tracking-wide">Datos Personales</h4>
           <dl class="space-y-3">
             <div class="grid grid-cols-2 gap-2 text-sm">
-              <dt class="text-slate-400">Género</dt>
+              <dt class="text-slate-400">Sexo</dt>
               <dd class="text-slate-700 font-medium">{{ store.empleado.genero }}</dd>
             </div>
             <div class="grid grid-cols-2 gap-2 text-sm">
@@ -177,6 +204,10 @@ function estadoClass(estado) {
             <div class="grid grid-cols-2 gap-2 text-sm">
               <dt class="text-slate-400">Fecha Inicio</dt>
               <dd class="text-slate-700 font-medium">{{ formatDate(store.empleado.informacion_laboral.fecha_inicio) }}</dd>
+            </div>
+            <div v-if="tiempoLaborando(store.empleado.informacion_laboral.fecha_inicio)" class="grid grid-cols-2 gap-2 text-sm">
+              <dt class="text-slate-400">Tiempo laborando</dt>
+              <dd class="text-emerald-600 font-medium">{{ tiempoLaborando(store.empleado.informacion_laboral.fecha_inicio) }}</dd>
             </div>
             <div class="grid grid-cols-2 gap-2 text-sm">
               <dt class="text-slate-400">Salario Base</dt>

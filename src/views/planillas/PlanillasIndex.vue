@@ -1,15 +1,23 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { usePlanillasStore } from '../../stores/planillas'
+import { useToast } from '../../composables/useToast'
 
 const router = useRouter()
+const route  = useRoute()
 const store  = usePlanillasStore()
+const { error } = useToast()
 
-const filtroTipo   = ref('')
+const filtroTipo   = ref(route.query.tipo ?? '')
 const filtroEstado = ref('')
 
 onMounted(() => cargarDatos())
+
+watch(() => route.query.tipo, (tipo) => {
+  filtroTipo.value = tipo ?? ''
+  cargarDatos()
+})
 
 async function cargarDatos() {
   await store.fetchPlanillas({
@@ -20,8 +28,12 @@ async function cargarDatos() {
 
 async function eliminar(p) {
   if (!confirm(`¿Eliminar la planilla "${p.nombre_planilla}"? Esta acción no se puede deshacer.`)) return
-  await store.deletePlanilla(p.id)
-  await cargarDatos()
+  try {
+    await store.deletePlanilla(p.id)
+    await cargarDatos()
+  } catch {
+    error('Ocurrió un error. Intenta de nuevo.')
+  }
 }
 
 async function cambiarPagina(url) {
@@ -52,7 +64,9 @@ function formatCurrency(val) {
 
 function formatDate(d) {
   if (!d) return '—'
-  return new Date(d + 'T00:00:00').toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })
+  const date = new Date(String(d).slice(0, 10) + 'T00:00:00')
+  if (isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 </script>
 

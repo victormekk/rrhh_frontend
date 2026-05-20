@@ -1,17 +1,36 @@
 <script setup>
-import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAguinaldoStore } from '../../stores/aguinaldo'
+import { useToast } from '../../composables/useToast'
 
 const router = useRouter()
+const route  = useRoute()
 const store  = useAguinaldoStore()
+const { error } = useToast()
+
+const filtroTipo = ref(route.query.tipo ?? '')
+
+const listaFiltrada = computed(() =>
+  filtroTipo.value
+    ? store.lista.filter((a) => a.tipo_aguinaldo === filtroTipo.value)
+    : store.lista
+)
 
 onMounted(() => store.fetchLista())
 
+watch(() => route.query.tipo, (tipo) => {
+  filtroTipo.value = tipo ?? ''
+})
+
 async function eliminar(nombre) {
   if (!confirm(`¿Eliminar el aguinaldo "${nombre}"? Esta acción no se puede deshacer.`)) return
-  await store.eliminar(nombre)
-  await store.fetchLista()
+  try {
+    await store.eliminar(nombre)
+    await store.fetchLista()
+  } catch {
+    error('Ocurrió un error. Intenta de nuevo.')
+  }
 }
 
 function tipoClass(tipo) {
@@ -36,7 +55,9 @@ function formatCurrency(val) {
 
 function formatDate(d) {
   if (!d) return '—'
-  return new Date(d + 'T00:00:00').toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })
+  const date = new Date(String(d).slice(0, 10) + 'T00:00:00')
+  if (isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 </script>
 
@@ -79,7 +100,7 @@ function formatDate(d) {
               </tr>
             </template>
 
-            <tr v-else-if="store.lista.length === 0">
+            <tr v-else-if="listaFiltrada.length === 0">
               <td colspan="7" class="px-4 py-12 text-center text-slate-400">
                 No hay aguinaldos generados.
               </td>
@@ -87,7 +108,7 @@ function formatDate(d) {
 
             <tr
               v-else
-              v-for="a in store.lista"
+              v-for="a in listaFiltrada"
               :key="a.nombre_aguinaldo"
               class="border-b border-gray-100 hover:bg-slate-50 transition-colors"
             >

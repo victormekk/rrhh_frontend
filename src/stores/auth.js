@@ -34,5 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token')
   }
 
-  return { user, token, isAuthenticated, login, logout, fetchUser, clearAuth }
+  const isAdmin = computed(() => user.value?.rol === 'admin')
+
+  return { user, token, isAuthenticated, isAdmin, login, logout, fetchUser, clearAuth }
 })

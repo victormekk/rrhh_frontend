@@ -2,10 +2,12 @@
 import { computed, reactive, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAguinaldoStore } from '../../stores/aguinaldo'
+import { useToast } from '../../composables/useToast'
 
 const route  = useRoute()
 const router = useRouter()
 const store  = useAguinaldoStore()
+const { error } = useToast()
 
 const loading  = ref(true)
 const cerrando = ref(false)
@@ -85,6 +87,8 @@ async function cerrar() {
   cerrando.value = true
   try {
     await store.cerrar(nombre.value)
+  } catch {
+    error('Ocurrió un error. Intenta de nuevo.')
   } finally {
     cerrando.value = false
   }
@@ -100,7 +104,9 @@ function exportarPdf() {
     .then(blob => {
       const link    = document.createElement('a')
       link.href     = URL.createObjectURL(blob)
-      link.download = `aguinaldo_${nombre.value}.pdf`
+      const _norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
+      const _d = new Date(), _dd = String(_d.getDate()).padStart(2,'0'), _mm = String(_d.getMonth()+1).padStart(2,'0')
+      link.download = `${_dd}${_mm}${_d.getFullYear()}-${_norm(nombre.value)}-aguinaldo.pdf`
       link.click()
       URL.revokeObjectURL(link.href)
     })
@@ -320,14 +326,20 @@ function fmt(val) {
         </template>
 
         <div class="flex justify-end gap-3 mt-5">
-          <button type="button" @click="modal.open = false" class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+          <button type="button" @click="modal.open = false" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
             Cancelar
           </button>
           <button
             @click="guardarModal"
             :disabled="modalLoading"
-            class="px-5 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition"
+            class="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition"
           >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
             {{ modalLoading ? 'Guardando...' : 'Guardar' }}
           </button>
         </div>

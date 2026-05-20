@@ -1,8 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
 
 export const useEmpleadosStore = defineStore('empleados', () => {
+  const { success, error } = useToast()
+
   const empleados  = ref([])
   const empleado   = ref(null)
   const pagination = ref(null)
@@ -27,11 +30,13 @@ export const useEmpleadosStore = defineStore('empleados', () => {
 
   async function createEmpleado(payload) {
     const { data } = await api.post('/empleados', payload)
+    success('Empleado registrado exitosamente.')
     return data
   }
 
   async function updateEmpleado(id, payload) {
     const { data } = await api.put(`/empleados/${id}`, payload)
+    success('Empleado actualizado.')
     return data
   }
 
@@ -46,6 +51,7 @@ export const useEmpleadosStore = defineStore('empleados', () => {
 
   async function deactivateEmpleado(id) {
     await api.delete(`/empleados/${id}`)
+    success('Empleado desactivado.')
   }
 
   return {

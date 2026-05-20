@@ -13,8 +13,19 @@ const PlanillaCrear   = () => import('../views/planillas/PlanillaCrear.vue')
 const PlanillaDetalle = () => import('../views/planillas/PlanillaDetalle.vue')
 
 const AguinaldoIndex  = () => import('../views/aguinaldo/AguinaldoIndex.vue')
-const AguinaldoCrear  = () => import('../views/aguinaldo/AguinaldoCrear.vue')
+
+const DepartamentosIndex = () => import('../views/departamentos/DepartamentosIndex.vue')
+const BancosIndex        = () => import('../views/bancos/BancosIndex.vue')
+const IncidenciasIndex   = () => import('../views/incidencias/IncidenciasIndex.vue')
+const VacacionesIndex    = () => import('../views/vacaciones/VacacionesIndex.vue')
+
+const AguinaldoCrear   = () => import('../views/aguinaldo/AguinaldoCrear.vue')
 const AguinaldoDetalle = () => import('../views/aguinaldo/AguinaldoDetalle.vue')
+const LogSistemaIndex      = () => import('../views/log-sistema/LogSistemaIndex.vue')
+const UsuariosIndex        = () => import('../views/usuarios/UsuariosIndex.vue')
+const CamposVariablesIndex = () => import('../views/campos-variables/CamposVariablesIndex.vue')
+const CumpleanosIndex          = () => import('../views/cumpleanos/CumpleanosIndex.vue')
+const EstadisticaLaboralIndex  = () => import('../views/estadistica-laboral/EstadisticaLaboralIndex.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -64,6 +75,42 @@ const router = createRouter({
           meta: { requiresAuth: true, title: 'Editar Empleado' },
         },
 
+        // Vacaciones
+        {
+          path: 'vacaciones',
+          name: 'vacaciones',
+          component: VacacionesIndex,
+          meta: { requiresAuth: true, title: 'Vacaciones' },
+        },
+
+        // Incidencias
+        {
+          path: 'incidencias',
+          name: 'incidencias',
+          component: IncidenciasIndex,
+          meta: { requiresAuth: true, title: 'Incidencias' },
+        },
+
+        // Bancos
+        {
+          path: 'bancos',
+          name: 'bancos',
+          component: BancosIndex,
+          meta: { requiresAuth: true, title: 'Bancos' },
+        },
+
+        // Estructura organizacional
+        {
+          path: 'departamentos',
+          name: 'departamentos',
+          component: DepartamentosIndex,
+          meta: { requiresAuth: true, title: 'Estructura Organizacional' },
+        },
+        {
+          path: 'puestos',
+          redirect: '/departamentos',
+        },
+
         // Planillas
         {
           path: 'planillas',
@@ -102,6 +149,46 @@ const router = createRouter({
           name: 'aguinaldo.detalle',
           component: AguinaldoDetalle,
           meta: { requiresAuth: true, title: 'Detalle de Aguinaldo' },
+        },
+
+        // Cumpleaños
+        {
+          path: 'cumpleanos',
+          name: 'cumpleanos',
+          component: CumpleanosIndex,
+          meta: { requiresAuth: true, title: 'Cumpleaños' },
+        },
+
+        // Estadística laboral
+        {
+          path: 'estadistica-laboral',
+          name: 'estadistica-laboral',
+          component: EstadisticaLaboralIndex,
+          meta: { requiresAuth: true, title: 'Estadística Laboral' },
+        },
+
+        // Log del sistema
+        {
+          path: 'log-sistema',
+          name: 'log-sistema',
+          component: LogSistemaIndex,
+          meta: { requiresAuth: true, title: 'Log del Sistema' },
+        },
+
+        // Campos Variables (solo admin)
+        {
+          path: 'campos-variables',
+          name: 'campos-variables',
+          component: CamposVariablesIndex,
+          meta: { requiresAuth: true, title: 'Campos Variables' },
+        },
+
+        // Gestión de usuarios (solo admin)
+        {
+          path: 'usuarios',
+          name: 'usuarios',
+          component: UsuariosIndex,
+          meta: { requiresAuth: true, title: 'Gestión de Usuarios' },
         },
       ],
     },

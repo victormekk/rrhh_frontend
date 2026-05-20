@@ -1,8 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
 
 export const usePlanillasStore = defineStore('planillas', () => {
+  const { success, error } = useToast()
+
   const planillas  = ref([])
   const planilla   = ref(null)
   const pagination = ref(null)
@@ -27,6 +30,7 @@ export const usePlanillasStore = defineStore('planillas', () => {
 
   async function createPlanilla(payload) {
     const { data } = await api.post('/planillas', payload)
+    success('Planilla registrada exitosamente.')
     return data
   }
 
@@ -37,17 +41,20 @@ export const usePlanillasStore = defineStore('planillas', () => {
       const idx = planilla.value.detalles.findIndex(d => d.id === detalleId)
       if (idx !== -1) planilla.value.detalles[idx] = data
     }
+    success('Detalle actualizado.')
     return data
   }
 
   async function cerrarPlanilla(id) {
     const { data } = await api.post(`/planillas/${id}/cerrar`)
     if (planilla.value?.id === id) planilla.value.estado = 'Cerrado'
+    success('Planilla cerrada exitosamente.')
     return data
   }
 
   async function deletePlanilla(id) {
     await api.delete(`/planillas/${id}`)
+    success('Planilla eliminada.')
   }
 
   function pdfUrl(id) {

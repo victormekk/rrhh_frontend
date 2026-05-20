@@ -52,7 +52,7 @@ onMounted(async () => {
       cedula:               emp.cedula,
       rtn:                  emp.rtn ?? '',
       genero:               emp.genero,
-      fecha_nacimiento:     emp.fecha_nacimiento,
+      fecha_nacimiento:     emp.fecha_nacimiento ? String(emp.fecha_nacimiento).slice(0, 10) : '',
       estado_civil:         emp.estado_civil,
       num_hijos:            emp.num_hijos,
       nacionalidad:         emp.nacionalidad,
@@ -65,8 +65,8 @@ onMounted(async () => {
       id_departamento:      emp.id_departamento,
       id_puesto:            emp.id_puesto,
       tipo_contrato:        il.tipo_contrato ?? '',
-      fecha_inicio:         il.fecha_inicio ?? '',
-      fecha_cese:           il.fecha_cese ?? '',
+      fecha_inicio:         il.fecha_inicio ? String(il.fecha_inicio).slice(0, 10) : '',
+      fecha_cese:           il.fecha_cese   ? String(il.fecha_cese).slice(0, 10)   : '',
       motivo_cese:          il.motivo_cese ?? '',
       estado:               il.estado ?? 'Activo',
       moneda:               il.moneda ?? 'Lempiras',
@@ -145,7 +145,7 @@ function salariosCalculados() {
             <input v-model="form.apellidos" required maxlength="30" class="input" placeholder="Ej. García López" />
           </div>
           <div>
-            <label class="label">Cédula <span class="text-red-500">*</span></label>
+            <label class="label">DNI <span class="text-red-500">*</span></label>
             <input v-model="form.cedula" required maxlength="13" class="input font-mono" placeholder="0000000000000" />
           </div>
 
@@ -154,7 +154,7 @@ function salariosCalculados() {
             <input v-model="form.rtn" maxlength="14" class="input font-mono" placeholder="00000000000000" />
           </div>
           <div>
-            <label class="label">Género <span class="text-red-500">*</span></label>
+            <label class="label">Sexo <span class="text-red-500">*</span></label>
             <select v-model="form.genero" required class="input">
               <option value="">Seleccionar</option>
               <option>Masculino</option>
@@ -248,10 +248,8 @@ function salariosCalculados() {
             <label class="label">Tipo de Contrato <span class="text-red-500">*</span></label>
             <select v-model="form.tipo_contrato" required class="input">
               <option value="">Seleccionar</option>
-              <option>Tiempo Completo</option>
-              <option>Tiempo Parcial</option>
-              <option>Temporal</option>
-              <option>Por Obra</option>
+              <option>Fijo</option>
+              <option>Extra</option>
             </select>
           </div>
           <div>

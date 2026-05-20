@@ -18,10 +18,14 @@ async function handleLogin() {
     await authStore.login(email.value, password.value)
     router.push('/dashboard')
   } catch (e) {
-    const msg = e.response?.data?.errors?.email?.[0]
-      ?? e.response?.data?.message
-      ?? 'Error al iniciar sesión.'
-    error.value = msg
+    const status = e.response?.status
+    if (status >= 500) {
+      error.value = 'Error interno del servidor. Intente más tarde.'
+    } else {
+      error.value = e.response?.data?.errors?.email?.[0]
+        ?? e.response?.data?.message
+        ?? 'Credenciales incorrectas.'
+    }
   } finally {
     loading.value = false
   }

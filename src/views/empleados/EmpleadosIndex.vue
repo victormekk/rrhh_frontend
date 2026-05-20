@@ -112,7 +112,7 @@ function formatCurrency(val) {
           <thead>
             <tr class="bg-slate-50 border-b border-gray-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
               <th class="px-4 py-3">Empleado</th>
-              <th class="px-4 py-3">Cédula</th>
+              <th class="px-4 py-3">DNI</th>
               <th class="px-4 py-3">Departamento</th>
               <th class="px-4 py-3">Puesto</th>
               <th class="px-4 py-3">Salario Base</th>

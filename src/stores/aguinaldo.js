@@ -1,8 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
 
 export const useAguinaldoStore = defineStore('aguinaldo', () => {
+  const { success, error } = useToast()
+
   const lista     = ref([])
   const detalle   = ref(null)
   const loading   = ref(false)
@@ -25,6 +28,7 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
 
   async function crear(payload) {
     const { data } = await api.post('/aguinaldo', payload)
+    success('Aguinaldo generado.')
     return data
   }
 
@@ -35,6 +39,7 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
       if (idx !== -1) detalle.value.fijos[idx] = data
       detalle.value.totales_fijos = calcTotalesFijos(detalle.value.fijos)
     }
+    success('Aguinaldo actualizado.')
     return data
   }
 
@@ -45,17 +50,20 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
       if (idx !== -1) detalle.value.extras[idx] = data
       detalle.value.totales_extras = calcTotalesExtras(detalle.value.extras)
     }
+    success('Aguinaldo actualizado.')
     return data
   }
 
   async function cerrar(nombre) {
     const { data } = await api.post(`/aguinaldo/${encodeURIComponent(nombre)}/cerrar`)
     if (detalle.value) detalle.value.estado = 'Cerrado'
+    success('Aguinaldo cerrado.')
     return data
   }
 
   async function eliminar(nombre) {
     await api.delete(`/aguinaldo/${encodeURIComponent(nombre)}`)
+    success('Aguinaldo eliminado.')
   }
 
   function pdfUrl(nombre) {

@@ -2,10 +2,12 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlanillasStore } from '../../stores/planillas'
+import { useToast } from '../../composables/useToast'
 
 const route   = useRoute()
 const router  = useRouter()
 const store   = usePlanillasStore()
+const { error } = useToast()
 
 const loading        = ref(true)
 const cerrando       = ref(false)
@@ -106,8 +108,13 @@ async function guardarDetalle() {
 async function cerrar() {
   if (!confirm('¿Cerrar esta planilla? Las cuotas de deducciones serán aplicadas y no podrá editarla.')) return
   cerrando.value = true
-  await store.cerrarPlanilla(route.params.id)
-  cerrando.value = false
+  try {
+    await store.cerrarPlanilla(route.params.id)
+  } catch {
+    error('Ocurrió un error. Intenta de nuevo.')
+  } finally {
+    cerrando.value = false
+  }
 }
 
 function exportarPdf() {
@@ -119,7 +126,10 @@ function exportarPdf() {
     .then(blob => {
       const link  = document.createElement('a')
       link.href   = URL.createObjectURL(blob)
-      link.download = `planilla_${store.planilla?.nombre_planilla ?? route.params.id}.pdf`
+      const _norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
+      const _d = new Date(), _dd = String(_d.getDate()).padStart(2,'0'), _mm = String(_d.getMonth()+1).padStart(2,'0')
+      const _n = _norm(store.planilla?.nombre_planilla ?? String(route.params.id))
+      link.download = `${_dd}${_mm}${_d.getFullYear()}-${_n}-planilla.pdf`
       link.click()
       URL.revokeObjectURL(link.href)
     })
@@ -148,7 +158,9 @@ function fmt(val) {
 
 function fmtDate(d) {
   if (!d) return '—'
-  return new Date(d + 'T00:00:00').toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' })
+  const date = new Date(String(d).slice(0, 10) + 'T00:00:00')
+  if (isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 const esCerrada = computed(() => store.planilla?.estado === 'Cerrado')
@@ -403,14 +415,20 @@ const esCerrada = computed(() => store.planilla?.estado === 'Cerrado')
           </div>
 
           <div class="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-            <button @click="modalAbierto = false" class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+            <button @click="modalAbierto = false" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
               Cancelar
             </button>
             <button
               @click="guardarDetalle"
               :disabled="guardando"
-              class="px-5 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-semibold text-sm rounded-lg transition"
+              class="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-semibold text-sm rounded-lg transition"
             >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
               {{ guardando ? 'Guardando...' : 'Guardar' }}
             </button>
           </div>
