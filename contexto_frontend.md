@@ -1,163 +1,137 @@
 # Contexto de Cambios — RRHH Frontend
 
-**Fecha:** 2026-05-19  
-**Rama:** `main`  
-**Último commit:** `df639d0` — _"fix: agregar @reference "tailwindcss" en bloques `<style scoped>` con @apply"_
+> Proyecto: Sistema de Recursos Humanos — Hotel Palma Real y Villas
+> Fecha de última actualización: 2026-08-26
 
 ---
 
-## Resumen de cambios
+## Stack tecnológico
 
-Se incorporaron tres módulos nuevos al sistema RRHH: **Planillas**, **Aguinaldo** e **Incidencias**. Cada módulo sigue el mismo patrón arquitectónico ya establecido (store Pinia + vistas Vue 3 `<script setup>` + router lazy-load).
+| Componente | Versión |
+|---|---|
+| Vue | ^3.5.32 (`<script setup>` en todas las vistas) |
+| Vue Router | ^5.0.4 |
+| Pinia | ^3.0.4 |
+| Axios | ^1.15.2 |
+| Tailwind CSS | ^4.2.4 (`@theme` en `src/assets/main.css`, sin `tailwind.config.js`) |
+| Vite | ^8.0.8 (`@vitejs/plugin-vue`, `vite-plugin-vue-devtools`) |
+| Lint | ESLint + oxlint (`npm run lint`) |
+| Node requerido | `^20.19.0 || >=22.12.0` |
+
+Consume la API del backend Laravel (`rrhh-backend`) vía Sanctum (Bearer token, sin cookies — `supports_credentials: false` en CORS del backend).
 
 ---
 
-## Archivos nuevos
+## Identidad visual — Hotel Palma Real y Villas (rebrand 2026-08-26)
 
-### Stores (`src/stores/`)
+`src/assets/main.css` redefine la escala `blue` nativa de Tailwind con `@theme` para que **todas** las clases ya usadas en la app (`bg-blue-700`, `focus:ring-blue-500`, etc.) hereden el color de marca sin reescribir cada componente:
 
-| Archivo | Store | Descripción |
+| Token | Valor | Uso |
 |---|---|---|
-| `planillas.js` | `usePlanillasStore` | CRUD de planillas con paginación |
-| `aguinaldo.js` | `useAguinaldoStore` | CRUD de aguinaldos, cálculo de totales en cliente |
-| `incidencias.js` | `useIncidenciasStore` | CRUD de incidencias con paginación |
+| `--color-blue-500` | `#b9921a` (dorado, extraído del logo) | acentos, focus rings |
+| `--color-blue-700` | `#3b2b16` (marrón, extraído del logo) | botones primarios, marca |
 
-#### Detalles por store
+Logo oficial (`hpr_logo.png`) ubicado en `src/assets/images/hpr_logo.png`, usado en:
+- `AppLayout.vue` (sidebar, junto con fondo blanco en el header del sidebar en vez de slate-900)
+- `LoginView.vue` (reemplaza el ícono genérico anterior)
 
-**`planillas.js`**
-- Estado: `planillas[]`, `planilla` (detalle), `pagination`, `loading`
-- Métodos: `fetchPlanillas(params)`, `fetchPlanilla(id)`, `createPlanilla`, `updateDetalle`, `cerrarPlanilla`, `deletePlanilla`, `pdfUrl(id)`
-- La lista soporta filtros por tipo/estado y paginación Laravel (`data.data` + `data.meta`)
-
-**`aguinaldo.js`**
-- Estado: `lista[]`, `detalle`, `loading`
-- Métodos: `fetchLista`, `fetchDetalle(nombre)`, `crear`, `updateFijo(id)`, `updateExtra(id)`, `cerrar(nombre)`, `eliminar(nombre)`, `pdfUrl(nombre)`
-- Identificador por `nombre_aguinaldo` (string URL-encoded, no ID numérico)
-- Actualización optimista local: al editar un fijo/extra recalcula `totales_fijos`/`totales_extras` en el store sin refetch
-- `pdfUrl` construye la URL con el token Bearer como query param (`?token=`)
-
-**`incidencias.js`**
-- Estado: `incidencias[]`, `pagination`, `loading`
-- Métodos: `fetchIncidencias(params)`, `createIncidencia`, `updateIncidencia(id)`, `deleteIncidencia(id)`
+También se ajustaron los grises del sidebar de `slate` a `stone` para que combinen mejor con la paleta marrón/dorado.
 
 ---
 
-### Vistas (`src/views/`)
+## Estructura de rutas (`src/router/index.js`)
 
-#### Módulo Planillas (`src/views/planillas/`)
-
-| Vista | Ruta | Función |
-|---|---|---|
-| `PlanillasIndex.vue` | `/planillas` | Listado con filtros de tipo/estado y paginación |
-| `PlanillaCrear.vue` | `/planillas/crear` | Formulario de creación; auto-sugiere nombre según tipo y quincena |
-| `PlanillaDetalle.vue` | `/planillas/:id` | Detalle con modal de edición por empleado (ingresos y deducciones) |
-
-**Tipos de planilla:** Fijos · Extras · Especial  
-**Campos de detalle editables:** `dias_trabajados`, `salario_diario`, `otros_ingresos`, `ihss`, `retencion_ahorro`, `isr`, `crefisa`, `transporte`, `radios`, `uniforme`, `garden`, `otras_deducciones`  
-**Moneda:** Lempiras (L), formateada con `es-HN` locale, 2 decimales
-
-#### Módulo Aguinaldo (`src/views/aguinaldo/`)
-
-| Vista | Ruta | Función |
-|---|---|---|
-| `AguinaldoIndex.vue` | `/aguinaldo` | Listado de aguinaldos generados |
-| `AguinaldoCrear.vue` | `/aguinaldo/crear` | Selección de tipo (Fijos/Extras/Ambos) + nombre + fecha |
-| `AguinaldoDetalle.vue` | `/aguinaldo/:nombre` | Tablas separadas por tipo con modal de edición y exportación PDF |
-
-**Fórmulas de cálculo (mostradas en UI y aplicadas en backend):**
-- Fijos: `(salario_mensual / 365) × dias_trabajados − anticipo`
-- Extras: `diario × dias_promedio + antiguedad − anticipos`
-
-**Preview en tiempo real en el modal:** computed `totalFijoCalc` y `totalExtraCalc`/`subtotalExtraCalc` actualizan el total visible mientras el usuario edita los campos.
-
-**PDF:** descarga blob via `fetch` con header `Authorization: Bearer <token>` — no redirige al navegador directamente.
-
----
-
-### Router (`src/router/index.js`)
-
-Se agregaron 6 rutas nuevas bajo el layout autenticado `AppLayout`:
+Todas bajo `AppLayout` con `meta: { requiresAuth: true }`, excepto `/login` (`meta: { guest: true }`).
 
 ```
-/planillas               → PlanillasIndex  (lazy)
-/planillas/crear         → PlanillaCrear   (lazy)
-/planillas/:id           → PlanillaDetalle (lazy)
-
-/aguinaldo               → AguinaldoIndex  (lazy)
-/aguinaldo/crear         → AguinaldoCrear  (lazy)
-/aguinaldo/:nombre       → AguinaldoDetalle (lazy)  ← param es string, no ID numérico
+/dashboard
+/empleados, /empleados/crear, /empleados/:id, /empleados/:id/editar
+/vacaciones
+/incidencias
+/bancos
+/departamentos            (puestos se gestiona en la misma vista; /puestos redirige aquí)
+/planillas, /planillas/crear, /planillas/:id
+/aguinaldo, /aguinaldo/crear, /aguinaldo/:nombre   (param string, no ID numérico)
+/cumpleanos
+/estadistica-laboral
+/log-sistema
+/campos-variables          (solo admin)
+/usuarios                  (solo admin)
 ```
 
-Todas requieren `meta: { requiresAuth: true }`. El guard global ya existía; no se modificó su lógica.
+---
+
+## Stores Pinia (`src/stores/`)
+
+| Store | Responsabilidad |
+|---|---|
+| `auth.js` | Login/logout, usuario actual, token |
+| `empleados.js` | CRUD empleados, foto |
+| `departamentos.js` / `puestos.js` | Catálogos, desactivar |
+| `bancos.js` | Catálogo bancos |
+| `vacaciones.js` | Solicitudes + saldo (`fetchSaldo` acepta `{ silent }` para refrescar sin mostrar spinner), descarga de PDF |
+| `incidencias.js` | CRUD incidencias, descarga de PDF (nuevo `downloadPdf`) |
+| `planillas.js` | CRUD planillas, cierre, detalle |
+| `aguinaldo.js` | Lotes de aguinaldo, edición de registros fijos/extras, cierre, PDF |
+| `camposVariables.js` | IHSS y salario mínimo configurables |
+| `estadisticaLaboral.js` | Reporte agregado + detalle por empleado |
+| `logSistema.js` | Listado paginado + descarga de PDF (nuevo `downloadPdf`) |
+| `usuarios.js` | Gestión de usuarios (solo admin) |
+| `cumpleanos.js` | Cumpleaños del mes |
+
+### Patrón de descarga de PDF (agregado 2026-08-26)
+`incidencias.js`, `logSistema.js` y `vacaciones.js` implementan `downloadPdf()`: piden el PDF con `responseType: 'blob'`, arman el nombre de archivo (`ddmmyyyy-nombre-tipo.pdf`, normalizando acentos), crean un link temporal (`URL.createObjectURL` + click programático) y lo revocan tras 5s. Notifican con el composable `useToast()`.
 
 ---
 
-## Patrones y convenciones aplicados
+## Vistas y funcionalidad por módulo
 
-- **Skeleton loaders** en todas las tablas de listado (filas con `animate-pulse`) mientras `loading === true`
-- **Estado vacío** con mensaje centrado cuando la lista está vacía
-- **Badges de color** para tipo y estado: Fijos (azul), Extras (ámbar), Especial/Ambos (púrpura), Activo (emerald), Cerrado (slate)
-- **Eliminación solo en estado Activo**: el botón de eliminar se oculta con `v-if="estado === 'Activo'"`
-- **Cierre irreversible**: confirm antes de cerrar; tras cerrar se ocultan los botones de edición (`v-if="!esCerrada"`)
-- **Formateo de fechas**: `new Date(d + 'T00:00:00')` para evitar desfase de timezone al parsear fechas ISO sin hora
+### Vacaciones (`src/views/vacaciones/VacacionesIndex.vue`)
+Actualizado 2026-08-26 junto con el nuevo cálculo de saldo del backend:
+- Muestra `dias_previos`, `dias_anio_actual` ("Del período"), `dias_tomados_periodo` y `dias_tomados` histórico (antes solo mostraba `dias_por_ley` y `dias_tomados`).
+- `saldoEfectivo` (computed): al editar una solicitud, devuelve los días originales al saldo antes de validar.
+- `fechaMaxFin` (computed): calcula la fecha máxima de fin sin exceder el saldo disponible (excluye domingos), usada para acotar el date picker.
+- Paginación numerada con elipsis (antes solo Anterior/Siguiente).
 
----
+### Empleados — Formulario (`src/views/empleados/EmpleadoForm.vue`)
+- Sanitizadores de input en tiempo real: `soloLetras`, `soloDigitos`, `soloTelefono` (reemplazan `v-model` directo por `:value` + `@input` con regex).
+- Al marcar "Usa salario mínimo", autocompleta `salario_base` con el valor de `/campos-variables` (`salarioMinimo`) y deshabilita el campo.
+- Spinner de carga inicial (`formLoading`) mientras se resuelven departamentos/puestos/bancos/campos-variables (y el empleado en modo edición).
 
-## Endpoints de API consumidos
+### Departamentos / Puestos (`DepartamentosIndex.vue`)
+Reemplazado el `confirm()` nativo del navegador por un modal de confirmación propio (`showConfirm`/`confirmarDesactivar`) con estado de carga y mensaje explicando el efecto de desactivar.
 
-| Módulo | Método | Endpoint |
-|---|---|---|
-| Planillas | GET | `/planillas?tipo=&estado=&page=` |
-| Planillas | GET | `/planillas/:id` |
-| Planillas | POST | `/planillas` |
-| Planillas | PUT | `/planillas/:id/detalles/:detalleId` |
-| Planillas | POST | `/planillas/:id/cerrar` |
-| Planillas | DELETE | `/planillas/:id` |
-| Planillas | GET | `/planillas/:id/pdf` |
-| Aguinaldo | GET | `/aguinaldo` |
-| Aguinaldo | GET | `/aguinaldo/:nombre` |
-| Aguinaldo | POST | `/aguinaldo` |
-| Aguinaldo | PUT | `/aguinaldo/fijos/:id` |
-| Aguinaldo | PUT | `/aguinaldo/extras/:id` |
-| Aguinaldo | POST | `/aguinaldo/:nombre/cerrar` |
-| Aguinaldo | DELETE | `/aguinaldo/:nombre` |
-| Aguinaldo | GET | `/aguinaldo/:nombre/pdf` |
-| Incidencias | GET | `/incidencias?page=` |
-| Incidencias | POST | `/incidencias` |
-| Incidencias | PUT | `/incidencias/:id` |
-| Incidencias | DELETE | `/incidencias/:id` |
+### Incidencias / Log del Sistema
+Botón de descarga de PDF conectado a los endpoints nuevos del backend (`/incidencias/{id}/pdf`, `/log-sistema/pdf`), con manejo de errores por status code (500, 401, sin red).
+
+### Consistencia visual (todas las tablas de listado)
+- Botones de acción (Editar/Eliminar/Ver/Desactivar) migrados de texto+ícono a **solo ícono con `title`** (tooltip nativo), agrupados en un `flex` al final de la fila.
+- Skeletons de carga unificados de `gray-100` a `slate-200`/`slate-100` en todos los módulos.
+- Spinners de carga de página completa (empleado detalle, planilla detalle, aguinaldo detalle) ahora incluyen texto descriptivo ("Cargando ficha del empleado...", etc.) en vez de solo el ícono girando.
 
 ---
 
-## Fix aplicado — Tailwind CSS v4 (`@reference`)
+## Historial de sesiones / cambios
 
-**Commit:** `df639d0`
+### 2026-08-26 — commit `d356c63`
+Ver detalle completo arriba. Resumen: rebrand Hotel Palma Real y Villas, sincronización de la UI de vacaciones con el nuevo cálculo de saldo del backend, sanitizadores de input y autocompletado de salario mínimo en el formulario de empleados, descarga de PDF en incidencias y log del sistema, modal de confirmación reemplazando `confirm()`, y limpieza visual de botones/skeletons en todos los listados.
 
-En Tailwind CSS v4, los bloques `<style scoped>` que usan `@apply` requieren la directiva `@reference "tailwindcss";` al inicio, de lo contrario el compilador no puede resolver las utilidades y lanza un error en tiempo de desarrollo.
+> Nota: quedaron sin commitear (por no estar referenciadas en el código) dos capturas de pantalla sueltas en `src/assets/` — probablemente usadas para extraer los colores del logo durante el rebrand.
 
-Archivos corregidos:
-- `src/views/empleados/EmpleadoForm.vue`
-- `src/views/planillas/PlanillaCrear.vue`
-- `src/views/planillas/PlanillaDetalle.vue`
-- `src/views/aguinaldo/AguinaldoCrear.vue`
-- `src/views/aguinaldo/AguinaldoDetalle.vue`
-
----
-
-## Historial de commits
-
+### Commits previos relevantes
 | Commit | Descripción |
 |---|---|
-| `df639d0` | fix: `@reference "tailwindcss"` en bloques `<style scoped>` con `@apply` |
-| `ab7f72a` | Cambios varios en los módulos de RRHH |
-| `e198ccd` | Cambio varios en los modulos de RRHH |
-| `da8cdd2` | fix: placeholder cédula sin guiones (max 13 dígitos) |
-| `962622e` | feat: Módulo 2 - Empleados (frontend completo) |
-| `9b8de80` | feat: Módulo 1 - Autenticación y layout base |
+| `ed2cb2c` | Módulos de empleados, planillas, banco, usuarios y exportación de PDF; corrección de bugs |
+| `df639d0` | fix: `@reference "tailwindcss"` en bloques `<style scoped>` con `@apply` (Tailwind v4) |
+| `962622e` | Módulo 2 - Empleados (frontend completo) |
+| `9b8de80` | Módulo 1 - Autenticación y layout base |
 
 ---
 
-## Estado pendiente
+## Notas de arquitectura (vigentes)
 
-- Las vistas del módulo **Incidencias** aún no existen (solo el store). Falta implementar `IncidenciasIndex`, `IncidenciaForm` y registrar las rutas.
-- Los módulos de Planillas y Aguinaldo ya están en el router pero **no aparecen en el sidebar** del `AppLayout` — pendiente agregar los ítems de navegación correspondientes.
+- **Skeleton loaders** en todas las tablas de listado mientras `loading === true`.
+- **Estado vacío** con mensaje centrado cuando la lista está vacía.
+- **Eliminación/desactivación solo en estado Activo**: el botón correspondiente se oculta con `v-if`.
+- **Formateo de fechas**: `new Date(d + 'T00:00:00')` para evitar desfase de timezone al parsear fechas ISO sin hora.
+- **Lazy-loading** de todas las vistas de módulo vía `() => import(...)` en el router.
