@@ -98,6 +98,19 @@ Actualizado 2026-08-26 junto con el nuevo cálculo de saldo del backend:
 - Al marcar "Usa salario mínimo", autocompleta `salario_base` con el valor de `/campos-variables` (`salarioMinimo`) y deshabilita el campo.
 - Spinner de carga inicial (`formLoading`) mientras se resuelven departamentos/puestos/bancos/campos-variables (y el empleado en modo edición).
 
+### Planillas — Detalle (`src/views/planillas/PlanillaDetalle.vue`, reescrito 2026-08-27)
+Reemplaza el modal grande "Editar Detalle" por una grilla estilo Excel:
+- **Agrupación por departamento** con fila de subtotal por grupo y fila de TOTAL GENERAL — computed `grupos` parte `store.planilla.detalles` (ya vienen ordenados por `departamento`) en bloques y suma cada columna numérica.
+- **Layout de tabla**: `table-layout: fixed` + `<colgroup>` con anchos en px fijos por columna — evita que un nombre de empleado o departamento largo desalinee las demás filas (el `table-layout: auto` por defecto no lo garantiza, sobre todo con filas `colspan` mezcladas con filas normales).
+- **Celdas editables directas** (días, IHSS, RAP, ISR, Crefisa, Transporte, Radios, I. Vecinal, Uniforme, Garden): `<input type="number">` dentro de la celda, `w-full` (¡no ancho fijo! — un input más angosto que la columna hace que el número no quede alineado con el encabezado), guardado en `@blur` vía `store.updateDetalle(..., { silent: true })`. El spinner nativo del input se oculta con CSS (`::-webkit-*-spin-button` + `appearance: textfield`) — en Firefox el spinner reserva espacio distinto y corría el texto fuera de la columna.
+- **Horas Extra / Otros Ingresos / Otras Deducciones**: celda clicable que abre un modal chico. Horas Extra pide la cantidad de horas y muestra el monto calculado en vivo (`salario_diario del empleado / 8 × horas`); Otros Ingresos y Otras Deducciones comparten un mismo modal (descripción + monto).
+- **Scroll**: contenedor con `max-h-[65vh] overflow-auto` (X e Y), `<thead>`/`<tfoot>` con `sticky top-0`/`sticky bottom-0` — pensado para cuando la planilla tenga 100+ empleados (encabezado y total siempre visibles).
+- **Exportar Excel**: botón nuevo junto a Exportar PDF, llama a `/planillas/{id}/excel` (mismo patrón fetch+blob que `exportarPdf`).
+- Columnas IHSS/ISR/Crefisa se ocultan cuando `tipo_planilla === 'Extras'` (no aplican a personal temporal).
+
+### `src/stores/planillas.js`
+`updateDetalle(planillaId, detalleId, payload, { silent = false } = {})` — con `silent: true` no dispara el toast de éxito (usado por el autoguardado de cada celda; sin esto sería un toast por cada campo editado).
+
 ### Departamentos / Puestos (`DepartamentosIndex.vue`)
 Reemplazado el `confirm()` nativo del navegador por un modal de confirmación propio (`showConfirm`/`confirmarDesactivar`) con estado de carga y mensaje explicando el efecto de desactivar.
 
@@ -112,6 +125,12 @@ Botón de descarga de PDF conectado a los endpoints nuevos del backend (`/incide
 ---
 
 ## Historial de sesiones / cambios
+
+### 2026-08-27 — commit `944c279`
+- `PlanillaDetalle.vue` reescrito como grilla editable estilo Excel (ver detalle arriba): agrupación por departamento con subtotales, columnas con ancho fijo (`table-fixed` + `colgroup`), edición directa en celda para campos simples, modales chicos para Horas Extra/Otros Ingresos/Otras Deducciones, scroll vertical con header/footer fijos, botón Exportar Excel.
+- Fix de alineación por navegador: se ocultó el spinner nativo de `<input type="number">` (afectaba especialmente a Firefox).
+- Corregido `.gitignore`: estaba guardado en UTF-16 y Git no aplicaba las reglas de verdad (`node_modules` no quedaba realmente ignorado). Reescrito en UTF-8 y se agregó `src/assets/recursos/` (excels de referencia con datos reales de empleados: nombres, salarios, cuentas bancarias — nunca se suben al repo).
+- Corregido el texto de `PlanillaCrear.vue` que decía "RAP e ISR calculados automáticamente" (ya no aplica).
 
 ### 2026-08-26 — commit `d356c63`
 Ver detalle completo arriba. Resumen: rebrand Hotel Palma Real y Villas, sincronización de la UI de vacaciones con el nuevo cálculo de saldo del backend, sanitizadores de input y autocompletado de salario mínimo en el formulario de empleados, descarga de PDF en incidencias y log del sistema, modal de confirmación reemplazando `confirm()`, y limpieza visual de botones/skeletons en todos los listados.
