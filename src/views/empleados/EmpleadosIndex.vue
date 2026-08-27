@@ -123,15 +123,15 @@ function formatCurrency(val) {
           <tbody>
             <!-- Loading skeleton -->
             <template v-if="store.loading">
-              <tr v-for="n in 6" :key="n" class="border-b border-gray-100">
+              <tr v-for="n in 6" :key="n" class="border-b border-slate-100">
                 <td class="px-4 py-3">
                   <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-full bg-gray-100 animate-pulse" />
-                    <div class="h-4 w-32 bg-gray-100 rounded animate-pulse" />
+                    <div class="w-9 h-9 rounded-full bg-slate-200 animate-pulse" />
+                    <div class="h-4 w-32 bg-slate-200 rounded animate-pulse" />
                   </div>
                 </td>
                 <td v-for="i in 5" :key="i" class="px-4 py-3">
-                  <div class="h-4 w-24 bg-gray-100 rounded animate-pulse" />
+                  <div class="h-4 w-24 bg-slate-200 rounded animate-pulse" />
                 </td>
                 <td class="px-4 py-3" />
               </tr>

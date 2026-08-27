@@ -86,19 +86,43 @@ async function guardar() {
   }
 }
 
-async function desactivar(tipo, item) {
+// ── modal confirmación de desactivar ─────────────────────────────────────────
+const showConfirm  = ref(false)
+const confirmItem  = ref(null)
+const confirmTipo  = ref('dept')
+const desactivando = ref(false)
+
+function desactivar(tipo, item) {
+  confirmTipo.value = tipo
+  confirmItem.value = item
+  showConfirm.value = true
+}
+
+function cancelarDesactivar() {
+  showConfirm.value = false
+  confirmItem.value = null
+}
+
+async function confirmarDesactivar() {
+  const tipo  = confirmTipo.value
+  const item  = confirmItem.value
   const label = tipo === 'dept' ? 'departamento' : 'puesto'
-  if (!confirm(`¿Desactivar el ${label} "${item.nombre}"?`)) return
+  desactivando.value = true
   try {
     tipo === 'dept'
       ? await deptStore.deleteDepartamento(item.id)
       : await puestoStore.deletePuesto(item.id)
+    cancelarDesactivar()
   } catch {
     error(`No se pudo desactivar el ${label}.`)
+    cancelarDesactivar()
+  } finally {
+    desactivando.value = false
   }
 }
 
-const modalLabel = computed(() => modalTipo.value === 'dept' ? 'departamento' : 'puesto')
+const modalLabel   = computed(() => modalTipo.value === 'dept' ? 'departamento' : 'puesto')
+const confirmLabel = computed(() => confirmTipo.value === 'dept' ? 'departamento' : 'puesto')
 </script>
 
 <template>
@@ -148,10 +172,10 @@ const modalLabel = computed(() => modalTipo.value === 'dept' ? 'departamento' : 
           <table class="w-full text-sm">
             <tbody>
               <template v-if="deptStore.loading">
-                <tr v-for="i in 4" :key="i" class="border-b border-slate-50">
-                  <td class="px-5 py-3"><div class="h-4 w-40 bg-slate-100 rounded animate-pulse" /></td>
-                  <td class="px-5 py-3"><div class="h-5 w-14 bg-slate-100 rounded-full animate-pulse" /></td>
-                  <td class="px-5 py-3"><div class="h-4 w-16 bg-slate-100 rounded animate-pulse ml-auto" /></td>
+                <tr v-for="i in 4" :key="i" class="border-b border-slate-100">
+                  <td class="px-5 py-3"><div class="h-4 w-40 bg-slate-200 rounded animate-pulse" /></td>
+                  <td class="px-5 py-3"><div class="h-5 w-14 bg-slate-200 rounded-full animate-pulse" /></td>
+                  <td class="px-5 py-3"><div class="h-4 w-16 bg-slate-200 rounded animate-pulse ml-auto" /></td>
                 </tr>
               </template>
 
@@ -176,22 +200,18 @@ const modalLabel = computed(() => modalTipo.value === 'dept' ? 'departamento' : 
                   </span>
                 </td>
                 <td class="px-5 py-3 text-right whitespace-nowrap">
-                  <button @click="abrirEditar('dept', dep)" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium mr-3 transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                    </svg>
-                    Editar
-                  </button>
-                  <button
-                    v-if="dep.estado === 'Activo'"
-                    @click="desactivar('dept', dep)"
-                    class="inline-flex items-center gap-1 text-red-500 hover:text-red-700 font-medium transition-colors"
-                  >
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
-                    </svg>
-                    Desactivar
-                  </button>
+                  <div class="flex items-center justify-end gap-1">
+                    <button @click="abrirEditar('dept', dep)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                      </svg>
+                    </button>
+                    <button v-if="dep.estado === 'Activo'" @click="desactivar('dept', dep)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Desactivar">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -235,10 +255,10 @@ const modalLabel = computed(() => modalTipo.value === 'dept' ? 'departamento' : 
           <table class="w-full text-sm">
             <tbody>
               <template v-if="puestoStore.loading">
-                <tr v-for="i in 4" :key="i" class="border-b border-slate-50">
-                  <td class="px-5 py-3"><div class="h-4 w-40 bg-slate-100 rounded animate-pulse" /></td>
-                  <td class="px-5 py-3"><div class="h-5 w-14 bg-slate-100 rounded-full animate-pulse" /></td>
-                  <td class="px-5 py-3"><div class="h-4 w-16 bg-slate-100 rounded animate-pulse ml-auto" /></td>
+                <tr v-for="i in 4" :key="i" class="border-b border-slate-100">
+                  <td class="px-5 py-3"><div class="h-4 w-40 bg-slate-200 rounded animate-pulse" /></td>
+                  <td class="px-5 py-3"><div class="h-5 w-14 bg-slate-200 rounded-full animate-pulse" /></td>
+                  <td class="px-5 py-3"><div class="h-4 w-16 bg-slate-200 rounded animate-pulse ml-auto" /></td>
                 </tr>
               </template>
 
@@ -263,22 +283,18 @@ const modalLabel = computed(() => modalTipo.value === 'dept' ? 'departamento' : 
                   </span>
                 </td>
                 <td class="px-5 py-3 text-right whitespace-nowrap">
-                  <button @click="abrirEditar('puesto', pst)" class="inline-flex items-center gap-1 text-purple-600 hover:text-purple-800 font-medium mr-3 transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                    </svg>
-                    Editar
-                  </button>
-                  <button
-                    v-if="pst.estado === 'Activo'"
-                    @click="desactivar('puesto', pst)"
-                    class="inline-flex items-center gap-1 text-red-500 hover:text-red-700 font-medium transition-colors"
-                  >
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
-                    </svg>
-                    Desactivar
-                  </button>
+                  <div class="flex items-center justify-end gap-1">
+                    <button @click="abrirEditar('puesto', pst)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                      </svg>
+                    </button>
+                    <button v-if="pst.estado === 'Activo'" @click="desactivar('puesto', pst)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Desactivar">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -352,6 +368,82 @@ const modalLabel = computed(() => modalTipo.value === 'dept' ? 'departamento' : 
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Modal confirmación inhabilitar -->
+  <Teleport to="body">
+    <div
+      v-if="showConfirm"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      @click.self="cancelarDesactivar"
+    >
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+
+        <!-- Encabezado -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800 capitalize">Inhabilitar {{ confirmLabel }}</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Esta acción cambiará el estado a inactivo</p>
+          </div>
+        </div>
+
+        <!-- Detalle -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm space-y-1">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500 capitalize">{{ confirmLabel }}</span>
+            <span class="font-semibold text-slate-800">{{ confirmItem?.nombre }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500">Estado actual</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Activo</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500">Nuevo estado</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Inactivo</span>
+          </div>
+        </div>
+
+        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Los empleados asignados a este {{ confirmLabel }} no serán afectados, pero no aparecerá en nuevas asignaciones.
+        </p>
+
+        <!-- Acciones -->
+        <div class="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            @click="cancelarDesactivar"
+            :disabled="desactivando"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            @click="confirmarDesactivar"
+            :disabled="desactivando"
+            class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+          >
+            <svg v-if="desactivando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            {{ desactivando ? 'Inhabilitando...' : 'Sí, inhabilitar' }}
+          </button>
+        </div>
+
       </div>
     </div>
   </Teleport>

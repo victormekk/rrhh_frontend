@@ -182,7 +182,7 @@ onMounted(async () => {
         <div>
           <p class="text-xs text-slate-500 font-medium leading-tight">{{ stat.label }}</p>
           <p :class="[colorMap[stat.color].num, 'text-2xl font-bold mt-0.5']">
-            <span v-if="stat.value === null" class="inline-block w-8 h-6 bg-gray-100 rounded animate-pulse" />
+            <span v-if="stat.value === null" class="inline-block w-8 h-6 bg-slate-200 rounded animate-pulse" />
             <span v-else>{{ stat.value }}</span>
           </p>
         </div>

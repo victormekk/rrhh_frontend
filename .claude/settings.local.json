@@ -21,7 +21,12 @@
       "Bash(php -r ' *)",
       "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\victo\\\\Desktop\\\\rrhh_frontend\\\\src\\\\views\\\\campos-variables\")",
       "Bash(Out-Null)",
-      "Bash(Write-Output \"ok\")"
+      "Bash(Write-Output \"ok\")",
+      "Bash(dir C:\\\\Users\\\\victo\\\\Desktop\\\\rrhh-backend\\\\routes *)",
+      "Bash(dir C:\\\\Users\\\\victo\\\\Desktop\\\\rrhh-backend\\\\app\\\\Http\\\\Controllers *)",
+      "Bash(dir C:\\\\Users\\\\victo\\\\Desktop\\\\rrhh-backend\\\\app\\\\Models *)",
+      "Bash(dir C:\\\\Users\\\\victo\\\\Desktop\\\\rrhh_frontend\\\\src\\\\stores *)",
+      "Bash(dir C:\\\\Users\\\\victo\\\\Desktop\\\\rrhh-backend\\\\database\\\\migrations *)"
     ]
   }
 }

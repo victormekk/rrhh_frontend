@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/*
+ * Paleta de marca — Hotel Palma Real
+ * Derivada del logotipo oficial (mariposa roja/naranja/amarilla + wordmark marrón/dorado).
+ * Se redefine la escala "blue" nativa de Tailwind para que TODAS las clases ya usadas en la
+ * app (bg-blue-700, focus:ring-blue-500, etc.) hereden el color de marca sin tener que
+ * reescribir cada componente.
+ *   blue-500 = dorado exacto del logo (#b9921a)  → acentos, focus rings
+ *   blue-700 = marrón exacto del logo  (#3b2b16)  → botones primarios, marca
+ */
+@theme {
+  --color-blue-50:  #faf6ec;
+  --color-blue-100: #f3e9cd;
+  --color-blue-200: #e9d6a0;
+  --color-blue-300: #dabb6c;
+  --color-blue-400: #cba046;
+  --color-blue-500: #b9921a;
+  --color-blue-600: #8c6d1e;
+  --color-blue-700: #3b2b16;
+  --color-blue-800: #241a0d;
+  --color-blue-900: #180f07;
+  --color-blue-950: #0d0904;
+}
+
 *,
 *::before,
 *::after {

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEmpleadosStore } from '../../stores/empleados'
 import api from '../../services/api'
@@ -8,9 +8,28 @@ const route   = useRoute()
 const router  = useRouter()
 const store   = useEmpleadosStore()
 
-const isEdit  = computed(() => !!route.params.id)
-const loading = ref(false)
-const error   = ref('')
+const isEdit        = computed(() => !!route.params.id)
+const loading       = ref(false)   // spinner del botón Guardar
+const formLoading   = ref(true)    // spinner mientras carga datos iniciales
+const error         = ref('')
+const salarioMinimo = ref(0)
+
+// ── Sanitizadores de input ────────────────────────────────────────────────────
+function soloLetras(field, e) {
+  const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚàèìòùÀÈÌÒÙñÑüÜ\s]/g, '')
+  form[field] = val
+  e.target.value = val
+}
+function soloDigitos(field, e) {
+  const val = e.target.value.replace(/\D/g, '')
+  form[field] = val
+  e.target.value = val
+}
+function soloTelefono(field, e) {
+  const val = e.target.value.replace(/[^0-9+\-\s()]/g, '')
+  form[field] = val
+  e.target.value = val
+}
 
 const departamentos = ref([])
 const puestos       = ref([])
@@ -33,20 +52,27 @@ const form = reactive({
   estado: 'Activo', fecha_cese: '', motivo_cese: '',
 })
 
-onMounted(async () => {
-  const [deps, pues, banc] = await Promise.all([
-    api.get('/departamentos'),
-    api.get('/puestos'),
-    api.get('/bancos'),
-  ])
-  departamentos.value = deps.data
-  puestos.value       = pues.data
-  bancos.value        = banc.data
+watch(() => form.usa_salario_minimo, (checked) => {
+  if (checked) form.salario_base = salarioMinimo.value
+})
 
-  if (isEdit.value) {
-    const emp = await store.fetchEmpleado(route.params.id)
-    const il  = emp.informacion_laboral ?? {}
-    Object.assign(form, {
+onMounted(async () => {
+  try {
+    const [deps, pues, banc, campos] = await Promise.all([
+      api.get('/departamentos'),
+      api.get('/puestos'),
+      api.get('/bancos'),
+      api.get('/campos-variables'),
+    ])
+    departamentos.value = deps.data
+    puestos.value       = pues.data
+    bancos.value        = banc.data
+    salarioMinimo.value = campos.data.salario_minimo
+
+    if (isEdit.value) {
+      const emp = await store.fetchEmpleado(route.params.id)
+      const il  = emp.informacion_laboral ?? {}
+      Object.assign(form, {
       nombres:              emp.nombres,
       apellidos:            emp.apellidos,
       cedula:               emp.cedula,
@@ -76,6 +102,9 @@ onMounted(async () => {
       num_cuenta:           il.num_cuenta ?? '',
       id_banco:             il.id_banco ?? '',
     })
+    }
+  } finally {
+    formLoading.value = false
   }
 })
 
@@ -113,7 +142,7 @@ function salariosCalculados() {
 </script>
 
 <template>
-  <div class="max-w-5xl">
+  <div>
     <!-- Header -->
     <div class="flex items-center gap-3 mb-6">
       <button @click="router.push('/empleados')" class="text-slate-400 hover:text-slate-600 transition">
@@ -124,6 +153,16 @@ function salariosCalculados() {
       <h2 class="text-xl font-bold text-slate-800">{{ isEdit ? 'Editar Empleado' : 'Nuevo Empleado' }}</h2>
     </div>
 
+    <!-- Spinner inicial (carga de departamentos, puestos, bancos, datos del empleado) -->
+    <div v-if="formLoading" class="flex flex-col items-center justify-center py-24 gap-3 bg-white rounded-xl border border-slate-200">
+      <svg class="w-10 h-10 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+      </svg>
+      <p class="text-sm text-slate-500">{{ isEdit ? 'Cargando datos del empleado...' : 'Preparando formulario...' }}</p>
+    </div>
+
+    <template v-else>
     <!-- Error -->
     <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-5 text-sm">
       {{ error }}
@@ -138,20 +177,20 @@ function salariosCalculados() {
 
           <div>
             <label class="label">Nombres <span class="text-red-500">*</span></label>
-            <input v-model="form.nombres" required maxlength="30" class="input" placeholder="Ej. Juan Carlos" />
+            <input :value="form.nombres" @input="soloLetras('nombres', $event)" required maxlength="30" class="input" placeholder="Ej. Juan Carlos" autocomplete="off" />
           </div>
           <div>
             <label class="label">Apellidos <span class="text-red-500">*</span></label>
-            <input v-model="form.apellidos" required maxlength="30" class="input" placeholder="Ej. García López" />
+            <input :value="form.apellidos" @input="soloLetras('apellidos', $event)" required maxlength="30" class="input" placeholder="Ej. García López" autocomplete="off" />
           </div>
           <div>
             <label class="label">DNI <span class="text-red-500">*</span></label>
-            <input v-model="form.cedula" required maxlength="13" class="input font-mono" placeholder="0000000000000" />
+            <input :value="form.cedula" @input="soloDigitos('cedula', $event)" required maxlength="13" inputmode="numeric" class="input font-mono" placeholder="0000000000000" autocomplete="off" />
           </div>
 
           <div>
             <label class="label">RTN</label>
-            <input v-model="form.rtn" maxlength="14" class="input font-mono" placeholder="00000000000000" />
+            <input :value="form.rtn" @input="soloDigitos('rtn', $event)" maxlength="14" inputmode="numeric" class="input font-mono" placeholder="00000000000000" autocomplete="off" />
           </div>
           <div>
             <label class="label">Sexo <span class="text-red-500">*</span></label>
@@ -179,7 +218,7 @@ function salariosCalculados() {
           </div>
           <div>
             <label class="label">N° de Hijos</label>
-            <input v-model.number="form.num_hijos" type="number" min="0" class="input" />
+            <input v-model.number="form.num_hijos" type="number" min="0" step="1" class="input" />
           </div>
           <div>
             <label class="label">Tipo de Sangre <span class="text-red-500">*</span></label>
@@ -191,7 +230,7 @@ function salariosCalculados() {
 
           <div>
             <label class="label">Nacionalidad <span class="text-red-500">*</span></label>
-            <input v-model="form.nacionalidad" required maxlength="50" class="input" />
+            <input :value="form.nacionalidad" @input="soloLetras('nacionalidad', $event)" required maxlength="50" class="input" autocomplete="off" />
           </div>
           <div class="sm:col-span-2">
             <label class="label">Residencia <span class="text-red-500">*</span></label>
@@ -200,15 +239,15 @@ function salariosCalculados() {
 
           <div>
             <label class="label">Teléfono <span class="text-red-500">*</span></label>
-            <input v-model="form.telefono" required maxlength="20" class="input" placeholder="+504 0000-0000" />
+            <input :value="form.telefono" @input="soloTelefono('telefono', $event)" required maxlength="20" inputmode="tel" class="input" placeholder="+504 0000-0000" autocomplete="off" />
           </div>
           <div>
             <label class="label">Contacto de Emergencia <span class="text-red-500">*</span></label>
-            <input v-model="form.contacto_emergencia" required maxlength="50" class="input" />
+            <input :value="form.contacto_emergencia" @input="soloLetras('contacto_emergencia', $event)" required maxlength="50" class="input" autocomplete="off" />
           </div>
           <div>
             <label class="label">Teléfono Emergencia <span class="text-red-500">*</span></label>
-            <input v-model="form.telefono_emergencia" required maxlength="30" class="input" />
+            <input :value="form.telefono_emergencia" @input="soloTelefono('telefono_emergencia', $event)" required maxlength="30" inputmode="tel" class="input" autocomplete="off" />
           </div>
 
           <div class="sm:col-span-2">
@@ -274,13 +313,27 @@ function salariosCalculados() {
             </select>
           </div>
           <div>
-            <label class="label">Salario Base <span class="text-red-500">*</span></label>
-            <input v-model="form.salario_base" type="number" step="0.01" min="0" required class="input" placeholder="0.00" />
+            <label class="label">
+              Salario Base <span class="text-red-500">*</span>
+              <span v-if="form.usa_salario_minimo" class="ml-2 text-xs font-normal text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                Salario mínimo
+              </span>
+            </label>
+            <input
+              v-model="form.salario_base"
+              type="number" step="0.01" min="0" required
+              :disabled="form.usa_salario_minimo"
+              :class="['input', form.usa_salario_minimo ? 'bg-blue-50 text-blue-700 cursor-not-allowed' : '']"
+              placeholder="0.00"
+            />
           </div>
           <div class="flex items-end pb-0.5">
-            <label class="flex items-center gap-2 cursor-pointer">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
               <input v-model="form.usa_salario_minimo" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-blue-600" />
-              <span class="text-sm text-slate-700">Usa salario mínimo</span>
+              <span class="text-sm text-slate-700">
+                Usa salario mínimo
+                <span class="text-xs text-slate-400 ml-1">(L {{ Number(salarioMinimo).toLocaleString('es-HN', {minimumFractionDigits:2}) }})</span>
+              </span>
             </label>
           </div>
 
@@ -350,6 +403,7 @@ function salariosCalculados() {
         </button>
       </div>
     </form>
+    </template>
   </div>
 </template>
 

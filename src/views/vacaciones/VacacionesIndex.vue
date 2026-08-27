@@ -77,6 +77,28 @@ const diasCalculados = computed(() => {
   return dias
 })
 
+// Saldo real disponible: cuando se edita, devolver los días originales al conteo
+const saldoEfectivo = computed(() => {
+  const base = store.saldo?.saldo ?? 0
+  return editando.value ? base + (editando.value.dias_tomados ?? 0) : base
+})
+
+// Fecha máxima de fin que agota exactamente el saldo disponible (excluye domingos)
+const fechaMaxFin = computed(() => {
+  if (!form.value.fecha_inicio || saldoEfectivo.value <= 0) return ''
+  const cur = new Date(form.value.fecha_inicio + 'T00:00:00')
+  let count = 0
+  while (count < saldoEfectivo.value) {
+    if (cur.getDay() !== 0) count++
+    if (count < saldoEfectivo.value) cur.setDate(cur.getDate() + 1)
+  }
+  return cur.toISOString().slice(0, 10)
+})
+
+const excedeSaldo = computed(() =>
+  diasCalculados.value > 0 && diasCalculados.value > saldoEfectivo.value
+)
+
 function abrirCrear() {
   editando.value   = null
   form.value       = { fecha_inicio: '', fecha_fin: '', observaciones: '' }
@@ -115,7 +137,7 @@ async function guardar() {
     }
     cerrarModal()
     await Promise.all([
-      store.fetchSaldo(store.empleado.id),
+      store.fetchSaldo(store.empleado.id, { silent: true }),
       store.fetchSolicitudes({ id_empleado: store.empleado.id }),
     ])
   } catch (e) {
@@ -130,7 +152,7 @@ async function eliminar(sol) {
   try {
     await store.deleteSolicitud(sol.id)
     await Promise.all([
-      store.fetchSaldo(store.empleado.id),
+      store.fetchSaldo(store.empleado.id, { silent: true }),
       store.fetchSolicitudes({ id_empleado: store.empleado.id }),
     ])
   } catch {
@@ -138,11 +160,25 @@ async function eliminar(sol) {
   }
 }
 
-async function cambiarPagina(url) {
-  if (!url) return
-  const page = new URL(url).searchParams.get('page')
+async function irPagina(page) {
   await store.fetchSolicitudes({ id_empleado: store.empleado.id, page })
 }
+
+// Páginas numeradas con ellipsis
+const paginationPages = computed(() => {
+  const last = store.pagination?.last_page ?? 1
+  const cur  = store.pagination?.current_page ?? 1
+  if (last <= 1) return []
+  if (last <= 7) return Array.from({ length: last }, (_, i) => i + 1)
+
+  const pages = []
+  pages.push(1)
+  if (cur > 3) pages.push(null)
+  for (let p = Math.max(2, cur - 1); p <= Math.min(last - 1, cur + 2); p++) pages.push(p)
+  if (cur < last - 2) pages.push(null)
+  pages.push(last)
+  return pages
+})
 
 const descargandoPdf = ref(null)
 
@@ -243,11 +279,12 @@ function formatDate(d) {
 
     <!-- ── Panel del empleado seleccionado ──────────────────────────────────── -->
     <template v-if="store.loadingSaldo">
-      <div class="flex justify-center py-12">
-        <svg class="w-8 h-8 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+      <div class="flex flex-col items-center justify-center py-16 gap-3 bg-white rounded-xl border border-slate-200">
+        <svg class="w-10 h-10 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
         </svg>
+        <p class="text-sm text-slate-500">Cargando saldo de vacaciones...</p>
       </div>
     </template>
 
@@ -272,13 +309,17 @@ function formatDate(d) {
           <!-- Métricas de saldo -->
           <div class="flex gap-4 sm:gap-6 text-center">
             <div>
-              <p class="text-2xl font-bold text-blue-700">{{ store.saldo?.dias_por_ley ?? 0 }}</p>
-              <p class="text-xs text-slate-500">Por ley</p>
+              <p class="text-2xl font-bold" :class="(store.saldo?.dias_previos ?? 0) > 0 ? 'text-indigo-600' : 'text-slate-300'">
+                {{ store.saldo?.dias_previos ?? 0 }}
+              </p>
+              <p class="text-xs text-slate-500">Previos</p>
             </div>
             <div class="w-px bg-slate-200"></div>
             <div>
-              <p class="text-2xl font-bold text-slate-600">{{ store.saldo?.dias_tomados ?? 0 }}</p>
-              <p class="text-xs text-slate-500">Tomados</p>
+              <p class="text-2xl font-bold" :class="(store.saldo?.dias_anio_actual ?? 0) > 0 ? 'text-blue-700' : 'text-slate-300'">
+                {{ store.saldo?.dias_anio_actual ?? 0 }}
+              </p>
+              <p class="text-xs text-slate-500">Del período</p>
             </div>
             <div class="w-px bg-slate-200"></div>
             <div>
@@ -304,11 +345,23 @@ function formatDate(d) {
           <p v-else class="text-xs text-red-600 font-medium">Sin saldo disponible</p>
         </div>
 
-        <!-- Período activo -->
-        <div v-if="store.saldo?.periodo_inicio" class="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
-          Período vacacional activo:
-          <span class="font-medium text-slate-700">
-            {{ formatDate(store.saldo.periodo_inicio) }} — {{ formatDate(store.saldo.periodo_fin) }}
+        <!-- Período aniversario actual + detalle de tomados -->
+        <div v-if="store.saldo?.periodo_inicio" class="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
+          <span>
+            Período actual:
+            <span class="font-medium text-slate-700">
+              {{ formatDate(store.saldo.periodo_inicio) }} — {{ formatDate(store.saldo.periodo_fin) }}
+            </span>
+          </span>
+          <span class="text-slate-300">·</span>
+          <span>
+            Tomados este período:
+            <span class="font-medium text-slate-600">{{ store.saldo.dias_tomados_periodo ?? 0 }}</span>
+          </span>
+          <span class="text-slate-300">·</span>
+          <span>
+            Tomados histórico:
+            <span class="font-medium text-slate-600">{{ store.saldo.dias_tomados ?? 0 }}</span>
           </span>
         </div>
       </div>
@@ -318,7 +371,7 @@ function formatDate(d) {
         <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <h3 class="font-semibold text-slate-700">Historial de solicitudes</h3>
           <span class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
-            {{ store.solicitudes.length }} registros
+            {{ store.pagination?.total ?? store.solicitudes.length }} registros
           </span>
         </div>
 
@@ -365,6 +418,7 @@ function formatDate(d) {
                 {{ sol.observaciones || '—' }}
               </td>
               <td class="px-5 py-3 text-right whitespace-nowrap">
+                <div class="flex items-center justify-end gap-1">
                 <button
                   @click="descargarPdf(sol)"
                   :disabled="descargandoPdf === sol.id"
@@ -380,34 +434,63 @@ function formatDate(d) {
                   </svg>
                   {{ descargandoPdf === sol.id ? '...' : 'PDF' }}
                 </button>
-                <button @click="abrirEditar(sol)" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium mr-3 transition-colors">
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                <button @click="abrirEditar(sol)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                   </svg>
-                  Editar
                 </button>
-                <button @click="eliminar(sol)" class="inline-flex items-center gap-1 text-red-500 hover:text-red-700 font-medium transition-colors">
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                <button @click="eliminar(sol)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                   </svg>
-                  Eliminar
                 </button>
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
 
-        <!-- Paginación -->
-        <div v-if="store.pagination?.last_page > 1" class="px-5 py-3 border-t border-slate-200 flex items-center justify-between">
+        <!-- Paginación numerada -->
+        <div v-if="paginationPages.length > 0" class="px-5 py-3 border-t border-slate-200 flex items-center justify-between">
           <span class="text-xs text-slate-500">
             Mostrando {{ store.pagination.from }}–{{ store.pagination.to }} de {{ store.pagination.total }}
           </span>
           <div class="flex items-center gap-1">
-            <button @click="cambiarPagina(store.pagination.prev_page_url)" :disabled="!store.pagination.prev_page_url"
-              class="px-3 py-1.5 text-xs border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition">Anterior</button>
-            <span class="text-xs text-slate-600 px-2">{{ store.pagination.current_page }} / {{ store.pagination.last_page }}</span>
-            <button @click="cambiarPagina(store.pagination.next_page_url)" :disabled="!store.pagination.next_page_url"
-              class="px-3 py-1.5 text-xs border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition">Siguiente</button>
+            <!-- Anterior -->
+            <button
+              @click="irPagina(store.pagination.current_page - 1)"
+              :disabled="store.pagination.current_page <= 1 || store.loading"
+              class="h-8 w-8 flex items-center justify-center rounded border border-slate-300 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+
+            <!-- Números + ellipsis -->
+            <template v-for="(page, i) in paginationPages" :key="i">
+              <span v-if="page === null" class="h-8 w-6 flex items-end justify-center pb-1.5 text-slate-400 text-xs select-none">…</span>
+              <button
+                v-else
+                @click="irPagina(page)"
+                :disabled="store.loading"
+                :class="page === store.pagination.current_page
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'border-slate-300 text-slate-600 hover:bg-slate-50'"
+                class="h-8 min-w-[32px] px-2 text-xs border rounded transition disabled:opacity-60"
+              >{{ page }}</button>
+            </template>
+
+            <!-- Siguiente -->
+            <button
+              @click="irPagina(store.pagination.current_page + 1)"
+              :disabled="store.pagination.current_page >= store.pagination.last_page || store.loading"
+              class="h-8 w-8 flex items-center justify-center rounded border border-slate-300 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -465,15 +548,33 @@ function formatDate(d) {
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Fecha fin <span class="text-red-500">*</span></label>
-              <input v-model="form.fecha_fin" type="date" :min="form.fecha_inicio"
+              <input v-model="form.fecha_fin" type="date" :min="form.fecha_inicio" :max="fechaMaxFin || undefined"
                 class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
+              <p v-if="fechaMaxFin && form.fecha_inicio" class="text-xs mt-1" :class="excedeSaldo ? 'text-red-500' : 'text-slate-400'">
+                Máx. con saldo disponible: <span class="font-medium">{{ formatDate(fechaMaxFin) }}</span>
+              </p>
             </div>
           </div>
 
-          <!-- Días calculados -->
-          <div v-if="diasCalculados > 0" class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 flex items-center justify-between">
-            <span class="text-sm text-blue-700">Días a tomar</span>
-            <span class="text-xl font-bold text-blue-700">{{ diasCalculados }}</span>
+          <!-- Días calculados + advertencia de saldo -->
+          <div
+            v-if="diasCalculados > 0"
+            class="border rounded-lg px-4 py-2.5"
+            :class="excedeSaldo ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'"
+          >
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-sm font-medium" :class="excedeSaldo ? 'text-red-700' : 'text-blue-700'">
+                  Días a tomar
+                </span>
+                <p v-if="excedeSaldo" class="text-xs text-red-600 mt-0.5">
+                  Excede el saldo: solo {{ saldoEfectivo }} día{{ saldoEfectivo === 1 ? '' : 's' }} disponible{{ saldoEfectivo === 1 ? '' : 's' }}
+                </p>
+              </div>
+              <span class="text-xl font-bold" :class="excedeSaldo ? 'text-red-700' : 'text-blue-700'">
+                {{ diasCalculados }}
+              </span>
+            </div>
           </div>
 
           <!-- Observaciones -->

@@ -4,7 +4,7 @@ import api from '../services/api'
 import { useToast } from '../composables/useToast'
 
 export const useIncidenciasStore = defineStore('incidencias', () => {
-  const { success, error } = useToast()
+  const { success, error, info } = useToast()
 
   const incidencias = ref([])
   const pagination  = ref(null)
@@ -43,9 +43,27 @@ export const useIncidenciasStore = defineStore('incidencias', () => {
     success('Incidencia eliminada.')
   }
 
+  async function downloadPdf(id, nombres = '', apellidos = '') {
+    const { data } = await api.get(`/incidencias/${id}/pdf`, { responseType: 'blob' })
+    const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
+    const d = new Date()
+    const dd = String(d.getDate()).padStart(2, '0')
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const filename = `${dd}${mm}${d.getFullYear()}-${norm(nombres)}+${norm(apellidos)}-incidencia.pdf`
+    const url = URL.createObjectURL(data)
+    const a   = document.createElement('a')
+    a.href     = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
+    info('PDF descargado.')
+  }
+
   return {
     incidencias, pagination, loading,
     fetchIncidencias, buscarEmpleados,
-    createIncidencia, updateIncidencia, deleteIncidencia,
+    createIncidencia, updateIncidencia, deleteIncidencia, downloadPdf,
   }
 })

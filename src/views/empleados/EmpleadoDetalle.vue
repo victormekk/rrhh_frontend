@@ -86,8 +86,12 @@ function estadoClass(estado) {
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="flex justify-center py-16">
-      <div class="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+    <div v-if="loading" class="flex flex-col items-center justify-center py-24 gap-3 bg-white rounded-xl border border-slate-200">
+      <svg class="w-10 h-10 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+      </svg>
+      <p class="text-sm text-slate-500">Cargando ficha del empleado...</p>
     </div>
 
     <template v-else-if="store.empleado">

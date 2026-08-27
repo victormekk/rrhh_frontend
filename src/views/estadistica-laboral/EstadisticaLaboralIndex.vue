@@ -309,15 +309,11 @@ function tipoBadge(tipo) {
                 <td class="px-4 py-3 text-right text-red-500 tabular-nums">– {{ formatLPS(row.total_deducciones) }}</td>
                 <td class="px-5 py-3 text-right font-semibold text-emerald-700 tabular-nums">{{ formatLPS(row.total_salario_neto) }}</td>
                 <td class="px-4 py-3 text-right">
-                  <button
-                    @click="verDetalle(row)"
-                    class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors whitespace-nowrap"
-                  >
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/>
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                  <button @click="verDetalle(row)" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" title="Ver detalle">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                    Ver
                   </button>
                 </td>
               </tr>
@@ -385,7 +381,7 @@ function tipoBadge(tipo) {
             </template>
             <div v-else class="space-y-1.5">
               <div class="h-4 w-48 bg-slate-200 rounded animate-pulse"></div>
-              <div class="h-3 w-32 bg-slate-100 rounded animate-pulse"></div>
+              <div class="h-3 w-32 bg-slate-200 rounded animate-pulse"></div>
             </div>
           </div>
           <button @click="showDetalle = false" class="text-slate-400 hover:text-slate-600 transition mt-0.5">
@@ -419,11 +415,12 @@ function tipoBadge(tipo) {
         <div class="overflow-y-auto flex-1">
 
           <!-- Loading -->
-          <div v-if="store.loadingDetalle" class="flex items-center justify-center py-16">
-            <svg class="animate-spin w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24">
+          <div v-if="store.loadingDetalle" class="flex flex-col items-center justify-center py-16 gap-3">
+            <svg class="animate-spin w-10 h-10 text-blue-600" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
             </svg>
+            <p class="text-sm text-slate-500">Cargando detalle...</p>
           </div>
 
           <table v-else-if="store.detalle" class="w-full text-sm">

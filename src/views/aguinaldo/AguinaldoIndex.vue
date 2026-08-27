@@ -93,9 +93,9 @@ function formatDate(d) {
           </thead>
           <tbody>
             <template v-if="store.loading">
-              <tr v-for="n in 4" :key="n" class="border-b border-gray-100">
+              <tr v-for="n in 4" :key="n" class="border-b border-slate-100">
                 <td v-for="i in 7" :key="i" class="px-4 py-3">
-                  <div class="h-4 bg-gray-100 rounded animate-pulse" />
+                  <div class="h-4 bg-slate-200 rounded animate-pulse" />
                 </td>
               </tr>
             </template>

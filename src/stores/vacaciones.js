@@ -24,14 +24,14 @@ export const useVacacionesStore = defineStore('vacaciones', () => {
     }
   }
 
-  async function fetchSaldo(id) {
-    loadingSaldo.value = true
+  async function fetchSaldo(id, { silent = false } = {}) {
+    if (!silent) loadingSaldo.value = true
     try {
       const { data } = await api.get(`/vacaciones/saldo/${id}`)
       empleado.value = data.empleado
       saldo.value    = data.saldo
     } finally {
-      loadingSaldo.value = false
+      if (!silent) loadingSaldo.value = false
     }
   }
 
