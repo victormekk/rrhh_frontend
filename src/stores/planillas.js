@@ -34,14 +34,14 @@ export const usePlanillasStore = defineStore('planillas', () => {
     return data
   }
 
-  async function updateDetalle(planillaId, detalleId, payload) {
+  async function updateDetalle(planillaId, detalleId, payload, { silent = false } = {}) {
     const { data } = await api.put(`/planillas/${planillaId}/detalles/${detalleId}`, payload)
     // Actualizar el detalle en el store local
     if (planilla.value) {
       const idx = planilla.value.detalles.findIndex(d => d.id === detalleId)
       if (idx !== -1) planilla.value.detalles[idx] = data
     }
-    success('Detalle actualizado.')
+    if (!silent) success('Detalle actualizado.')
     return data
   }
 

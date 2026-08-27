@@ -118,7 +118,7 @@ async function submit() {
           <p class="font-semibold mb-1">¿Qué se generará?</p>
           <ul class="list-disc list-inside space-y-0.5 text-xs">
             <li>Una fila por cada empleado <strong>Activo</strong> en el sistema</li>
-            <li>IHSS (3.5%), RAP (1.5%) e ISR calculados automáticamente</li>
+            <li>IHSS fijo según Campos Variables; RAP, ISR y demás deducciones se editan por empleado</li>
             <li v-if="form.tipo_planilla === 'Fijos'">15 días trabajados por defecto (planilla Fijos)</li>
             <li v-else>0 días trabajados — editable manualmente por empleado</li>
             <li>Cuotas de deducciones activas incluidas automáticamente</li>
