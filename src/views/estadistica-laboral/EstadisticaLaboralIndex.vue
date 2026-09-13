@@ -109,7 +109,7 @@ function tipoBadge(tipo) {
         v-if="buscado && store.rows.length > 0"
         @click="exportarPdf"
         :disabled="store.exportando"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors flex-shrink-0"
+        class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors flex-shrink-0"
       >
         <svg v-if="store.exportando" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
