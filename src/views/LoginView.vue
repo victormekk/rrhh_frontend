@@ -20,7 +20,9 @@ async function handleLogin() {
     router.push('/dashboard')
   } catch (e) {
     const status = e.response?.status
-    if (status >= 500) {
+    if (!e.response) {
+      error.value = 'No se pudo conectar con el servidor. Verifique su conexión e intente nuevamente.'
+    } else if (status >= 500) {
       error.value = 'Error interno del servidor. Intente más tarde.'
     } else {
       error.value = e.response?.data?.errors?.email?.[0]
