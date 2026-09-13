@@ -17,6 +17,7 @@ const AguinaldoIndex  = () => import('../views/aguinaldo/AguinaldoIndex.vue')
 const DepartamentosIndex = () => import('../views/departamentos/DepartamentosIndex.vue')
 const BancosIndex        = () => import('../views/bancos/BancosIndex.vue')
 const IncidenciasIndex   = () => import('../views/incidencias/IncidenciasIndex.vue')
+const ConstanciasIndex   = () => import('../views/constancias/ConstanciasIndex.vue')
 const VacacionesIndex    = () => import('../views/vacaciones/VacacionesIndex.vue')
 
 const AguinaldoCrear   = () => import('../views/aguinaldo/AguinaldoCrear.vue')
@@ -89,6 +90,14 @@ const router = createRouter({
           name: 'incidencias',
           component: IncidenciasIndex,
           meta: { requiresAuth: true, title: 'Incidencias' },
+        },
+
+        // Constancias
+        {
+          path: 'constancias',
+          name: 'constancias',
+          component: ConstanciasIndex,
+          meta: { requiresAuth: true, title: 'Constancias' },
         },
 
         // Bancos
