@@ -60,13 +60,33 @@ const totales = computed(() => sumarCampos(store.planilla?.detalles ?? []))
 // ── Edición directa en celda (números simples: días, IHSS, RAP, ISR, etc.) ───
 async function onBlurCampo(detalle, campo, event) {
   const valor = Number(event.target.value)
-  if (Number.isNaN(valor) || valor === Number(detalle[campo])) return
+  if (Number.isNaN(valor)) {
+    event.target.value = detalle[campo]
+    return
+  }
+  if (valor === Number(detalle[campo])) return
   try {
     await store.updateDetalle(route.params.id, detalle.id, { [campo]: valor }, { silent: true })
   } catch (e) {
     event.target.value = detalle[campo]
     error(e.response?.data?.message ?? 'No se pudo guardar el cambio.')
   }
+}
+
+// Enter en "Días": guarda (dispara el @blur normal) y salta al mismo campo del siguiente empleado
+function onEnterDias(detalle, event) {
+  const detalles  = store.planilla?.detalles ?? []
+  const idx       = detalles.findIndex(d => d.id === detalle.id)
+  const siguiente = detalles[idx + 1]
+  event.target.blur()
+  if (!siguiente) return
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`input[data-dias-id="${siguiente.id}"]`)
+    if (el) {
+      el.focus()
+      el.select()
+    }
+  })
 }
 
 // ── Modal chico: Horas Extra ──────────────────────────────────────────────────
@@ -194,6 +214,15 @@ function fmt(val) {
   return 'L ' + Number(val).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function netoClass(val) {
+  return Number(val) < 0 ? 'text-red-600' : 'text-emerald-700'
+}
+
+// Variante para fondos oscuros (footer de totales, bg-slate-800)
+function netoClassDark(val) {
+  return Number(val) < 0 ? 'text-red-400' : 'text-emerald-300'
+}
+
 function fmtDate(d) {
   if (!d) return '—'
   const date = new Date(String(d).slice(0, 10) + 'T00:00:00')
@@ -242,7 +271,7 @@ function fmtDate(d) {
           </div>
           <div>
             <span class="text-slate-400">Total Neto</span>
-            <p class="font-bold text-emerald-700 text-base mt-0.5">{{ fmt(totales.salario_neto) }}</p>
+            <p :class="netoClass(totales.salario_neto)" class="font-bold text-base mt-0.5">{{ fmt(totales.salario_neto) }}</p>
           </div>
           <div>
             <span class="text-slate-400">Estado</span>
@@ -362,8 +391,11 @@ function fmtDate(d) {
                   </td>
                   <td class="px-1 py-1">
                     <input
-                      v-if="!esCerrada" type="number" min="0" max="30" :value="d.dias_trabajados"
-                      @blur="onBlurCampo(d, 'dias_trabajados', $event)" @keyup.enter="$event.target.blur()"
+                      v-if="!esCerrada" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
+                      :value="d.dias_trabajados || ''" placeholder="0"
+                      :data-dias-id="d.id"
+                      @focus="$event.target.select()"
+                      @blur="onBlurCampo(d, 'dias_trabajados', $event)" @keyup.enter="onEnterDias(d, $event)"
                       class="celda-input" />
                     <span v-else class="celda-texto">{{ d.dias_trabajados }}</span>
                   </td>
@@ -390,39 +422,39 @@ function fmtDate(d) {
                   </td>
 
                   <td v-if="mostrarColumnasFijos" class="px-1 py-1">
-                    <input v-if="!esCerrada" type="number" min="0" step="0.01" :value="d.ihss" @blur="onBlurCampo(d, 'ihss', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.ihss" @blur="onBlurCampo(d, 'ihss', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.ihss) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="number" min="0" step="0.01" :value="d.retencion_ahorro" @blur="onBlurCampo(d, 'retencion_ahorro', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.retencion_ahorro" @blur="onBlurCampo(d, 'retencion_ahorro', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.retencion_ahorro) }}</span>
                   </td>
                   <td v-if="mostrarColumnasFijos" class="px-1 py-1">
-                    <input v-if="!esCerrada" type="number" min="0" step="0.01" :value="d.isr" @blur="onBlurCampo(d, 'isr', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.isr" @blur="onBlurCampo(d, 'isr', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.isr) }}</span>
                   </td>
                   <td v-if="mostrarColumnasFijos" class="px-1 py-1">
-                    <input v-if="!esCerrada" type="number" min="0" step="0.01" :value="d.crefisa" @blur="onBlurCampo(d, 'crefisa', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.crefisa" @blur="onBlurCampo(d, 'crefisa', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.crefisa) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="number" min="0" step="0.01" :value="d.transporte" @blur="onBlurCampo(d, 'transporte', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.transporte" @blur="onBlurCampo(d, 'transporte', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.transporte) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="number" min="0" step="0.01" :value="d.radios" @blur="onBlurCampo(d, 'radios', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.radios" @blur="onBlurCampo(d, 'radios', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.radios) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="number" min="0" step="0.01" :value="d.i_vecinal" @blur="onBlurCampo(d, 'i_vecinal', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.i_vecinal" @blur="onBlurCampo(d, 'i_vecinal', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.i_vecinal) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="number" min="0" step="0.01" :value="d.uniforme" @blur="onBlurCampo(d, 'uniforme', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.uniforme" @blur="onBlurCampo(d, 'uniforme', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.uniforme) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="number" min="0" step="0.01" :value="d.garden" @blur="onBlurCampo(d, 'garden', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.garden" @blur="onBlurCampo(d, 'garden', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.garden) }}</span>
                   </td>
 
@@ -437,7 +469,7 @@ function fmtDate(d) {
                   </td>
 
                   <td class="px-3 py-1.5 text-right font-medium text-red-600">{{ fmt(d.deduccion_neta) }}</td>
-                  <td class="px-3 py-1.5 text-right font-bold text-emerald-700">{{ fmt(d.salario_neto) }}</td>
+                  <td :class="netoClass(d.salario_neto)" class="px-3 py-1.5 text-right font-bold">{{ fmt(d.salario_neto) }}</td>
                 </tr>
 
                 <!-- Subtotal del departamento -->
@@ -458,7 +490,7 @@ function fmtDate(d) {
                   <td class="px-2 py-1.5 text-right">{{ fmt(grupo.subtotal.garden) }}</td>
                   <td class="px-2 py-1.5 text-right">{{ fmt(grupo.subtotal.otras_deducciones) }}</td>
                   <td class="px-3 py-1.5 text-right text-red-700">{{ fmt(grupo.subtotal.deduccion_neta) }}</td>
-                  <td class="px-3 py-1.5 text-right text-emerald-700">{{ fmt(grupo.subtotal.salario_neto) }}</td>
+                  <td :class="netoClass(grupo.subtotal.salario_neto)" class="px-3 py-1.5 text-right">{{ fmt(grupo.subtotal.salario_neto) }}</td>
                 </tr>
               </tbody>
             </template>
@@ -481,7 +513,7 @@ function fmtDate(d) {
                 <td class="px-2 py-2.5 text-right">{{ fmt(totales.garden) }}</td>
                 <td class="px-2 py-2.5 text-right">{{ fmt(totales.otras_deducciones) }}</td>
                 <td class="px-3 py-2.5 text-right text-red-300">{{ fmt(totales.deduccion_neta) }}</td>
-                <td class="px-3 py-2.5 text-right text-emerald-300 text-sm">{{ fmt(totales.salario_neto) }}</td>
+                <td :class="netoClassDark(totales.salario_neto)" class="px-3 py-2.5 text-right text-sm">{{ fmt(totales.salario_neto) }}</td>
               </tr>
             </tfoot>
           </table>
@@ -504,7 +536,7 @@ function fmtDate(d) {
           </div>
 
           <label class="field-label">¿Cuántas horas extra trabajó?</label>
-          <input v-model.number="modalHoras.horas" type="number" min="0" step="0.5" class="field-input" autofocus />
+          <input v-model.number="modalHoras.horas" type="text" inputmode="decimal" class="field-input" autofocus />
 
           <div class="bg-slate-50 rounded-xl p-3 mt-3 text-center">
             <p class="text-xs text-slate-400 mb-0.5">Monto calculado (salario diario ÷ 8 × horas)</p>
@@ -545,7 +577,7 @@ function fmtDate(d) {
             </div>
             <div>
               <label class="field-label">Monto (L)</label>
-              <input v-model.number="modalMonto.monto" type="number" min="0" step="0.01" class="field-input" />
+              <input v-model.number="modalMonto.monto" type="text" inputmode="decimal" class="field-input" />
             </div>
           </div>
 
@@ -577,9 +609,4 @@ function fmtDate(d) {
 table th, table td { white-space: nowrap; }
 table td.truncate  { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* El spinner nativo de <input type="number"> reserva espacio distinto en cada navegador
-   (muy notorio en Firefox) y corre el texto right-aligned fuera del borde de la columna. */
-.celda-input::-webkit-outer-spin-button,
-.celda-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.celda-input { -moz-appearance: textfield; appearance: textfield; }
 </style>

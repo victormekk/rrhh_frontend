@@ -218,7 +218,7 @@ function salariosCalculados() {
           </div>
           <div>
             <label class="label">N° de Hijos</label>
-            <input v-model.number="form.num_hijos" type="number" min="0" step="1" class="input" />
+            <input v-model.number="form.num_hijos" type="text" inputmode="numeric" pattern="[0-9]*" class="input" />
           </div>
           <div>
             <label class="label">Tipo de Sangre <span class="text-red-500">*</span></label>
@@ -321,7 +321,7 @@ function salariosCalculados() {
             </label>
             <input
               v-model="form.salario_base"
-              type="number" step="0.01" min="0" required
+              type="text" inputmode="decimal" required
               :disabled="form.usa_salario_minimo"
               :class="['input', form.usa_salario_minimo ? 'bg-blue-50 text-blue-700 cursor-not-allowed' : '']"
               placeholder="0.00"

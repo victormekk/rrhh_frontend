@@ -160,7 +160,7 @@ function formatDate(d) {
               </td>
               <td class="px-4 py-3 text-slate-600">{{ formatDate(p.fecha_generada) }}</td>
               <td class="px-4 py-3 text-right text-slate-700 font-medium">{{ p.detalles_count }}</td>
-              <td class="px-4 py-3 text-right font-semibold text-slate-800">{{ formatCurrency(p.detalles_sum_salario_neto) }}</td>
+              <td :class="Number(p.detalles_sum_salario_neto) < 0 ? 'text-red-600' : 'text-slate-800'" class="px-4 py-3 text-right font-semibold">{{ formatCurrency(p.detalles_sum_salario_neto) }}</td>
               <td class="px-4 py-3">
                 <span :class="[estadoClass(p.estado), 'text-xs font-medium px-2.5 py-1 rounded-full']">
                   {{ p.estado }}

@@ -290,11 +290,11 @@ function fmt(val) {
           <div class="space-y-3">
             <div>
               <label class="label">Días Trabajados</label>
-              <input v-model.number="modalForm.dias_trabajados" type="number" min="0" max="365" class="input" />
+              <input v-model.number="modalForm.dias_trabajados" type="text" inputmode="numeric" pattern="[0-9]*" class="input" />
             </div>
             <div>
               <label class="label">Anticipo (L)</label>
-              <input v-model.number="modalForm.anticipo" type="number" min="0" step="0.01" class="input" />
+              <input v-model.number="modalForm.anticipo" type="text" inputmode="decimal" class="input" />
             </div>
             <div class="bg-blue-50 rounded-lg p-3 text-sm">
               <span class="text-slate-500">Total calculado:</span>
@@ -308,15 +308,15 @@ function fmt(val) {
           <div class="space-y-3">
             <div>
               <label class="label">Días Promedio</label>
-              <input v-model.number="modalForm.dias_promedio" type="number" min="0" class="input" />
+              <input v-model.number="modalForm.dias_promedio" type="text" inputmode="numeric" pattern="[0-9]*" class="input" />
             </div>
             <div>
               <label class="label">Antigüedad (L)</label>
-              <input v-model.number="modalForm.antiguedad" type="number" min="0" step="0.01" class="input" />
+              <input v-model.number="modalForm.antiguedad" type="text" inputmode="decimal" class="input" />
             </div>
             <div>
               <label class="label">Anticipos (L)</label>
-              <input v-model.number="modalForm.anticipos" type="number" min="0" step="0.01" class="input" />
+              <input v-model.number="modalForm.anticipos" type="text" inputmode="decimal" class="input" />
             </div>
             <div class="bg-blue-50 rounded-lg p-3 text-sm space-y-1">
               <div>

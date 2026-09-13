@@ -134,9 +134,8 @@ function cancelarConfirmar() {
             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm font-medium pointer-events-none">L.</span>
             <input
               v-model="form.ihss"
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
+              inputmode="decimal"
               placeholder="297.58"
               class="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -166,9 +165,8 @@ function cancelarConfirmar() {
             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm font-medium pointer-events-none">L.</span>
             <input
               v-model="form.salario_minimo"
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
+              inputmode="decimal"
               placeholder="16317.60"
               class="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             />

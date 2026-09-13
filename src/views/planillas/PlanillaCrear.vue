@@ -9,25 +9,34 @@ const store   = usePlanillasStore()
 const loading = ref(false)
 const error   = ref('')
 
+function hoyLocal() {
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
+
 const form = reactive({
   nombre_planilla: '',
   tipo_planilla:   'Fijos',
-  fecha_generada:  new Date().toISOString().split('T')[0],
+  fecha_generada:  hoyLocal(),
 })
 
 function sugerirNombre() {
-  const now    = new Date()
-  const mes    = now.toLocaleDateString('es-HN', { month: 'long' })
-  const anio   = now.getFullYear()
-  const quince = now.getDate() <= 15 ? '1ra' : '2da'
+  const fecha  = new Date(String(form.fecha_generada).slice(0, 10) + 'T00:00:00')
+  const mes    = fecha.toLocaleDateString('es-HN', { month: 'long' })
+  const anio   = fecha.getFullYear()
+  const quince = fecha.getDate() <= 15 ? '1ra' : '2da'
   const tipo   = form.tipo_planilla
 
+  const mesCap = mes.charAt(0).toUpperCase() + mes.slice(1)
+
   if (tipo === 'Fijos') {
-    form.nombre_planilla = `Planilla ${quince} Quincena ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${anio}`
+    form.nombre_planilla = `Planilla Fijos ${quince} Quincena ${mesCap} ${anio}`
   } else if (tipo === 'Extras') {
-    form.nombre_planilla = `Planilla Extras ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${anio}`
+    form.nombre_planilla = `Planilla Extras ${quince} Quincena ${mesCap} ${anio}`
   } else {
-    form.nombre_planilla = `Planilla Especial ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${anio}`
+    form.nombre_planilla = `Planilla Especial ${quince} Quincena ${mesCap} ${anio}`
   }
 }
 
@@ -110,7 +119,7 @@ async function submit() {
 
         <div>
           <label class="label">Fecha de Generación <span class="text-red-500">*</span></label>
-          <input v-model="form.fecha_generada" type="date" required class="input" />
+          <input v-model="form.fecha_generada" type="date" required class="input" @change="sugerirNombre" />
         </div>
 
         <!-- Info box -->
@@ -119,8 +128,7 @@ async function submit() {
           <ul class="list-disc list-inside space-y-0.5 text-xs">
             <li>Una fila por cada empleado <strong>Activo</strong> en el sistema</li>
             <li>IHSS fijo según Campos Variables; RAP, ISR y demás deducciones se editan por empleado</li>
-            <li v-if="form.tipo_planilla === 'Fijos'">15 días trabajados por defecto (planilla Fijos)</li>
-            <li v-else>0 días trabajados — editable manualmente por empleado</li>
+            <li>0 días trabajados — editable manualmente por empleado</li>
             <li>Cuotas de deducciones activas incluidas automáticamente</li>
           </ul>
         </div>
