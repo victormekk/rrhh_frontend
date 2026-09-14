@@ -1,20 +1,58 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useEstadisticaLaboralStore } from '../../stores/estadisticaLaboral'
 
 const store = useEstadisticaLaboralStore()
 
 // ── filtros ───────────────────────────────────────────────────────────────────
 
-const filtros = ref({ search: '', fecha_inicio: '', fecha_fin: '' })
-const buscado = ref(false)
+const filtros       = ref({ search: '', fecha_inicio: '', fecha_fin: '' })
+const buscado       = ref(false)
+const idEmpleadoSel = ref(null)
+
+// ── typeahead de empleado (nombre, apellido o número de identidad) ───────────
+const sugerencias      = ref([])
+const buscandoEmpleado = ref(false)
+let debounceSugerencias = null
+let debounceBusqueda    = null
+
+function onEmpleadoInput() {
+  idEmpleadoSel.value = null
+  clearTimeout(debounceSugerencias)
+  clearTimeout(debounceBusqueda)
+
+  if (filtros.value.search.length < 2) {
+    sugerencias.value = []
+  } else {
+    debounceSugerencias = setTimeout(async () => {
+      buscandoEmpleado.value = true
+      try {
+        sugerencias.value = await store.buscarEmpleados(filtros.value.search)
+      } finally {
+        buscandoEmpleado.value = false
+      }
+    }, 250)
+  }
+
+  // Busca automaticamente mientras se escribe (con debounce), para ver
+  // resultados aunque no se elija una sugerencia puntual.
+  debounceBusqueda = setTimeout(() => buscar(), 400)
+}
+
+function seleccionarSugerencia(emp) {
+  idEmpleadoSel.value  = emp.id
+  filtros.value.search = `${emp.nombres} ${emp.apellidos}`
+  sugerencias.value    = []
+  buscar()
+}
 
 function paramsActuales(page) {
   const p = {}
-  if (page)                      p.page         = page
-  if (filtros.value.search)      p.search        = filtros.value.search
-  if (filtros.value.fecha_inicio)p.fecha_inicio  = filtros.value.fecha_inicio
-  if (filtros.value.fecha_fin)   p.fecha_fin     = filtros.value.fecha_fin
+  if (page) p.page = page
+  if (idEmpleadoSel.value)       p.id_empleado   = idEmpleadoSel.value
+  else if (filtros.value.search) p.search        = filtros.value.search
+  if (filtros.value.fecha_inicio) p.fecha_inicio = filtros.value.fecha_inicio
+  if (filtros.value.fecha_fin)    p.fecha_fin    = filtros.value.fecha_fin
   return p
 }
 
@@ -23,17 +61,10 @@ async function buscar(page) {
   buscado.value = true
 }
 
-// Busca automaticamente mientras se escribe el nombre del empleado (con
-// debounce), para distinguir de una vez si hay dos empleados con el mismo
-// nombre sin tener que apretar el boton.
-let debounceBusqueda = null
-watch(() => filtros.value.search, () => {
-  clearTimeout(debounceBusqueda)
-  debounceBusqueda = setTimeout(() => buscar(), 400)
-})
-
 function limpiar() {
-  filtros.value = { search: '', fecha_inicio: '', fecha_fin: '' }
+  filtros.value       = { search: '', fecha_inicio: '', fecha_fin: '' }
+  idEmpleadoSel.value = null
+  sugerencias.value   = []
   store.rows       = []
   store.totales    = null
   store.pagination = null
@@ -138,15 +169,33 @@ function tipoBadge(tipo) {
     <div class="bg-white rounded-xl border border-gray-200 p-5">
       <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Filtros de búsqueda</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
+        <div class="relative">
           <label class="block text-xs font-medium text-slate-600 mb-1.5">Empleado</label>
           <input
             v-model="filtros.search"
+            @input="onEmpleadoInput"
             type="text"
-            placeholder="Nombre o apellido..."
+            autocomplete="off"
+            placeholder="Nombre, apellido o número de identidad..."
             @keyup.enter="buscar()"
             class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
           />
+          <!-- Dropdown sugerencias -->
+          <ul
+            v-if="sugerencias.length"
+            class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto"
+          >
+            <li
+              v-for="emp in sugerencias"
+              :key="emp.id"
+              @click="seleccionarSugerencia(emp)"
+              class="px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 cursor-pointer"
+            >
+              {{ emp.nombres }} {{ emp.apellidos }}
+              <span class="text-xs text-slate-400"> · {{ emp.cedula }}</span>
+            </li>
+          </ul>
+          <p v-if="buscandoEmpleado" class="text-xs text-slate-400 mt-1">Buscando...</p>
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-600 mb-1.5">Fecha inicio</label>

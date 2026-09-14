@@ -33,6 +33,11 @@ export const useEstadisticaLaboralStore = defineStore('estadisticaLaboral', () =
     }
   }
 
+  async function buscarEmpleados(search) {
+    const { data } = await api.get('/empleados', { params: { search, estado: 'Activo' } })
+    return data.data
+  }
+
   async function fetchDetalle(empleadoId, params = {}) {
     loadingDetalle.value = true
     detalle.value        = null
@@ -60,6 +65,6 @@ export const useEstadisticaLaboralStore = defineStore('estadisticaLaboral', () =
   return {
     rows, totales, pagination, loading,
     detalle, loadingDetalle, exportando,
-    fetchEstadistica, fetchDetalle, downloadPdf,
+    fetchEstadistica, buscarEmpleados, fetchDetalle, downloadPdf,
   }
 })
