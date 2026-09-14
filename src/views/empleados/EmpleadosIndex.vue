@@ -134,7 +134,7 @@ function formatCurrency(val) {
               <th class="px-4 py-3">Empleado</th>
               <th class="px-4 py-3">DNI</th>
               <th class="px-4 py-3">Departamento</th>
-              <th class="px-4 py-3">Puesto</th>
+              <th class="px-4 py-3">Cargo</th>
               <th class="px-4 py-3">Salario Base</th>
               <th class="px-4 py-3">Estado</th>
               <th class="px-4 py-3 text-right">Acciones</th>
@@ -189,7 +189,7 @@ function formatCurrency(val) {
               </td>
               <td class="px-4 py-3 text-slate-600 font-mono text-xs">{{ emp.cedula }}</td>
               <td class="px-4 py-3 text-slate-600">{{ emp.departamento?.nombre ?? '—' }}</td>
-              <td class="px-4 py-3 text-slate-600">{{ emp.puesto?.nombre ?? '—' }}</td>
+              <td class="px-4 py-3 text-slate-600">{{ emp.cargo?.nombre ?? '—' }}</td>
               <td class="px-4 py-3 text-slate-600">{{ formatCurrency(emp.informacion_laboral?.salario_base) }}</td>
               <td class="px-4 py-3">
                 <span :class="[estadoClass(emp.informacion_laboral?.estado), 'text-xs font-medium px-2.5 py-1 rounded-full']">

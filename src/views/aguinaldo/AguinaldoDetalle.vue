@@ -238,7 +238,7 @@ function fmt(val) {
               <tr v-for="f in grupo.filas" :key="f.id" class="border-b border-gray-100 hover:bg-slate-50">
                 <td class="px-4 py-2.5 font-medium text-slate-800">{{ f.nombres }} {{ f.apellidos }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-600 text-xs">{{ f.cuenta ?? '—' }}</td>
-                <td class="px-4 py-2.5 text-slate-600 text-xs">{{ f.puesto ?? '—' }}</td>
+                <td class="px-4 py-2.5 text-slate-600 text-xs">{{ f.cargo ?? '—' }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-600 text-xs">{{ formatDate(f.fecha_inicio) }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(f.salario_base) }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-700">{{ f.dias_trabajados }}</td>

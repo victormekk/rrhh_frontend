@@ -302,7 +302,8 @@ function fmtDate(d) {
             class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 13.5h3.75m-3.75 3h3.75M9 8.25h6a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25H9a2.25 2.25 0 01-2.25-2.25v-9A2.25 2.25 0 019 8.25zM12 3v5.25" />
+              <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
+              <path stroke-linecap="round" d="M3 9.75h18M3 15h18M9.75 4.5v15M15 4.5v15" />
             </svg>
             Exportar Excel
           </button>

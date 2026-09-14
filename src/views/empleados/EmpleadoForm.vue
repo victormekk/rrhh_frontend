@@ -32,7 +32,7 @@ function soloTelefono(field, e) {
 }
 
 const departamentos = ref([])
-const puestos       = ref([])
+const cargos          = ref([])
 const bancos        = ref([])
 
 const form = reactive({
@@ -43,7 +43,7 @@ const form = reactive({
   contacto_emergencia: '', telefono_emergencia: '', correo: '',
   tipo_sangre: '',
   // Asignación
-  id_departamento: '', id_puesto: '',
+  id_departamento: '', id_cargo: '',
   // Info laboral
   tipo_contrato: '', fecha_inicio: '', moneda: 'Lempiras',
   forma_de_pago: '', salario_base: '', usa_salario_minimo: false,
@@ -58,14 +58,14 @@ watch(() => form.usa_salario_minimo, (checked) => {
 
 onMounted(async () => {
   try {
-    const [deps, pues, banc, campos] = await Promise.all([
+    const [deps, crgs, banc, campos] = await Promise.all([
       api.get('/departamentos'),
-      api.get('/puestos'),
+      api.get('/cargos'),
       api.get('/bancos'),
       api.get('/campos-variables'),
     ])
     departamentos.value = deps.data
-    puestos.value       = pues.data
+    cargos.value        = crgs.data
     bancos.value        = banc.data
     salarioMinimo.value = campos.data.salario_minimo
 
@@ -89,7 +89,7 @@ onMounted(async () => {
       correo:               emp.correo ?? '',
       tipo_sangre:          emp.tipo_sangre,
       id_departamento:      emp.id_departamento,
-      id_puesto:            emp.id_puesto,
+      id_cargo:            emp.id_cargo,
       tipo_contrato:        il.tipo_contrato ?? '',
       fecha_inicio:         il.fecha_inicio ? String(il.fecha_inicio).slice(0, 10) : '',
       fecha_cese:           il.fecha_cese   ? String(il.fecha_cese).slice(0, 10)   : '',
@@ -153,7 +153,7 @@ function salariosCalculados() {
       <h2 class="text-xl font-bold text-slate-800">{{ isEdit ? 'Editar Empleado' : 'Nuevo Empleado' }}</h2>
     </div>
 
-    <!-- Spinner inicial (carga de departamentos, puestos, bancos, datos del empleado) -->
+    <!-- Spinner inicial (carga de departamentos, cargos, bancos, datos del empleado) -->
     <div v-if="formLoading" class="flex flex-col items-center justify-center py-24 gap-3 bg-white rounded-xl border border-slate-200">
       <svg class="w-10 h-10 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -269,10 +269,10 @@ function salariosCalculados() {
             </select>
           </div>
           <div>
-            <label class="label">Puesto <span class="text-red-500">*</span></label>
-            <select v-model="form.id_puesto" required class="input">
-              <option value="">Seleccionar puesto</option>
-              <option v-for="p in puestos" :key="p.id" :value="p.id">{{ p.nombre }}</option>
+            <label class="label">Cargo <span class="text-red-500">*</span></label>
+            <select v-model="form.id_cargo" required class="input">
+              <option value="">Seleccionar cargo</option>
+              <option v-for="p in cargos" :key="p.id" :value="p.id">{{ p.nombre }}</option>
             </select>
           </div>
         </div>

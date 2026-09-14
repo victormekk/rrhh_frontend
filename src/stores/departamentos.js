@@ -44,5 +44,14 @@ export const useDepartamentosStore = defineStore('departamentos', () => {
     success('Departamento desactivado.')
   }
 
-  return { departamentos, loading, fetchDepartamentos, createDepartamento, updateDepartamento, deleteDepartamento }
+  async function eliminarDepartamento(id) {
+    await api.delete(`/departamentos/${id}/eliminar`)
+    departamentos.value = departamentos.value.filter((d) => d.id !== id)
+    success('Departamento eliminado permanentemente.')
+  }
+
+  return {
+    departamentos, loading, fetchDepartamentos, createDepartamento, updateDepartamento,
+    deleteDepartamento, eliminarDepartamento,
+  }
 })

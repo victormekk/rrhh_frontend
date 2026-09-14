@@ -130,7 +130,7 @@ function estadoClass(estado) {
                 {{ store.empleado.informacion_laboral?.estado ?? '—' }}
               </span>
             </div>
-            <p class="text-slate-500 text-sm">{{ store.empleado.puesto?.nombre ?? '—' }} · {{ store.empleado.departamento?.nombre ?? '—' }}</p>
+            <p class="text-slate-500 text-sm">{{ store.empleado.cargo?.nombre ?? '—' }} · {{ store.empleado.departamento?.nombre ?? '—' }}</p>
             <p class="text-slate-400 text-xs mt-1">DNI: {{ store.empleado.cedula }}</p>
           </div>
 

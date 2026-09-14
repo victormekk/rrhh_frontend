@@ -387,7 +387,7 @@ function tipoBadge(tipo) {
               </h3>
               <p class="text-xs text-slate-500 mt-0.5">
                 {{ store.detalle.empleado.departamento }}
-                <span v-if="store.detalle.empleado.puesto !== '—'"> · {{ store.detalle.empleado.puesto }}</span>
+                <span v-if="store.detalle.empleado.cargo !== '—'"> · {{ store.detalle.empleado.cargo }}</span>
                 · {{ formatPeriodo() }}
               </p>
             </template>

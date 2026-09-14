@@ -301,7 +301,7 @@ function formatDate(d) {
             </div>
             <div>
               <p class="font-bold text-slate-800 text-base">{{ store.empleado.nombres }} {{ store.empleado.apellidos }}</p>
-              <p class="text-sm text-slate-500">{{ store.empleado.puesto?.nombre ?? '—' }} · {{ store.empleado.departamento?.nombre ?? '—' }}</p>
+              <p class="text-sm text-slate-500">{{ store.empleado.cargo?.nombre ?? '—' }} · {{ store.empleado.departamento?.nombre ?? '—' }}</p>
               <p class="text-xs text-slate-400 mt-0.5">{{ aniosLabel(store.saldo?.anios_laborados ?? 0) }} de antigüedad</p>
             </div>
           </div>
