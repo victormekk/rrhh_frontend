@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlanillasStore } from '../../stores/planillas'
 import { useToast } from '../../composables/useToast'
@@ -164,11 +164,21 @@ async function guardarModalMonto() {
 }
 
 // ── Acciones generales ────────────────────────────────────────────────────────
+const showConfirmCerrar = ref(false)
+
+function abrirConfirmCerrar() {
+  showConfirmCerrar.value = true
+}
+
+function cancelarCerrar() {
+  showConfirmCerrar.value = false
+}
+
 async function cerrar() {
-  if (!confirm('¿Cerrar esta planilla? Las cuotas de deducciones serán aplicadas y no podrá editarla.')) return
   state.cerrando = true
   try {
     await store.cerrarPlanilla(route.params.id)
+    showConfirmCerrar.value = false
   } catch {
     error('Ocurrió un error. Intenta de nuevo.')
   } finally {
@@ -308,7 +318,7 @@ function fmtDate(d) {
           </button>
           <button
             v-if="!esCerrada"
-            @click="cerrar"
+            @click="abrirConfirmCerrar"
             :disabled="state.cerrando"
             class="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
           >
@@ -592,6 +602,74 @@ function fmtDate(d) {
               class="px-5 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-semibold text-sm rounded-lg transition"
             >
               {{ modalMonto.guardando ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Modal confirmación cerrar planilla -->
+    <Teleport to="body">
+      <div
+        v-if="showConfirmCerrar"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+        @click.self="cancelarCerrar"
+      >
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+
+          <!-- Encabezado -->
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-800">Cerrar planilla</h3>
+              <p class="text-xs text-slate-500 mt-0.5">¿Seguro que quieres cerrar esta planilla?</p>
+            </div>
+          </div>
+
+          <!-- Detalle -->
+          <div class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Planilla</span>
+              <span class="font-semibold text-slate-800">{{ store.planilla?.nombre_planilla }}</span>
+            </div>
+          </div>
+
+          <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Las cuotas de deducciones activas serán aplicadas a los empleados de esta planilla y
+            ya no podrás editarla.
+          </p>
+
+          <!-- Acciones -->
+          <div class="flex justify-end gap-3 pt-1">
+            <button
+              type="button"
+              @click="cancelarCerrar"
+              :disabled="state.cerrando"
+              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              @click="cerrar"
+              :disabled="state.cerrando"
+              class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+            >
+              <svg v-if="state.cerrando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              {{ state.cerrando ? 'Cerrando...' : 'Cerrar Planilla' }}
             </button>
           </div>
         </div>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useEstadisticaLaboralStore } from '../../stores/estadisticaLaboral'
 
 const store = useEstadisticaLaboralStore()
@@ -22,6 +22,15 @@ async function buscar(page) {
   await store.fetchEstadistica(paramsActuales(page))
   buscado.value = true
 }
+
+// Busca automaticamente mientras se escribe el nombre del empleado (con
+// debounce), para distinguir de una vez si hay dos empleados con el mismo
+// nombre sin tener que apretar el boton.
+let debounceBusqueda = null
+watch(() => filtros.value.search, () => {
+  clearTimeout(debounceBusqueda)
+  debounceBusqueda = setTimeout(() => buscar(), 400)
+})
 
 function limpiar() {
   filtros.value = { search: '', fecha_inicio: '', fecha_fin: '' }
