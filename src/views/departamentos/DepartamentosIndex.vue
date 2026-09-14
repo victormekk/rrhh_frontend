@@ -123,6 +123,23 @@ async function confirmarDesactivar() {
   }
 }
 
+// ── habilitar (reactivar) ─────────────────────────────────────────────────────
+const habilitandoId = ref(null)
+
+async function habilitar(tipo, item) {
+  const label = tipo === 'dept' ? 'departamento' : 'cargo'
+  habilitandoId.value = item.id
+  try {
+    tipo === 'dept'
+      ? await deptStore.updateDepartamento(item.id, { nombre: item.nombre, estado: 'Activo' })
+      : await cargoStore.updateCargo(item.id, { nombre: item.nombre, estado: 'Activo' })
+  } catch {
+    error(`No se pudo habilitar el ${label}.`)
+  } finally {
+    habilitandoId.value = null
+  }
+}
+
 const modalLabel   = computed(() => modalTipo.value === 'dept' ? 'departamento' : 'cargo')
 const confirmLabel = computed(() => confirmTipo.value === 'dept' ? 'departamento' : 'cargo')
 
@@ -250,6 +267,21 @@ const eliminarLabel = computed(() => confirmEliminarTipo.value === 'dept' ? 'dep
                         <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                       </svg>
                     </button>
+                    <button
+                      v-if="dep.estado === 'Inactivo'"
+                      @click="habilitar('dept', dep)"
+                      :disabled="habilitandoId === dep.id"
+                      class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition disabled:opacity-60"
+                      title="Habilitar"
+                    >
+                      <svg v-if="habilitandoId === dep.id" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                      </svg>
+                      <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
                     <button v-if="authStore.isAdmin && dep.estado === 'Inactivo'" @click="eliminar('dept', dep)" class="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Eliminar permanentemente">
                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -338,6 +370,21 @@ const eliminarLabel = computed(() => confirmEliminarTipo.value === 'dept' ? 'dep
                         <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                       </svg>
                     </button>
+                    <button
+                      v-if="pst.estado === 'Inactivo'"
+                      @click="habilitar('cargo', pst)"
+                      :disabled="habilitandoId === pst.id"
+                      class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition disabled:opacity-60"
+                      title="Habilitar"
+                    >
+                      <svg v-if="habilitandoId === pst.id" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                      </svg>
+                      <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
                     <button v-if="authStore.isAdmin && pst.estado === 'Inactivo'" @click="eliminar('cargo', pst)" class="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded transition" title="Eliminar permanentemente">
                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -421,7 +468,7 @@ const eliminarLabel = computed(() => confirmEliminarTipo.value === 'dept' ? 'dep
     </div>
   </Teleport>
 
-  <!-- Modal confirmación inhabilitar -->
+  <!-- Modal confirmación desactivar -->
   <Teleport to="body">
     <div
       v-if="showConfirm"
@@ -438,7 +485,7 @@ const eliminarLabel = computed(() => confirmEliminarTipo.value === 'dept' ? 'dep
             </svg>
           </div>
           <div>
-            <h3 class="text-base font-bold text-slate-800 capitalize">Inhabilitar {{ confirmLabel }}</h3>
+            <h3 class="text-base font-bold text-slate-800 capitalize">Desactivar {{ confirmLabel }}</h3>
             <p class="text-xs text-slate-500 mt-0.5">Esta acción cambiará el estado a inactivo</p>
           </div>
         </div>
@@ -489,7 +536,7 @@ const eliminarLabel = computed(() => confirmEliminarTipo.value === 'dept' ? 'dep
             <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
-            {{ desactivando ? 'Inhabilitando...' : 'Sí, inhabilitar' }}
+            {{ desactivando ? 'Desactivando...' : 'Sí, desactivar' }}
           </button>
         </div>
 
