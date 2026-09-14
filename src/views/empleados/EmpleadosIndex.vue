@@ -1,16 +1,18 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useEmpleadosStore } from '../../stores/empleados'
 import api from '../../services/api'
 
 const router        = useRouter()
+const route         = useRoute()
 const store         = useEmpleadosStore()
 
-const search        = ref('')
-const filtroDep     = ref('')
-const filtroEstado  = ref('')
-const departamentos = ref([])
+const search          = ref('')
+const filtroDep       = ref('')
+const filtroModalidad = ref(route.query.tipo_contrato ?? '')
+const filtroEstado    = ref('')
+const departamentos   = ref([])
 
 let searchTimer = null
 
@@ -20,11 +22,17 @@ onMounted(async () => {
   departamentos.value = data
 })
 
+watch(() => route.query.tipo_contrato, (tipo) => {
+  filtroModalidad.value = tipo ?? ''
+  cargarDatos()
+})
+
 async function cargarDatos() {
   await store.fetchEmpleados({
-    search:         search.value || undefined,
+    search:          search.value || undefined,
     id_departamento: filtroDep.value || undefined,
-    estado:         filtroEstado.value || undefined,
+    tipo_contrato:   filtroModalidad.value || undefined,
+    estado:          filtroEstado.value || undefined,
   })
 }
 
@@ -40,6 +48,7 @@ async function cambiarPagina(url) {
     page,
     search:          search.value || undefined,
     id_departamento: filtroDep.value || undefined,
+    tipo_contrato:   filtroModalidad.value || undefined,
     estado:          filtroEstado.value || undefined,
   })
 }
@@ -105,6 +114,12 @@ function formatCurrency(val) {
       <select v-model="filtroDep" @change="cargarDatos" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         <option value="">Todos los departamentos</option>
         <option v-for="d in departamentos" :key="d.id" :value="d.id">{{ d.nombre }}</option>
+      </select>
+
+      <select v-model="filtroModalidad" @change="cargarDatos" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <option value="">Todas las modalidades</option>
+        <option value="Fijo">Fijos</option>
+        <option value="Extra">Extras</option>
       </select>
 
       <select v-model="filtroEstado" @change="cargarDatos" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
