@@ -2,11 +2,13 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { usePlanillasStore } from '../../stores/planillas'
+import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 
-const router = useRouter()
-const route  = useRoute()
-const store  = usePlanillasStore()
+const router    = useRouter()
+const route     = useRoute()
+const store     = usePlanillasStore()
+const authStore = useAuthStore()
 const { error } = useToast()
 
 const filtroTipo   = ref(route.query.tipo ?? '')
@@ -51,6 +53,45 @@ async function confirmarEliminar() {
     error('Ocurrió un error. Intenta de nuevo.')
   } finally {
     anulando.value = false
+  }
+}
+
+// ── modal confirmación eliminar planilla cerrada (solo admin, con clave) ─────
+const showConfirmCerrada = ref(false)
+const confirmCerradaItem = ref(null)
+const passwordCerrada    = ref('')
+const errorCerrada       = ref('')
+const eliminandoCerrada  = ref(false)
+
+function eliminarCerrada(p) {
+  confirmCerradaItem.value = p
+  passwordCerrada.value    = ''
+  errorCerrada.value       = ''
+  showConfirmCerrada.value = true
+}
+
+function cancelarEliminarCerrada() {
+  showConfirmCerrada.value = false
+  confirmCerradaItem.value = null
+  passwordCerrada.value    = ''
+  errorCerrada.value       = ''
+}
+
+async function confirmarEliminarCerrada() {
+  if (!passwordCerrada.value) {
+    errorCerrada.value = 'Ingresa tu contraseña para confirmar.'
+    return
+  }
+  errorCerrada.value      = ''
+  eliminandoCerrada.value = true
+  try {
+    await store.eliminarPlanillaCerrada(confirmCerradaItem.value.id, passwordCerrada.value)
+    await cargarDatos()
+    cancelarEliminarCerrada()
+  } catch (e) {
+    errorCerrada.value = e.response?.data?.message ?? 'Ocurrió un error. Intenta de nuevo.'
+  } finally {
+    eliminandoCerrada.value = false
   }
 }
 
@@ -183,6 +224,17 @@ function formatDate(d) {
                       <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                     </svg>
                   </button>
+                  <button
+                    v-if="authStore.isAdmin && p.estado === 'Cerrado'"
+                    @click="eliminarCerrada(p)"
+                    class="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded transition"
+                    title="Eliminar planilla cerrada (requiere contraseña)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 14.25l1.5 1.5 3-3" />
+                    </svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -271,6 +323,89 @@ function formatDate(d) {
               <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
             </svg>
             {{ anulando ? 'Anulando...' : 'Anular' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Modal confirmación eliminar planilla cerrada (con contraseña) -->
+  <Teleport to="body">
+    <div
+      v-if="showConfirmCerrada"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      @click.self="cancelarEliminarCerrada"
+    >
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+
+        <!-- Encabezado -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Eliminar planilla cerrada</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Acción permanente. Ingresa tu contraseña para confirmar.</p>
+          </div>
+        </div>
+
+        <!-- Detalle -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm space-y-1">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500">Planilla</span>
+            <span class="font-semibold text-slate-800">{{ confirmCerradaItem?.nombre_planilla }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500">Estado</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Cerrado</span>
+          </div>
+        </div>
+
+        <p class="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          Esta planilla ya fue cerrada (sus cuotas se aplicaron). Eliminarla no revierte las cuotas
+          y no se puede deshacer.
+        </p>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Tu contraseña</label>
+          <input
+            v-model="passwordCerrada"
+            type="password"
+            autocomplete="current-password"
+            @keyup.enter="confirmarEliminarCerrada"
+            class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+            placeholder="••••••••"
+            autofocus
+          />
+          <p v-if="errorCerrada" class="text-xs text-red-600 mt-1.5">{{ errorCerrada }}</p>
+        </div>
+
+        <!-- Acciones -->
+        <div class="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            @click="cancelarEliminarCerrada"
+            :disabled="eliminandoCerrada"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            @click="confirmarEliminarCerrada"
+            :disabled="eliminandoCerrada"
+            class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+          >
+            <svg v-if="eliminandoCerrada" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            {{ eliminandoCerrada ? 'Eliminando...' : 'Eliminar' }}
           </button>
         </div>
       </div>
