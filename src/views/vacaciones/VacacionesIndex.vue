@@ -342,7 +342,7 @@ function formatDate(d) {
           <p v-else-if="(store.saldo?.dias_por_ley ?? 0) === 0" class="text-xs text-amber-600 font-medium text-center">
             Sin días disponibles aún<br/><span class="text-slate-400">(requiere 1 año laborado)</span>
           </p>
-          <p v-else class="text-xs text-red-600 font-medium">Sin saldo disponible</p>
+          <p v-else class="text-xs text-red-600 font-medium">Sin días disponibles</p>
         </div>
 
         <!-- Período aniversario actual + detalle de tomados -->
