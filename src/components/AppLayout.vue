@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import AppToast from './AppToast.vue'
 import logo from '../assets/images/hpr_logo.png'
+import mariposa from '../assets/images/MariposaPNG (2021_01_15 15_14_58 UTC).png'
 
 const route     = useRoute()
 const router    = useRouter()
@@ -119,11 +120,11 @@ function currentDate() {
     <aside class="w-64 bg-stone-900 flex flex-col fixed inset-y-0 left-0 z-50">
 
       <!-- Brand -->
-      <div class="px-4 py-4 bg-white border-b border-stone-700/60 flex-shrink-0 flex items-center gap-3">
-        <img :src="logo" alt="Palma Real Hotel y Villas" class="h-12 w-auto flex-shrink-0" />
+      <div class="px-4 py-4 bg-stone-900 border-b border-stone-700/60 flex-shrink-0 flex items-center gap-3">
+        <img :src="mariposa" alt="Palma Real Hotel y Villas" class="h-10 w-auto flex-shrink-0" />
         <div class="min-w-0">
-          <p class="text-blue-700 font-bold text-sm leading-tight truncate">Hotel Palma Real</p>
-          <p class="text-blue-500 text-[10px] font-semibold uppercase tracking-widest">Sistema RRHH</p>
+          <p class="text-white font-bold text-sm leading-tight truncate">Hotel Palma Real</p>
+          <p class="text-amber-400 text-[10px] font-semibold uppercase tracking-widest">Sistema RRHH</p>
         </div>
       </div>
 
