@@ -1,10 +1,34 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useConstanciasStore } from '../../stores/constancias'
 import { useToast } from '../../composables/useToast'
+import api from '../../services/api'
 
 const store = useConstanciasStore()
 const { error } = useToast()
+
+// ── Historial de constancias emitidas ────────────────────────────────────────
+const historial          = ref([])
+const cargandoHistorial  = ref(false)
+
+async function cargarHistorial() {
+  cargandoHistorial.value = true
+  try {
+    const { data } = await api.get('/log-sistema', { params: { modulo: 'Constancias' } })
+    historial.value = data.data
+  } finally {
+    cargandoHistorial.value = false
+  }
+}
+
+onMounted(cargarHistorial)
+
+function formatFecha(d) {
+  if (!d) return '—'
+  return new Date(d).toLocaleString('es-HN', {
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
 
 const TIPOS = [
   {
@@ -61,6 +85,7 @@ async function generar() {
     if (tipoSel.value.id === 'laboral') {
       await store.downloadLaboral(empleadoSel.value.id, empleadoSel.value.nombres, empleadoSel.value.apellidos)
     }
+    await cargarHistorial()
   } catch (e) {
     error(e.response?.data?.message || 'No se pudo generar la constancia.')
   } finally {
@@ -165,6 +190,38 @@ async function generar() {
           </button>
         </div>
 
+      </div>
+    </div>
+
+    <!-- Historial de constancias emitidas -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100">
+        <h3 class="text-sm font-semibold text-slate-700">Historial de Constancias Emitidas</h3>
+        <p class="text-xs text-slate-400 mt-0.5">Quién generó cada constancia y para qué empleado.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 border-b border-gray-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              <th class="px-4 py-3">Fecha</th>
+              <th class="px-4 py-3">Emitida por</th>
+              <th class="px-4 py-3">Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="cargandoHistorial">
+              <td colspan="3" class="px-4 py-8 text-center text-slate-400 text-sm">Cargando...</td>
+            </tr>
+            <tr v-else-if="historial.length === 0">
+              <td colspan="3" class="px-4 py-8 text-center text-slate-400 text-sm">Aún no se ha emitido ninguna constancia.</td>
+            </tr>
+            <tr v-else v-for="log in historial" :key="log.id" class="border-b border-gray-100 hover:bg-slate-50">
+              <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{{ formatFecha(log.created_at) }}</td>
+              <td class="px-4 py-3 text-slate-700 font-medium">{{ log.usuario?.name ?? '—' }}</td>
+              <td class="px-4 py-3 text-slate-600">{{ log.descripcion ?? '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
