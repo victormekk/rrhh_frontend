@@ -193,8 +193,8 @@ function fmt(val) {
               <tr class="bg-slate-50 border-b border-gray-200 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 <th class="px-4 py-3 text-left">Depto.</th>
                 <th class="px-4 py-3 text-left">Empleado</th>
-                <th class="px-4 py-3 text-left">Cuenta</th>
-                <th class="px-4 py-3 text-left">Fecha Inicio</th>
+                <th class="px-4 py-3 text-center">Cuenta</th>
+                <th class="px-4 py-3 text-center">Fecha Inicio</th>
                 <th class="px-4 py-3 text-center">Salario Mensual</th>
                 <th class="px-4 py-3 text-center">Días Trab.</th>
                 <th class="px-4 py-3 text-center">Anticipo</th>
@@ -206,8 +206,8 @@ function fmt(val) {
               <tr v-for="f in detalle.fijos" :key="f.id" class="border-b border-gray-100 hover:bg-slate-50">
                 <td class="px-4 py-2.5 text-slate-600 text-xs">{{ f.departamento }}</td>
                 <td class="px-4 py-2.5 font-medium text-slate-800">{{ f.nombres }} {{ f.apellidos }}</td>
-                <td class="px-4 py-2.5 text-slate-600 text-xs">{{ f.cuenta ?? '—' }}</td>
-                <td class="px-4 py-2.5 text-slate-600 text-xs">{{ formatDate(f.fecha_inicio) }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-600 text-xs">{{ f.cuenta ?? '—' }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-600 text-xs">{{ formatDate(f.fecha_inicio) }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(f.salario_base) }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-700">{{ f.dias_trabajados }}</td>
                 <td class="px-4 py-2.5 text-center text-amber-600">{{ fmt(f.anticipo) }}</td>
