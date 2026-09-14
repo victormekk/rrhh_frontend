@@ -35,6 +35,12 @@ const TIPOS = [
     descripcion: 'Nombre, fecha de inicio, cargo y salario mensual del empleado.',
     icon: 'M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z',
   },
+  {
+    id: 'voucher',
+    nombre: 'Voucher de Pago',
+    descripcion: 'Detalle de pago de una planilla ya cerrada: ingresos, deducciones y salario neto.',
+    icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 19.5h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z',
+  },
 ]
 
 const tipoSel = ref(null)
@@ -44,6 +50,8 @@ function seleccionarTipo(tipo) {
   empleadoQuery.value = ''
   empleadoSel.value   = null
   sugerencias.value   = []
+  planillasVoucher.value = []
+  planillaSel.value      = null
 }
 
 // ── typeahead de empleado ────────────────────────────────────────────────────
@@ -67,10 +75,33 @@ async function onEmpleadoInput() {
   }, 300)
 }
 
-function seleccionarEmpleado(emp) {
+// ── voucher de pago: planillas cerradas disponibles para el empleado ────────
+const planillasVoucher    = ref([])
+const cargandoPlanillas   = ref(false)
+const planillaSel         = ref(null)
+
+async function seleccionarEmpleado(emp) {
   empleadoSel.value   = emp
   empleadoQuery.value = `${emp.nombres} ${emp.apellidos}`
   sugerencias.value   = []
+  planillaSel.value      = null
+  planillasVoucher.value = []
+
+  if (tipoSel.value?.id === 'voucher') {
+    cargandoPlanillas.value = true
+    try {
+      planillasVoucher.value = await store.buscarPlanillasVoucher(emp.id)
+    } finally {
+      cargandoPlanillas.value = false
+    }
+  }
+}
+
+function formatFechaPlanilla(d) {
+  if (!d) return '—'
+  return new Date(String(d).slice(0, 10) + 'T00:00:00').toLocaleDateString('es-HN', {
+    year: 'numeric', month: 'short', day: 'numeric',
+  })
 }
 
 // ── generar ───────────────────────────────────────────────────────────────────
@@ -78,10 +109,18 @@ const generando = ref(false)
 
 async function generar() {
   if (!empleadoSel.value) { error('Selecciona un empleado.'); return }
+  if (tipoSel.value.id === 'voucher' && !planillaSel.value) { error('Selecciona la planilla del voucher.'); return }
   generando.value = true
   try {
     if (tipoSel.value.id === 'laboral') {
       await store.downloadLaboral(empleadoSel.value.id, empleadoSel.value.nombres, empleadoSel.value.apellidos)
+    } else if (tipoSel.value.id === 'voucher') {
+      await store.downloadVoucher(
+        empleadoSel.value.id,
+        planillaSel.value.id,
+        planillaSel.value.nombre_planilla,
+        `${empleadoSel.value.nombres} ${empleadoSel.value.apellidos}`
+      )
     }
     await cargarHistorial()
   } catch (e) {
@@ -176,9 +215,36 @@ async function generar() {
             </div>
           </div>
 
+          <!-- Voucher de Pago: elegir la planilla (quincena) cerrada -->
+          <div v-if="tipoSel.id === 'voucher' && empleadoSel">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Planilla</label>
+
+            <p v-if="cargandoPlanillas" class="text-xs text-slate-400">Buscando planillas cerradas...</p>
+
+            <p v-else-if="planillasVoucher.length === 0" class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Este empleado no aparece en ninguna planilla cerrada todavía.
+            </p>
+
+            <div v-else class="space-y-1.5 max-h-48 overflow-y-auto">
+              <button
+                v-for="p in planillasVoucher"
+                :key="p.id"
+                type="button"
+                @click="planillaSel = p"
+                class="w-full text-left border rounded-lg px-3 py-2 text-sm transition-colors"
+                :class="planillaSel?.id === p.id
+                  ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/40'
+                  : 'border-gray-200 hover:border-blue-300 hover:bg-slate-50'"
+              >
+                <p class="font-medium text-slate-800">{{ p.nombre_planilla }}</p>
+                <p class="text-xs text-slate-500">{{ p.tipo_planilla }} · {{ formatFechaPlanilla(p.fecha_generada) }}</p>
+              </button>
+            </div>
+          </div>
+
           <button
             @click="generar"
-            :disabled="!empleadoSel || generando"
+            :disabled="!empleadoSel || generando || (tipoSel.id === 'voucher' && !planillaSel)"
             class="w-full bg-blue-600 text-white rounded-lg px-4 py-2.5 text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">

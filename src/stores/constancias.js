@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import api from '../services/api'
 import { useToast } from '../composables/useToast'
-import { nombreArchivo, descargarBlob } from '../utils/archivos'
+import { nombreArchivo, sanitizarNombreArchivo, descargarBlob } from '../utils/archivos'
 
 export const useConstanciasStore = defineStore('constancias', () => {
   const { info } = useToast()
@@ -17,5 +17,17 @@ export const useConstanciasStore = defineStore('constancias', () => {
     info('Constancia descargada.')
   }
 
-  return { buscarEmpleados, downloadLaboral }
+  async function buscarPlanillasVoucher(idEmpleado) {
+    const { data } = await api.get(`/constancias/voucher/${idEmpleado}/planillas`)
+    return data
+  }
+
+  async function downloadVoucher(idEmpleado, idPlanilla, nombrePlanilla, nombreEmpleado) {
+    const { data } = await api.get(`/constancias/voucher/${idEmpleado}/${idPlanilla}/pdf`, { responseType: 'blob' })
+    const archivo = `${sanitizarNombreArchivo(nombrePlanilla)}_${sanitizarNombreArchivo(nombreEmpleado)}.pdf`
+    descargarBlob(data, archivo)
+    info('Voucher descargado.')
+  }
+
+  return { buscarEmpleados, downloadLaboral, buscarPlanillasVoucher, downloadVoucher }
 })
