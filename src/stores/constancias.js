@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import api from '../services/api'
 import { useToast } from '../composables/useToast'
+import { nombreArchivo, descargarBlob } from '../utils/archivos'
 
 export const useConstanciasStore = defineStore('constancias', () => {
   const { info } = useToast()
@@ -12,19 +13,7 @@ export const useConstanciasStore = defineStore('constancias', () => {
 
   async function downloadLaboral(idEmpleado, nombres = '', apellidos = '') {
     const { data } = await api.get(`/constancias/laboral/${idEmpleado}/pdf`, { responseType: 'blob' })
-    const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
-    const d = new Date()
-    const dd = String(d.getDate()).padStart(2, '0')
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const filename = `${dd}${mm}${d.getFullYear()}-${norm(nombres)}+${norm(apellidos)}-constancia-laboral.pdf`
-    const url = URL.createObjectURL(data)
-    const a   = document.createElement('a')
-    a.href     = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
+    descargarBlob(data, nombreArchivo('ConstanciaLaboral', `${nombres} ${apellidos}`, 'pdf'))
     info('Constancia descargada.')
   }
 

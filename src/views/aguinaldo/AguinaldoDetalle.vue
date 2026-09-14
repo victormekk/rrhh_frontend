@@ -3,6 +3,7 @@ import { computed, reactive, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAguinaldoStore } from '../../stores/aguinaldo'
 import { useToast } from '../../composables/useToast'
+import { sanitizarNombreArchivo, descargarBlob } from '../../utils/archivos'
 
 const route  = useRoute()
 const router = useRouter()
@@ -101,15 +102,7 @@ function exportarPdf() {
   const url   = `${base}/aguinaldo/${encodeURIComponent(nombre.value)}/pdf`
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     .then(r => r.blob())
-    .then(blob => {
-      const link    = document.createElement('a')
-      link.href     = URL.createObjectURL(blob)
-      const _norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
-      const _d = new Date(), _dd = String(_d.getDate()).padStart(2,'0'), _mm = String(_d.getMonth()+1).padStart(2,'0')
-      link.download = `${_dd}${_mm}${_d.getFullYear()}-${_norm(nombre.value)}-aguinaldo.pdf`
-      link.click()
-      URL.revokeObjectURL(link.href)
-    })
+    .then(blob => descargarBlob(blob, `${sanitizarNombreArchivo(nombre.value)}.pdf`))
 }
 
 // ── Helpers ──────────────────────────────────────────────────────

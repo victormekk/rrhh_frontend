@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import api from '../services/api'
 import { useToast } from '../composables/useToast'
+import { nombreArchivo, descargarBlob } from '../utils/archivos'
 
 export const useVacacionesStore = defineStore('vacaciones', () => {
   const { success, error, info } = useToast()
@@ -59,19 +60,7 @@ export const useVacacionesStore = defineStore('vacaciones', () => {
 
   async function downloadPdf(id, nombres = '', apellidos = '') {
     const { data } = await api.get(`/vacaciones/${id}/pdf`, { responseType: 'blob' })
-    const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
-    const d = new Date()
-    const dd = String(d.getDate()).padStart(2, '0')
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const filename = `${dd}${mm}${d.getFullYear()}-${norm(nombres)}+${norm(apellidos)}-vacaciones.pdf`
-    const url = URL.createObjectURL(data)
-    const a   = document.createElement('a')
-    a.href     = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
+    descargarBlob(data, nombreArchivo('Vacaciones', `${nombres} ${apellidos}`, 'pdf'))
     info('PDF descargado.')
   }
 

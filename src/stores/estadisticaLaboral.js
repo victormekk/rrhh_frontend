@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import api from '../services/api'
+import { nombreArchivo, descargarBlob } from '../utils/archivos'
 
 export const useEstadisticaLaboralStore = defineStore('estadisticaLaboral', () => {
   const rows       = ref([])
@@ -50,19 +51,8 @@ export const useEstadisticaLaboralStore = defineStore('estadisticaLaboral', () =
         params,
         responseType: 'blob',
       })
-      const url = URL.createObjectURL(data)
-      const a   = document.createElement('a')
-      a.href     = url
-      const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
-      const d = new Date()
-      const dd = String(d.getDate()).padStart(2, '0')
-      const mm = String(d.getMonth() + 1).padStart(2, '0')
       const label = params.search || 'TodosEmpleados'
-      a.download = `${dd}${mm}${d.getFullYear()}-${norm(label)}-estadisticalaboral.pdf`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(url), 5000)
+      descargarBlob(data, nombreArchivo('EstadisticaLaboral', label, 'pdf'))
     } finally {
       exportando.value = false
     }

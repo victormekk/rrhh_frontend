@@ -3,6 +3,7 @@ import { reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlanillasStore } from '../../stores/planillas'
 import { useToast } from '../../composables/useToast'
+import { sanitizarNombreArchivo, descargarBlob } from '../../utils/archivos'
 
 const route   = useRoute()
 const router  = useRouter()
@@ -178,52 +179,28 @@ async function cerrar() {
 function exportarPdf() {
   const token = localStorage.getItem('token')
   const url   = `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/planillas/${route.params.id}/pdf`
+  const nombre = sanitizarNombreArchivo(store.planilla?.nombre_planilla ?? String(route.params.id))
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     .then(r => r.blob())
-    .then(blob => {
-      const link  = document.createElement('a')
-      link.href   = URL.createObjectURL(blob)
-      const _norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
-      const _d = new Date(), _dd = String(_d.getDate()).padStart(2,'0'), _mm = String(_d.getMonth()+1).padStart(2,'0')
-      const _n = _norm(store.planilla?.nombre_planilla ?? String(route.params.id))
-      link.download = `${_dd}${_mm}${_d.getFullYear()}-${_n}-planilla.pdf`
-      link.click()
-      URL.revokeObjectURL(link.href)
-    })
+    .then(blob => descargarBlob(blob, `${nombre}.pdf`))
 }
 
 function exportarExcel() {
   const token = localStorage.getItem('token')
   const url   = `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/planillas/${route.params.id}/excel`
+  const nombre = sanitizarNombreArchivo(store.planilla?.nombre_planilla ?? String(route.params.id))
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     .then(r => r.blob())
-    .then(blob => {
-      const link  = document.createElement('a')
-      link.href   = URL.createObjectURL(blob)
-      const _norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
-      const _d = new Date(), _dd = String(_d.getDate()).padStart(2,'0'), _mm = String(_d.getMonth()+1).padStart(2,'0')
-      const _n = _norm(store.planilla?.nombre_planilla ?? String(route.params.id))
-      link.download = `${_dd}${_mm}${_d.getFullYear()}-${_n}-planilla.xlsx`
-      link.click()
-      URL.revokeObjectURL(link.href)
-    })
+    .then(blob => descargarBlob(blob, `${nombre}.xlsx`))
 }
 
 function generarPago() {
   const token = localStorage.getItem('token')
   const url   = `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/planillas/${route.params.id}/pago`
+  const nombre = sanitizarNombreArchivo(store.planilla?.nombre_planilla ?? String(route.params.id))
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     .then(r => r.blob())
-    .then(blob => {
-      const link  = document.createElement('a')
-      link.href   = URL.createObjectURL(blob)
-      const _norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
-      const _d = new Date(), _dd = String(_d.getDate()).padStart(2,'0'), _mm = String(_d.getMonth()+1).padStart(2,'0')
-      const _n = _norm(store.planilla?.nombre_planilla ?? String(route.params.id))
-      link.download = `${_dd}${_mm}${_d.getFullYear()}-${_n}-pago.xlsx`
-      link.click()
-      URL.revokeObjectURL(link.href)
-    })
+    .then(blob => descargarBlob(blob, `Pago (${nombre}).xlsx`))
 }
 
 function fmt(val) {
