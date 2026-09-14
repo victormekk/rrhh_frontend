@@ -115,8 +115,8 @@ async function confirmarDesactivar() {
       ? await deptStore.deleteDepartamento(item.id)
       : await cargoStore.deleteCargo(item.id)
     cancelarDesactivar()
-  } catch {
-    error(`No se pudo desactivar el ${label}.`)
+  } catch (e) {
+    error(e.response?.data?.message ?? `No se pudo desactivar el ${label}.`)
     cancelarDesactivar()
   } finally {
     desactivando.value = false
