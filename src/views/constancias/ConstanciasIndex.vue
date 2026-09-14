@@ -1,27 +1,25 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useConstanciasStore } from '../../stores/constancias'
+import { useLogSistemaStore } from '../../stores/logSistema'
 import { useToast } from '../../composables/useToast'
-import api from '../../services/api'
 
-const store = useConstanciasStore()
+const store        = useConstanciasStore()
+const historialStore = useLogSistemaStore()
 const { error } = useToast()
 
-// ── Historial de constancias emitidas ────────────────────────────────────────
-const historial          = ref([])
-const cargandoHistorial  = ref(false)
-
-async function cargarHistorial() {
-  cargandoHistorial.value = true
-  try {
-    const { data } = await api.get('/log-sistema', { params: { modulo: 'Constancias' } })
-    historial.value = data.data
-  } finally {
-    cargandoHistorial.value = false
-  }
+// ── Historial de constancias emitidas (paginado, igual que Log del Sistema) ──
+async function cargarHistorial(page) {
+  await historialStore.fetchLogs({ modulo: 'Constancias', page })
 }
 
-onMounted(cargarHistorial)
+function cambiarPaginaHistorial(url) {
+  if (!url) return
+  const page = new URL(url).searchParams.get('page')
+  cargarHistorial(page)
+}
+
+onMounted(() => cargarHistorial())
 
 function formatFecha(d) {
   if (!d) return '—'
@@ -209,19 +207,39 @@ async function generar() {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="cargandoHistorial">
+            <tr v-if="historialStore.loading">
               <td colspan="3" class="px-4 py-8 text-center text-slate-400 text-sm">Cargando...</td>
             </tr>
-            <tr v-else-if="historial.length === 0">
+            <tr v-else-if="historialStore.logs.length === 0">
               <td colspan="3" class="px-4 py-8 text-center text-slate-400 text-sm">Aún no se ha emitido ninguna constancia.</td>
             </tr>
-            <tr v-else v-for="log in historial" :key="log.id" class="border-b border-gray-100 hover:bg-slate-50">
+            <tr v-else v-for="log in historialStore.logs" :key="log.id" class="border-b border-gray-100 hover:bg-slate-50">
               <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{{ formatFecha(log.created_at) }}</td>
               <td class="px-4 py-3 text-slate-700 font-medium">{{ log.usuario?.name ?? '—' }}</td>
               <td class="px-4 py-3 text-slate-600">{{ log.descripcion ?? '—' }}</td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Paginación -->
+      <div v-if="historialStore.pagination?.last_page > 1" class="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+        <span class="text-xs text-slate-500">
+          Mostrando {{ historialStore.pagination.from }}–{{ historialStore.pagination.to }} de {{ historialStore.pagination.total }}
+        </span>
+        <div class="flex items-center gap-1">
+          <button
+            @click="cambiarPaginaHistorial(historialStore.pagination.prev_page_url)"
+            :disabled="!historialStore.pagination.prev_page_url"
+            class="px-3 py-1.5 text-xs border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >Anterior</button>
+          <span class="text-xs text-slate-600 px-2">{{ historialStore.pagination.current_page }} / {{ historialStore.pagination.last_page }}</span>
+          <button
+            @click="cambiarPaginaHistorial(historialStore.pagination.next_page_url)"
+            :disabled="!historialStore.pagination.next_page_url"
+            class="px-3 py-1.5 text-xs border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >Siguiente</button>
+        </div>
       </div>
     </div>
   </div>
