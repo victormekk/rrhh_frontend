@@ -203,6 +203,23 @@ function exportarExcel() {
       const _norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
       const _d = new Date(), _dd = String(_d.getDate()).padStart(2,'0'), _mm = String(_d.getMonth()+1).padStart(2,'0')
       const _n = _norm(store.planilla?.nombre_planilla ?? String(route.params.id))
+      link.download = `${_dd}${_mm}${_d.getFullYear()}-${_n}-planilla.xlsx`
+      link.click()
+      URL.revokeObjectURL(link.href)
+    })
+}
+
+function generarPago() {
+  const token = localStorage.getItem('token')
+  const url   = `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/planillas/${route.params.id}/pago`
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then(r => r.blob())
+    .then(blob => {
+      const link  = document.createElement('a')
+      link.href   = URL.createObjectURL(blob)
+      const _norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').replace(/[^a-zA-Z0-9+\-]/g, '')
+      const _d = new Date(), _dd = String(_d.getDate()).padStart(2,'0'), _mm = String(_d.getMonth()+1).padStart(2,'0')
+      const _n = _norm(store.planilla?.nombre_planilla ?? String(route.params.id))
       link.download = `${_dd}${_mm}${_d.getFullYear()}-${_n}-pago.xlsx`
       link.click()
       URL.revokeObjectURL(link.href)
@@ -294,13 +311,23 @@ function fmtDate(d) {
           </button>
           <button
             @click="exportarExcel"
-            title="Excel con Empleado y Salario Neto, para el archivo de pago"
+            title="Excel con el detalle completo de la planilla (todos los campos)"
             class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 13.5h3.75m-3.75 3h3.75M9 8.25h6a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25H9a2.25 2.25 0 01-2.25-2.25v-9A2.25 2.25 0 019 8.25zM12 3v5.25" />
             </svg>
             Exportar Excel
+          </button>
+          <button
+            @click="generarPago"
+            title="Excel con Empleado y Salario Neto, para el archivo de pago"
+            class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 19.5h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
+            </svg>
+            Generar Pago
           </button>
           <button
             v-if="!esCerrada"
