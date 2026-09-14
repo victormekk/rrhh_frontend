@@ -44,15 +44,14 @@ export const useEstadisticaLaboralStore = defineStore('estadisticaLaboral', () =
     }
   }
 
-  async function downloadPdf(params = {}) {
+  async function downloadPdf(params = {}, nombreEmpleado = '') {
     exportando.value = true
     try {
       const { data } = await api.get('/estadistica-laboral/pdf', {
         params,
         responseType: 'blob',
       })
-      const label = params.search || 'TodosEmpleados'
-      descargarBlob(data, nombreArchivo('EstadisticaLaboral', label, 'pdf'))
+      descargarBlob(data, nombreArchivo('EstadisticaLaboral', nombreEmpleado || 'TodosEmpleados', 'pdf'))
     } finally {
       exportando.value = false
     }

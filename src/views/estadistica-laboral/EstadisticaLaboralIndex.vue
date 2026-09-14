@@ -38,7 +38,10 @@ function cambiarPagina(url) {
 }
 
 async function exportarPdf() {
-  await store.downloadPdf(paramsActuales())
+  const nombreEmpleado = store.rows.length === 1
+    ? `${store.rows[0].nombres} ${store.rows[0].apellidos}`
+    : ''
+  await store.downloadPdf(paramsActuales(), nombreEmpleado)
 }
 
 // ── modal detalle ─────────────────────────────────────────────────────────────
