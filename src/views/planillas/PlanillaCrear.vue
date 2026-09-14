@@ -26,17 +26,21 @@ function sugerirNombre() {
   const fecha  = new Date(String(form.fecha_generada).slice(0, 10) + 'T00:00:00')
   const mes    = fecha.toLocaleDateString('es-HN', { month: 'long' })
   const anio   = fecha.getFullYear()
-  const quince = fecha.getDate() <= 15 ? '1ra' : '2da'
+  // 1ra quincena siempre corta el 15; 2da quincena corta el ultimo dia del
+  // mes (30 o 31 segun corresponda).
+  const dia = fecha.getDate() <= 15
+    ? 15
+    : new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0).getDate()
   const tipo   = form.tipo_planilla
 
   const mesCap = mes.charAt(0).toUpperCase() + mes.slice(1)
 
   if (tipo === 'Fijos') {
-    form.nombre_planilla = `Planilla Fijos ${quince} Quincena ${mesCap} ${anio}`
+    form.nombre_planilla = `Planilla Fijos ${dia} de ${mesCap} ${anio}`
   } else if (tipo === 'Extras') {
-    form.nombre_planilla = `Planilla Extras ${quince} Quincena ${mesCap} ${anio}`
+    form.nombre_planilla = `Planilla Extras ${dia} de ${mesCap} ${anio}`
   } else {
-    form.nombre_planilla = `Planilla Especial ${quince} Quincena ${mesCap} ${anio}`
+    form.nombre_planilla = `Planilla Especial ${dia} de ${mesCap} ${anio}`
   }
 }
 
@@ -113,7 +117,7 @@ async function submit() {
             required
             maxlength="50"
             class="input"
-            placeholder="Ej. Planilla 1ra Quincena Mayo 2026"
+            placeholder="Ej. Planilla Fijos 15 de Mayo 2026"
           />
         </div>
 
