@@ -59,6 +59,10 @@ const colorMap = {
 }
 
 // ── Chart ────────────────────────────────────────────────────────────────────
+// Paleta categorica validada (azul/naranja): ver skill de dataviz, ambos pasan
+// separacion CVD y de vision normal en el par adyacente (light mode).
+const COLOR_FIJOS  = '#2a78d6'
+const COLOR_EXTRAS = '#eb6834'
 
 const chartData   = ref([])
 const chartLoaded = ref(false)
@@ -66,9 +70,9 @@ const hoveredIdx  = ref(null)
 
 // SVG geometry
 const VW = 900
-const VH = 280
-const PL = 80   // padding left  (Y-axis labels)
-const PR = 20   // padding right
+const VH = 180
+const PL = 72   // padding left  (Y-axis labels)
+const PR = 16   // padding right
 const PT = 16   // padding top
 const PB = 48   // padding bottom (X-axis labels)
 
@@ -76,7 +80,8 @@ const innerW = VW - PL - PR
 const innerH = VH - PT - PB
 const N      = 12
 const groupW = innerW / N
-const barW   = groupW * 0.3
+const barW   = Math.min(24, groupW * 0.34)
+const barGap = 3 // separador entre las dos barras de un mismo grupo
 
 function niceMax(v) {
   if (v <= 0) return 100000
@@ -100,9 +105,23 @@ function yPx(val) {
   return PT + innerH - (val / yMax.value) * innerH
 }
 
-function barXF(i)  { return PL + i * groupW + groupW * 0.1 }
-function barXE(i)  { return barXF(i) + barW + groupW * 0.03 }
+function barXF(i)  { return PL + i * groupW + (groupW - (barW * 2 + barGap)) / 2 }
+function barXE(i)  { return barXF(i) + barW + barGap }
 function barHeight(val) { return Math.max((val / yMax.value) * innerH, 0) }
+
+// Barra con esquinas redondeadas solo arriba (recta contra la linea base) —
+// nunca "pill" completo, que agregaria peso visual que no es dato.
+function barPath(x, y, w, h) {
+  const r = Math.min(4, h, w / 2)
+  if (h <= 0) return ''
+  if (r <= 0) return `M${x},${y} h${w} v${h} h${-w} Z`
+  return `M${x},${y + r}
+    Q${x},${y} ${x + r},${y}
+    L${x + w - r},${y}
+    Q${x + w},${y} ${x + w},${y + r}
+    L${x + w},${y + h}
+    L${x},${y + h} Z`
+}
 
 function formatK(val) {
   if (val >= 1_000_000) return `L. ${(val / 1_000_000).toFixed(1)}M`
@@ -196,18 +215,18 @@ onMounted(async () => {
           <h3 class="font-semibold text-slate-800 text-sm">Costo de Planillas por Mes</h3>
           <p class="text-xs text-slate-400 mt-0.5">Últimos 12 meses — salario neto total</p>
         </div>
-        <div class="flex items-center gap-4 text-xs text-slate-500">
-          <span class="flex items-center gap-1.5">
-            <span class="w-3 h-3 rounded-sm bg-blue-500 inline-block"></span> Fijos
+        <div class="flex items-center gap-5 text-sm font-medium text-slate-600">
+          <span class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-sm inline-block" style="background:#2a78d6"></span> Fijos
           </span>
-          <span class="flex items-center gap-1.5">
-            <span class="w-3 h-3 rounded-sm bg-amber-400 inline-block"></span> Extras
+          <span class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-sm inline-block" style="background:#eb6834"></span> Extras
           </span>
         </div>
       </div>
 
       <!-- Skeleton -->
-      <div v-if="!chartLoaded" class="h-[260px] flex items-end gap-2 px-4 pb-6 animate-pulse">
+      <div v-if="!chartLoaded" class="h-[180px] flex items-end gap-2 px-4 pb-6 animate-pulse">
         <div v-for="i in 12" :key="i" class="flex-1 flex gap-0.5 items-end">
           <div class="flex-1 bg-blue-100 rounded-t" :style="`height: ${30 + Math.random() * 130}px`"></div>
           <div class="flex-1 bg-amber-100 rounded-t" :style="`height: ${10 + Math.random() * 70}px`"></div>
@@ -218,7 +237,7 @@ onMounted(async () => {
         v-else
         :viewBox="`0 0 ${VW} ${VH}`"
         class="w-full"
-        style="height: 260px; overflow: visible;"
+        style="overflow: visible;"
         @mouseleave="hoveredIdx = null"
       >
         <!-- Y-axis grid lines & labels -->
@@ -226,13 +245,12 @@ onMounted(async () => {
           <line
             :x1="PL" :y1="yPx(tick)"
             :x2="VW - PR" :y2="yPx(tick)"
-            stroke="#f1f5f9" stroke-width="1"
+            stroke="#e1e0d9" stroke-width="1"
           />
           <text
             :x="PL - 8" :y="yPx(tick) + 4"
             text-anchor="end"
-            class="text-[10px]"
-            style="font-size: 10px; fill: #94a3b8; font-family: inherit;"
+            style="font-size: 10px; fill: #898781; font-family: inherit;"
           >{{ formatK(tick) }}</text>
         </g>
 
@@ -241,85 +259,75 @@ onMounted(async () => {
           v-for="(d, i) in chartData"
           :key="i"
           @mouseenter="hoveredIdx = i"
-          style="cursor: default;"
+          @focus="hoveredIdx = i"
+          tabindex="0"
+          style="cursor: default; outline: none;"
         >
-          <!-- Hover background zone -->
+          <!-- Hover background zone (hit target wider than the bars themselves) -->
           <rect
             :x="PL + i * groupW" :y="PT"
             :width="groupW" :height="innerH + 1"
-            :fill="hoveredIdx === i ? '#f8fafc' : 'transparent'"
+            :fill="hoveredIdx === i ? '#f4f3f0' : 'transparent'"
             rx="4"
           />
 
-          <!-- Fijos bar -->
-          <rect
-            :x="barXF(i)"
-            :y="yPx(d.fijos)"
-            :width="barW"
-            :height="barHeight(d.fijos)"
-            :fill="hoveredIdx === i ? '#3b82f6' : '#93c5fd'"
-            rx="3" ry="3"
-            style="transition: fill 0.15s;"
-          />
+          <!-- Fijos bar: 4px rounded top, square baseline -->
+          <path :d="barPath(barXF(i), yPx(d.fijos), barW, barHeight(d.fijos))" :fill="COLOR_FIJOS" />
 
           <!-- Extras bar -->
-          <rect
-            :x="barXE(i)"
-            :y="yPx(d.extras)"
-            :width="barW"
-            :height="barHeight(d.extras)"
-            :fill="hoveredIdx === i ? '#f59e0b' : '#fcd34d'"
-            rx="3" ry="3"
-            style="transition: fill 0.15s;"
-          />
+          <path :d="barPath(barXE(i), yPx(d.extras), barW, barHeight(d.extras))" :fill="COLOR_EXTRAS" />
 
           <!-- X-axis label -->
           <text
             :x="PL + i * groupW + groupW / 2"
             :y="VH - PB + 16"
             text-anchor="middle"
-            style="font-size: 9px; fill: #94a3b8; font-family: inherit;"
+            style="font-size: 9px; fill: #898781; font-family: inherit;"
           >{{ d.label }}</text>
         </g>
 
-        <!-- Tooltip -->
+        <!-- Tooltip: value leads (bold), series name follows (muted) -->
         <g v-if="hoveredIdx !== null" style="pointer-events: none;">
-          <!-- Tooltip box -->
           <rect
             :x="tooltipX(hoveredIdx)"
             :y="tooltipY(hoveredIdx)"
-            width="165" height="68"
-            rx="6" fill="#1e293b"
-            opacity="0.95"
+            width="172" height="68"
+            rx="6" fill="#0b0b0b"
+            opacity="0.92"
           />
-          <!-- Month label -->
           <text
             :x="tooltipX(hoveredIdx) + 10"
             :y="tooltipY(hoveredIdx) + 18"
             style="font-size: 11px; font-weight: 600; fill: white; font-family: inherit;"
           >{{ chartData[hoveredIdx].label }}</text>
-          <!-- Fijos -->
-          <circle
-            :cx="tooltipX(hoveredIdx) + 10"
-            :cy="tooltipY(hoveredIdx) + 34"
-            r="4" fill="#60a5fa"
-          />
+
+          <!-- Fijos: linea-clave + valor (fuerte) + etiqueta (tenue) -->
+          <rect :x="tooltipX(hoveredIdx) + 10" :y="tooltipY(hoveredIdx) + 30" width="10" height="3" rx="1.5" :fill="COLOR_FIJOS" />
           <text
-            :x="tooltipX(hoveredIdx) + 20"
+            :x="tooltipX(hoveredIdx) + 26"
             :y="tooltipY(hoveredIdx) + 38"
-            style="font-size: 10px; fill: #cbd5e1; font-family: inherit;"
-          >Fijos: L. {{ formatLPS(chartData[hoveredIdx].fijos) }}</text>
-          <!-- Extras -->
-          <circle
-            :cx="tooltipX(hoveredIdx) + 10"
-            :cy="tooltipY(hoveredIdx) + 52"
-            r="4" fill="#fbbf24"
-          />
+            style="font-size: 10.5px; font-weight: 700; fill: white; font-family: inherit;"
+          >L. {{ formatLPS(chartData[hoveredIdx].fijos) }}</text>
           <text
-            :x="tooltipX(hoveredIdx) + 20"
+            :x="tooltipX(hoveredIdx) + 162"
+            :y="tooltipY(hoveredIdx) + 38"
+            text-anchor="end"
+            style="font-size: 9px; fill: #c3c2b7; font-family: inherit;"
+          >Fijos</text>
+
+          <!-- Extras -->
+          <rect :x="tooltipX(hoveredIdx) + 10" :y="tooltipY(hoveredIdx) + 48" width="10" height="3" rx="1.5" :fill="COLOR_EXTRAS" />
+          <text
+            :x="tooltipX(hoveredIdx) + 26"
             :y="tooltipY(hoveredIdx) + 56"
-            style="font-size: 10px; fill: #cbd5e1; font-family: inherit;"
-          >Extras: L. {{ formatLPS(chartData[hoveredIdx].extras) }}</text>
+            style="font-size: 10.5px; font-weight: 700; fill: white; font-family: inherit;"
+          >L. {{ formatLPS(chartData[hoveredIdx].extras) }}</text>
+          <text
+            :x="tooltipX(hoveredIdx) + 162"
+            :y="tooltipY(hoveredIdx) + 56"
+            text-anchor="end"
+            style="font-size: 9px; fill: #c3c2b7; font-family: inherit;"
+          >Extras</text>
         </g>
 
         <!-- Y-axis line -->

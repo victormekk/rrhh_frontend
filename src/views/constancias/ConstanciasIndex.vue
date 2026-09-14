@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useConstanciasStore } from '../../stores/constancias'
 import { useLogSistemaStore } from '../../stores/logSistema'
 import { useToast } from '../../composables/useToast'
@@ -80,17 +80,34 @@ const planillasVoucher    = ref([])
 const cargandoPlanillas   = ref(false)
 const planillaSel         = ref(null)
 
+const PLANILLAS_POR_PAGINA = 5
+const paginaPlanillas = ref(1)
+
+const totalPaginasPlanillas = computed(() =>
+  Math.max(1, Math.ceil((planillasVoucher.value?.length ?? 0) / PLANILLAS_POR_PAGINA))
+)
+
+const planillasPaginadas = computed(() => {
+  if (!planillasVoucher.value) return []
+  const inicio = (paginaPlanillas.value - 1) * PLANILLAS_POR_PAGINA
+  return planillasVoucher.value.slice(inicio, inicio + PLANILLAS_POR_PAGINA)
+})
+
 async function seleccionarEmpleado(emp) {
   empleadoSel.value   = emp
   empleadoQuery.value = `${emp.nombres} ${emp.apellidos}`
   sugerencias.value   = []
   planillaSel.value      = null
   planillasVoucher.value = []
+  paginaPlanillas.value   = 1
 
   if (tipoSel.value?.id === 'voucher') {
     cargandoPlanillas.value = true
     try {
       planillasVoucher.value = await store.buscarPlanillasVoucher(emp.id)
+    } catch (e) {
+      planillasVoucher.value = null
+      error(e.response?.data?.message || 'No se pudieron cargar las planillas cerradas de este empleado.')
     } finally {
       cargandoPlanillas.value = false
     }
@@ -221,13 +238,17 @@ async function generar() {
 
             <p v-if="cargandoPlanillas" class="text-xs text-slate-400">Buscando planillas cerradas...</p>
 
+            <p v-else-if="planillasVoucher === null" class="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              Ocurrió un error al buscar las planillas de este empleado. Intenta de nuevo.
+            </p>
+
             <p v-else-if="planillasVoucher.length === 0" class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
               Este empleado no aparece en ninguna planilla cerrada todavía.
             </p>
 
-            <div v-else class="space-y-1.5 max-h-48 overflow-y-auto">
+            <div v-else class="space-y-1.5">
               <button
-                v-for="p in planillasVoucher"
+                v-for="p in planillasPaginadas"
                 :key="p.id"
                 type="button"
                 @click="planillaSel = p"
@@ -239,6 +260,26 @@ async function generar() {
                 <p class="font-medium text-slate-800">{{ p.nombre_planilla }}</p>
                 <p class="text-xs text-slate-500">{{ p.tipo_planilla }} · {{ formatFechaPlanilla(p.fecha_generada) }}</p>
               </button>
+
+              <div v-if="totalPaginasPlanillas > 1" class="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  @click="paginaPlanillas--"
+                  :disabled="paginaPlanillas === 1"
+                  class="text-xs font-medium text-slate-500 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed px-2 py-1"
+                >
+                  ‹ Anterior
+                </button>
+                <span class="text-xs text-slate-400">Página {{ paginaPlanillas }} de {{ totalPaginasPlanillas }}</span>
+                <button
+                  type="button"
+                  @click="paginaPlanillas++"
+                  :disabled="paginaPlanillas === totalPaginasPlanillas"
+                  class="text-xs font-medium text-slate-500 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed px-2 py-1"
+                >
+                  Siguiente ›
+                </button>
+              </div>
             </div>
           </div>
 
@@ -248,7 +289,7 @@ async function generar() {
             class="w-full bg-blue-600 text-white rounded-lg px-4 py-2.5 text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
             {{ generando ? 'Generando...' : 'Descargar PDF' }}
           </button>
