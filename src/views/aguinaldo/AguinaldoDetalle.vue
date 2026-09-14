@@ -49,7 +49,7 @@ function abrirModalExtra(r) {
 const totalFijoCalc = computed(() => {
   if (modal.tipo !== 'fijo' || !modal.registro) return 0
   const base = parseFloat(modal.registro.salario_base)
-  return Math.max(0, parseFloat(((base / 365) * modalForm.dias_trabajados - modalForm.anticipo).toFixed(2)))
+  return Math.max(0, parseFloat(((base / 360) * modalForm.dias_trabajados - modalForm.anticipo).toFixed(2)))
 })
 
 const subtotalExtraCalc = computed(() => {
@@ -135,6 +135,7 @@ function fmt(val) {
           <p class="text-xs text-slate-500 mt-0.5">
             Tipo: {{ detalle.tipo_aguinaldo }} &bull;
             Fecha: {{ detalle.fecha_generada }} &bull;
+            Corte: {{ detalle.fecha_corte }} &bull;
             <span :class="detalle.estado === 'Cerrado' ? 'text-slate-500' : 'text-emerald-600'">
               {{ detalle.estado }}
             </span>

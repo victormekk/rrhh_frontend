@@ -9,10 +9,22 @@ const store   = useAguinaldoStore()
 const loading = ref(false)
 const error   = ref('')
 
+function hoyLocal() {
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
+
+function finDeAnio() {
+  return `${new Date().getFullYear()}-12-31`
+}
+
 const form = reactive({
   nombre_aguinaldo: '',
   tipo_aguinaldo:   'Fijos',
-  fecha_generada:   new Date().toISOString().split('T')[0],
+  fecha_generada:   hoyLocal(),
+  fecha_corte:      finDeAnio(),
 })
 
 function sugerirNombre() {
@@ -102,10 +114,20 @@ async function submit() {
           />
         </div>
 
-        <!-- Fecha -->
-        <div>
-          <label class="label">Fecha de Generación <span class="text-red-500">*</span></label>
-          <input v-model="form.fecha_generada" type="date" required class="input" />
+        <!-- Fechas -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="label">Fecha de Generación <span class="text-red-500">*</span></label>
+            <input v-model="form.fecha_generada" type="date" required class="input" />
+          </div>
+          <div>
+            <label class="label">Fecha de Corte <span class="text-red-500">*</span></label>
+            <input v-model="form.fecha_corte" type="date" required class="input" />
+            <p class="text-xs text-slate-400 mt-1">
+              Fecha que se toma en cuenta para calcular los días (normalmente 31/12/AAAA,
+              pero puede cambiarse para calcular un catorceavo u otro corte).
+            </p>
+          </div>
         </div>
 
         <!-- Info -->
@@ -113,7 +135,8 @@ async function submit() {
           <p class="font-semibold mb-1">¿Qué se generará?</p>
           <ul class="list-disc list-inside space-y-0.5 text-xs">
             <li v-if="form.tipo_aguinaldo !== 'Extras'">
-              Empleados <strong>Fijos</strong>: aguinaldo = (salario mensual / 365) × días trabajados
+              Empleados <strong>Fijos</strong>: aguinaldo = (salario mensual / 360) × días trabajados
+              desde su fecha de inicio hasta la Fecha de Corte (máximo 360 días)
             </li>
             <li v-if="form.tipo_aguinaldo !== 'Fijos'">
               Empleados <strong>Extras</strong>: aguinaldo = diario × días promedio de planillas
