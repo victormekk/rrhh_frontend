@@ -13,6 +13,12 @@ const { error } = useToast()
 const loading  = ref(true)
 const cerrando = ref(false)
 
+function formatDate(d) {
+  if (!d) return '—'
+  const [anio, mes, dia] = String(d).slice(0, 10).split('-')
+  return `${dia}-${mes}-${anio}`
+}
+
 // Modal
 const modal       = reactive({ open: false, tipo: '', registro: null })
 const modalForm   = reactive({ dias_trabajados: 0, anticipo: 0, dias_promedio: 0, antiguedad: 0, anticipos: 0 })
@@ -83,11 +89,21 @@ async function guardarModal() {
 }
 
 // ── Cerrar aguinaldo ─────────────────────────────────────────────
+const showConfirmCerrar = ref(false)
+
+function abrirConfirmCerrar() {
+  showConfirmCerrar.value = true
+}
+
+function cancelarCerrar() {
+  showConfirmCerrar.value = false
+}
+
 async function cerrar() {
-  if (!confirm(`¿Cerrar el aguinaldo "${nombre.value}"? No se podrá editar después.`)) return
   cerrando.value = true
   try {
     await store.cerrar(nombre.value)
+    showConfirmCerrar.value = false
   } catch {
     error('Ocurrió un error. Intenta de nuevo.')
   } finally {
@@ -134,8 +150,9 @@ function fmt(val) {
           <h2 class="text-xl font-bold text-slate-800">{{ detalle.nombre_aguinaldo }}</h2>
           <p class="text-xs text-slate-500 mt-0.5">
             Tipo: {{ detalle.tipo_aguinaldo }} &bull;
-            Fecha: {{ detalle.fecha_generada }} &bull;
-            Corte: {{ detalle.fecha_corte }} &bull;
+            Fecha: {{ formatDate(detalle.fecha_generada) }} &bull;
+            Corte: {{ formatDate(detalle.fecha_corte) }} &bull;
+            Empleados: {{ (detalle.fijos?.length ?? 0) + (detalle.extras?.length ?? 0) }} &bull;
             <span :class="detalle.estado === 'Cerrado' ? 'text-slate-500' : 'text-emerald-600'">
               {{ detalle.estado }}
             </span>
@@ -154,7 +171,7 @@ function fmt(val) {
         </button>
         <button
           v-if="!esCerrada"
-          @click="cerrar"
+          @click="abrirConfirmCerrar"
           :disabled="cerrando"
           class="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
         >
@@ -178,11 +195,11 @@ function fmt(val) {
                 <th class="px-4 py-3 text-left">Empleado</th>
                 <th class="px-4 py-3 text-left">Cuenta</th>
                 <th class="px-4 py-3 text-left">Fecha Inicio</th>
-                <th class="px-4 py-3 text-right">Salario Mensual</th>
-                <th class="px-4 py-3 text-right">Días Trab.</th>
-                <th class="px-4 py-3 text-right">Anticipo</th>
-                <th class="px-4 py-3 text-right">Total</th>
-                <th v-if="!esCerrada" class="px-4 py-3 text-right">Editar</th>
+                <th class="px-4 py-3 text-center">Salario Mensual</th>
+                <th class="px-4 py-3 text-center">Días Trab.</th>
+                <th class="px-4 py-3 text-center">Anticipo</th>
+                <th class="px-4 py-3 text-center">Total</th>
+                <th v-if="!esCerrada" class="px-4 py-3 text-center">Editar</th>
               </tr>
             </thead>
             <tbody>
@@ -190,12 +207,12 @@ function fmt(val) {
                 <td class="px-4 py-2.5 text-slate-600 text-xs">{{ f.departamento }}</td>
                 <td class="px-4 py-2.5 font-medium text-slate-800">{{ f.nombres }} {{ f.apellidos }}</td>
                 <td class="px-4 py-2.5 text-slate-600 text-xs">{{ f.cuenta ?? '—' }}</td>
-                <td class="px-4 py-2.5 text-slate-600 text-xs">{{ f.fecha_inicio }}</td>
-                <td class="px-4 py-2.5 text-right text-slate-700">{{ fmt(f.salario_base) }}</td>
-                <td class="px-4 py-2.5 text-right text-slate-700">{{ f.dias_trabajados }}</td>
-                <td class="px-4 py-2.5 text-right text-amber-600">{{ fmt(f.anticipo) }}</td>
-                <td class="px-4 py-2.5 text-right font-semibold text-slate-800">{{ fmt(f.total_aguinaldo) }}</td>
-                <td v-if="!esCerrada" class="px-4 py-2.5 text-right">
+                <td class="px-4 py-2.5 text-slate-600 text-xs">{{ formatDate(f.fecha_inicio) }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(f.salario_base) }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-700">{{ f.dias_trabajados }}</td>
+                <td class="px-4 py-2.5 text-center text-amber-600">{{ fmt(f.anticipo) }}</td>
+                <td class="px-4 py-2.5 text-center font-semibold text-slate-800">{{ fmt(f.total_aguinaldo) }}</td>
+                <td v-if="!esCerrada" class="px-4 py-2.5 text-center">
                   <button @click="abrirModalFijo(f)" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
@@ -206,10 +223,10 @@ function fmt(val) {
               <!-- Totals row -->
               <tr class="bg-blue-700 text-white text-xs font-semibold">
                 <td class="px-4 py-2.5" colspan="4">TOTALES</td>
-                <td class="px-4 py-2.5 text-right">{{ fmt(detalle.totales_fijos?.salario_base) }}</td>
-                <td class="px-4 py-2.5 text-right">{{ detalle.totales_fijos?.dias_trabajados }}</td>
-                <td class="px-4 py-2.5 text-right">{{ fmt(detalle.totales_fijos?.anticipo) }}</td>
-                <td class="px-4 py-2.5 text-right">{{ fmt(detalle.totales_fijos?.total_aguinaldo) }}</td>
+                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_fijos?.salario_base) }}</td>
+                <td class="px-4 py-2.5 text-center">{{ detalle.totales_fijos?.dias_trabajados }}</td>
+                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_fijos?.anticipo) }}</td>
+                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_fijos?.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada"></td>
               </tr>
             </tbody>
@@ -228,26 +245,26 @@ function fmt(val) {
               <tr class="bg-slate-50 border-b border-gray-200 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 <th class="px-4 py-3 text-left">Depto.</th>
                 <th class="px-4 py-3 text-left">Empleado</th>
-                <th class="px-4 py-3 text-right">Diario</th>
-                <th class="px-4 py-3 text-right">Días Prom.</th>
-                <th class="px-4 py-3 text-right">Antigüedad</th>
-                <th class="px-4 py-3 text-right">Subtotal</th>
-                <th class="px-4 py-3 text-right">Anticipos</th>
-                <th class="px-4 py-3 text-right">Total</th>
-                <th v-if="!esCerrada" class="px-4 py-3 text-right">Editar</th>
+                <th class="px-4 py-3 text-center">Diario</th>
+                <th class="px-4 py-3 text-center">Días Prom.</th>
+                <th class="px-4 py-3 text-center">Antigüedad</th>
+                <th class="px-4 py-3 text-center">Subtotal</th>
+                <th class="px-4 py-3 text-center">Anticipos</th>
+                <th class="px-4 py-3 text-center">Total</th>
+                <th v-if="!esCerrada" class="px-4 py-3 text-center">Editar</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="e in detalle.extras" :key="e.id" class="border-b border-gray-100 hover:bg-slate-50">
                 <td class="px-4 py-2.5 text-slate-600 text-xs">{{ e.departamento }}</td>
                 <td class="px-4 py-2.5 font-medium text-slate-800">{{ e.nombres }} {{ e.apellidos }}</td>
-                <td class="px-4 py-2.5 text-right text-slate-700">{{ fmt(e.diario) }}</td>
-                <td class="px-4 py-2.5 text-right text-slate-700">{{ e.dias_promedio }}</td>
-                <td class="px-4 py-2.5 text-right text-slate-700">{{ fmt(e.antiguedad) }}</td>
-                <td class="px-4 py-2.5 text-right text-slate-700">{{ fmt(e.subtotal) }}</td>
-                <td class="px-4 py-2.5 text-right text-amber-600">{{ fmt(e.anticipos) }}</td>
-                <td class="px-4 py-2.5 text-right font-semibold text-slate-800">{{ fmt(e.total_aguinaldo) }}</td>
-                <td v-if="!esCerrada" class="px-4 py-2.5 text-right">
+                <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(e.diario) }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-700">{{ e.dias_promedio }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(e.antiguedad) }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(e.subtotal) }}</td>
+                <td class="px-4 py-2.5 text-center text-amber-600">{{ fmt(e.anticipos) }}</td>
+                <td class="px-4 py-2.5 text-center font-semibold text-slate-800">{{ fmt(e.total_aguinaldo) }}</td>
+                <td v-if="!esCerrada" class="px-4 py-2.5 text-center">
                   <button @click="abrirModalExtra(e)" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
@@ -258,10 +275,10 @@ function fmt(val) {
               <!-- Totals row -->
               <tr class="bg-blue-700 text-white text-xs font-semibold">
                 <td class="px-4 py-2.5" colspan="4">TOTALES</td>
-                <td class="px-4 py-2.5 text-right">{{ fmt(detalle.totales_extras?.antiguedad) }}</td>
-                <td class="px-4 py-2.5 text-right">{{ fmt(detalle.totales_extras?.subtotal) }}</td>
-                <td class="px-4 py-2.5 text-right">{{ fmt(detalle.totales_extras?.anticipos) }}</td>
-                <td class="px-4 py-2.5 text-right">{{ fmt(detalle.totales_extras?.total_aguinaldo) }}</td>
+                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.antiguedad) }}</td>
+                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.subtotal) }}</td>
+                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.anticipos) }}</td>
+                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada"></td>
               </tr>
             </tbody>
@@ -270,6 +287,73 @@ function fmt(val) {
       </div>
     </template>
   </div>
+
+  <!-- Modal confirmación cerrar aguinaldo -->
+  <Teleport to="body">
+    <div
+      v-if="showConfirmCerrar"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      @click.self="cancelarCerrar"
+    >
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+
+        <!-- Encabezado -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Cerrar aguinaldo</h3>
+            <p class="text-xs text-slate-500 mt-0.5">¿Seguro que quieres cerrar este aguinaldo?</p>
+          </div>
+        </div>
+
+        <!-- Detalle -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500">Aguinaldo</span>
+            <span class="font-semibold text-slate-800">{{ detalle?.nombre_aguinaldo }}</span>
+          </div>
+        </div>
+
+        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          No podrás editarlo después de cerrarlo.
+        </p>
+
+        <!-- Acciones -->
+        <div class="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            @click="cancelarCerrar"
+            :disabled="cerrando"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            @click="cerrar"
+            :disabled="cerrando"
+            class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+          >
+            <svg v-if="cerrando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            {{ cerrando ? 'Cerrando...' : 'Cerrar Aguinaldo' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 
   <!-- ── Modal de edición ── -->
   <Teleport to="body">
