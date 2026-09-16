@@ -215,7 +215,7 @@ function formatDate(d) {
                     </svg>
                   </button>
                   <button
-                    v-if="p.estado === 'Activo'"
+                    v-if="authStore.isAdmin && p.estado === 'Activo'"
                     @click="eliminar(p)"
                     class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
                     title="Eliminar"

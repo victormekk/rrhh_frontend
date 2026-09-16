@@ -2,11 +2,13 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAguinaldoStore } from '../../stores/aguinaldo'
+import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 
 const router = useRouter()
 const route  = useRoute()
 const store  = useAguinaldoStore()
+const authStore = useAuthStore()
 const { error } = useToast()
 
 const filtroTipo = ref(route.query.tipo ?? '')
@@ -156,7 +158,7 @@ function formatDate(d) {
                     </svg>
                   </button>
                   <button
-                    v-if="a.estado === 'Activo'"
+                    v-if="authStore.isAdmin && a.estado === 'Activo'"
                     @click="eliminar(a.nombre_aguinaldo)"
                     class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
                     title="Eliminar"
