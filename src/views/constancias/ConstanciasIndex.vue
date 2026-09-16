@@ -36,6 +36,12 @@ const TIPOS = [
     icon: 'M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z',
   },
   {
+    id: 'bancaria',
+    nombre: 'Constancia Bancaria',
+    descripcion: 'Solicita a una institución bancaria la apertura de una cuenta de planilla para el empleado.',
+    icon: 'M2.25 21h19.5M4.5 3h15l-1.5 3.75h-12L4.5 3zM4.5 21V9.75m15 11.25V9.75M3 9.75h18M6.75 12.75v5.25M11.25 12.75v5.25M12.75 12.75v5.25M17.25 12.75v5.25',
+  },
+  {
     id: 'voucher',
     nombre: 'Voucher de Pago',
     descripcion: 'Detalle de pago de una planilla ya cerrada: ingresos, deducciones y salario neto.',
@@ -45,13 +51,24 @@ const TIPOS = [
 
 const tipoSel = ref(null)
 
-function seleccionarTipo(tipo) {
+async function seleccionarTipo(tipo) {
   tipoSel.value       = tipo
   empleadoQuery.value = ''
   empleadoSel.value   = null
   sugerencias.value   = []
   planillasVoucher.value = []
   planillaSel.value      = null
+  bancos.value            = []
+  bancoSel.value          = null
+
+  if (tipo.id === 'bancaria') {
+    cargandoBancos.value = true
+    try {
+      bancos.value = await store.buscarBancos()
+    } finally {
+      cargandoBancos.value = false
+    }
+  }
 }
 
 // ── typeahead de empleado ────────────────────────────────────────────────────
@@ -74,6 +91,11 @@ async function onEmpleadoInput() {
     }
   }, 300)
 }
+
+// ── constancia bancaria: banco destinatario ─────────────────────────────────
+const bancos         = ref([])
+const cargandoBancos = ref(false)
+const bancoSel        = ref(null)
 
 // ── voucher de pago: planillas cerradas disponibles para el empleado ────────
 const planillasVoucher    = ref([])
@@ -127,10 +149,13 @@ const generando = ref(false)
 async function generar() {
   if (!empleadoSel.value) { error('Selecciona un empleado.'); return }
   if (tipoSel.value.id === 'voucher' && !planillaSel.value) { error('Selecciona la planilla del voucher.'); return }
+  if (tipoSel.value.id === 'bancaria' && !bancoSel.value) { error('Selecciona la institución bancaria.'); return }
   generando.value = true
   try {
     if (tipoSel.value.id === 'laboral') {
       await store.downloadLaboral(empleadoSel.value.id, empleadoSel.value.nombres, empleadoSel.value.apellidos)
+    } else if (tipoSel.value.id === 'bancaria') {
+      await store.downloadBancaria(empleadoSel.value.id, bancoSel.value.id, empleadoSel.value.nombres, empleadoSel.value.apellidos)
     } else if (tipoSel.value.id === 'voucher') {
       await store.downloadVoucher(
         empleadoSel.value.id,
@@ -232,6 +257,26 @@ async function generar() {
             </div>
           </div>
 
+          <!-- Constancia Bancaria: elegir la institución bancaria destinataria -->
+          <div v-if="tipoSel.id === 'bancaria' && empleadoSel">
+            <label class="text-xs font-medium text-slate-500 mb-1 block">Institución bancaria</label>
+
+            <p v-if="cargandoBancos" class="text-xs text-slate-400">Cargando bancos...</p>
+
+            <p v-else-if="bancos.length === 0" class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              No hay bancos activos registrados. Agrega uno en el módulo de Bancos.
+            </p>
+
+            <select
+              v-else
+              v-model="bancoSel"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option :value="null" disabled>Selecciona un banco...</option>
+              <option v-for="b in bancos" :key="b.id" :value="b">{{ b.nombre }}</option>
+            </select>
+          </div>
+
           <!-- Voucher de Pago: elegir la planilla (quincena) cerrada -->
           <div v-if="tipoSel.id === 'voucher' && empleadoSel">
             <label class="text-xs font-medium text-slate-500 mb-1 block">Planilla</label>
@@ -285,7 +330,7 @@ async function generar() {
 
           <button
             @click="generar"
-            :disabled="!empleadoSel || generando || (tipoSel.id === 'voucher' && !planillaSel)"
+            :disabled="!empleadoSel || generando || (tipoSel.id === 'voucher' && !planillaSel) || (tipoSel.id === 'bancaria' && !bancoSel)"
             class="w-full bg-blue-600 text-white rounded-lg px-4 py-2.5 text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">

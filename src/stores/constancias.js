@@ -17,6 +17,17 @@ export const useConstanciasStore = defineStore('constancias', () => {
     info('Constancia descargada.')
   }
 
+  async function buscarBancos() {
+    const { data } = await api.get('/bancos')
+    return data
+  }
+
+  async function downloadBancaria(idEmpleado, idBanco, nombres = '', apellidos = '') {
+    const { data } = await api.get(`/constancias/bancaria/${idEmpleado}/${idBanco}/pdf`, { responseType: 'blob' })
+    descargarBlob(data, nombreArchivo('ConstanciaBancaria', `${nombres} ${apellidos}`, 'pdf'))
+    info('Constancia descargada.')
+  }
+
   async function buscarPlanillasVoucher(idEmpleado) {
     const { data } = await api.get(`/constancias/voucher/${idEmpleado}/planillas`)
     return data
@@ -29,5 +40,5 @@ export const useConstanciasStore = defineStore('constancias', () => {
     info('Voucher descargado.')
   }
 
-  return { buscarEmpleados, downloadLaboral, buscarPlanillasVoucher, downloadVoucher }
+  return { buscarEmpleados, downloadLaboral, buscarBancos, downloadBancaria, buscarPlanillasVoucher, downloadVoucher }
 })
