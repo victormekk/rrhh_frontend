@@ -11,7 +11,7 @@ const store         = useEmpleadosStore()
 const search          = ref('')
 const filtroDep       = ref('')
 const filtroModalidad = ref(route.query.tipo_contrato ?? '')
-const filtroEstado    = ref('')
+const filtroEstado    = ref(route.query.estado ?? '')
 const departamentos   = ref([])
 
 let searchTimer = null
@@ -24,6 +24,11 @@ onMounted(async () => {
 
 watch(() => route.query.tipo_contrato, (tipo) => {
   filtroModalidad.value = tipo ?? ''
+  cargarDatos()
+})
+
+watch(() => route.query.estado, (estado) => {
+  filtroEstado.value = estado ?? ''
   cargarDatos()
 })
 

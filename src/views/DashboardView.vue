@@ -21,7 +21,7 @@ const stats = ref([
     label: 'Activos',
     value: null,
     color: 'emerald',
-    path:  '/empleados',
+    path:  { path: '/empleados', query: { estado: 'Activo' } },
     icon:  'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
   },
   {
@@ -70,7 +70,7 @@ const hoveredIdx  = ref(null)
 
 // SVG geometry
 const VW = 900
-const VH = 180
+const VH = 160
 const PL = 72   // padding left  (Y-axis labels)
 const PR = 16   // padding right
 const PT = 16   // padding top
