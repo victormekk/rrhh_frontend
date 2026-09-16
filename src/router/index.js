@@ -27,6 +27,7 @@ const UsuariosIndex        = () => import('../views/usuarios/UsuariosIndex.vue')
 const CamposVariablesIndex = () => import('../views/campos-variables/CamposVariablesIndex.vue')
 const CumpleanosIndex          = () => import('../views/cumpleanos/CumpleanosIndex.vue')
 const EstadisticaLaboralIndex  = () => import('../views/estadistica-laboral/EstadisticaLaboralIndex.vue')
+const InformacionLaboralIndex  = () => import('../views/estadistica-laboral/InformacionLaboralIndex.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -174,6 +175,12 @@ const router = createRouter({
           name: 'estadistica-laboral',
           component: EstadisticaLaboralIndex,
           meta: { requiresAuth: true, title: 'Estadística Laboral' },
+        },
+        {
+          path: 'informacion-laboral',
+          name: 'informacion-laboral',
+          component: InformacionLaboralIndex,
+          meta: { requiresAuth: true, title: 'Información Laboral' },
         },
 
         // Log del sistema
