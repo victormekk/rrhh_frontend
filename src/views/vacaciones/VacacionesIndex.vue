@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useVacacionesStore } from '../../stores/vacaciones'
+import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 
 const store = useVacacionesStore()
+const authStore = useAuthStore()
 const { error } = useToast()
 
 // ── Búsqueda de empleado ──────────────────────────────────────────────────────
@@ -147,16 +149,36 @@ async function guardar() {
   }
 }
 
-async function eliminar(sol) {
-  if (!confirm('¿Eliminar esta solicitud de vacaciones? Los días se reintegrarán al saldo.')) return
+// ── modal confirmación de eliminar ────────────────────────────────────────────
+const showConfirmEliminar = ref(false)
+const confirmEliminarItem = ref(null)
+const eliminando          = ref(false)
+
+function eliminar(sol) {
+  confirmEliminarItem.value = sol
+  showConfirmEliminar.value = true
+}
+
+function cancelarEliminar() {
+  showConfirmEliminar.value = false
+  confirmEliminarItem.value = null
+}
+
+async function confirmarEliminar() {
+  const sol = confirmEliminarItem.value
+  eliminando.value = true
   try {
     await store.deleteSolicitud(sol.id)
+    cancelarEliminar()
     await Promise.all([
       store.fetchSaldo(store.empleado.id, { silent: true }),
       store.fetchSolicitudes({ id_empleado: store.empleado.id }),
     ])
   } catch {
     error('No se pudo eliminar la solicitud.')
+    cancelarEliminar()
+  } finally {
+    eliminando.value = false
   }
 }
 
@@ -439,7 +461,7 @@ function formatDate(d) {
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                   </svg>
                 </button>
-                <button @click="eliminar(sol)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar">
+                <button v-if="authStore.isAdmin" @click="eliminar(sol)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                   </svg>
@@ -607,6 +629,76 @@ function formatDate(d) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Modal confirmación eliminar -->
+  <Teleport to="body">
+    <div
+      v-if="showConfirmEliminar"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      @click.self="cancelarEliminar"
+    >
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+
+        <!-- Encabezado -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Eliminar solicitud de vacaciones</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Los días se reintegrarán al saldo disponible</p>
+          </div>
+        </div>
+
+        <!-- Detalle -->
+        <div v-if="confirmEliminarItem" class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm space-y-1">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500">Período</span>
+            <span class="font-semibold text-slate-800">
+              {{ formatDate(confirmEliminarItem.fecha_inicio) }} — {{ formatDate(confirmEliminarItem.fecha_fin) }}
+            </span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500">Días</span>
+            <span class="font-semibold text-slate-800">{{ confirmEliminarItem.dias_tomados }}</span>
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            @click="cancelarEliminar"
+            :disabled="eliminando"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            @click="confirmarEliminar"
+            :disabled="eliminando"
+            class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+          >
+            <svg v-if="eliminando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+            {{ eliminando ? 'Eliminando...' : 'Sí, eliminar' }}
+          </button>
+        </div>
+
       </div>
     </div>
   </Teleport>
