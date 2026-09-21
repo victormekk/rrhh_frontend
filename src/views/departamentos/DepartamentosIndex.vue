@@ -51,13 +51,19 @@ function abrirCrear(tipo) {
 function abrirEditar(tipo, item) {
   modalTipo.value  = tipo
   editando.value   = item
-  form.value       = { nombre: item.nombre, estado: item.estado }
+  form.value       = { nombre: item.nombre.toUpperCase(), estado: item.estado }
   errorModal.value = ''
   showModal.value  = true
 }
 
 function cerrarModal() {
   showModal.value = false
+}
+
+function mayusculas(e) {
+  const val = e.target.value.toUpperCase()
+  form.value.nombre = val
+  e.target.value = val
 }
 
 async function guardar() {
@@ -68,14 +74,15 @@ async function guardar() {
   errorModal.value = ''
   saving.value     = true
   try {
+    const nombre = form.value.nombre.trim().toUpperCase()
     if (modalTipo.value === 'dept') {
       editando.value
-        ? await deptStore.updateDepartamento(editando.value.id, form.value)
-        : await deptStore.createDepartamento({ nombre: form.value.nombre.trim() })
+        ? await deptStore.updateDepartamento(editando.value.id, { ...form.value, nombre })
+        : await deptStore.createDepartamento({ nombre })
     } else {
       editando.value
-        ? await cargoStore.updateCargo(editando.value.id, form.value)
-        : await cargoStore.createCargo({ nombre: form.value.nombre.trim() })
+        ? await cargoStore.updateCargo(editando.value.id, { ...form.value, nombre })
+        : await cargoStore.createCargo({ nombre })
     }
     cerrarModal()
   } catch (e) {
@@ -420,10 +427,11 @@ const eliminarLabel = computed(() => confirmEliminarTipo.value === 'dept' ? 'dep
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1.5">Nombre</label>
             <input
-              v-model="form.nombre"
+              :value="form.nombre"
+              @input="mayusculas"
               type="text"
               maxlength="50"
-              :placeholder="modalTipo === 'dept' ? 'Ej. Recepción' : 'Ej. Recepcionista'"
+              :placeholder="modalTipo === 'dept' ? 'Ej. RECEPCIÓN' : 'Ej. RECEPCIONISTA'"
               class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               autofocus
             />
