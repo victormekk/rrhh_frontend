@@ -7,22 +7,56 @@ const route  = useRoute()
 const router = useRouter()
 const store  = useEmpleadosStore()
 
-const loading      = ref(true)
-const fotoInput    = ref(null)
+const loading       = ref(true)
+const fotoInput     = ref(null)
+const camaraInput   = ref(null)
 const uploadingFoto = ref(false)
+const showFotoMenu  = ref(false)
+const showConfirmEliminarFoto = ref(false)
+const eliminandoFoto = ref(false)
 
 onMounted(async () => {
   await store.fetchEmpleado(route.params.id)
   loading.value = false
 })
 
+function abrirGaleria() {
+  showFotoMenu.value = false
+  fotoInput.value.click()
+}
+
+function abrirCamara() {
+  showFotoMenu.value = false
+  camaraInput.value.click()
+}
+
 async function onFotoChange(e) {
   const file = e.target.files[0]
   if (!file) return
   uploadingFoto.value = true
-  const res = await store.uploadFoto(route.params.id, file)
-  store.empleado.foto_url = res.foto_url
-  uploadingFoto.value = false
+  try {
+    const res = await store.uploadFoto(route.params.id, file)
+    store.empleado.foto_url = res.foto_url
+  } finally {
+    uploadingFoto.value = false
+    e.target.value = ''
+  }
+}
+
+function pedirEliminarFoto() {
+  showFotoMenu.value = false
+  showConfirmEliminarFoto.value = true
+}
+
+async function confirmarEliminarFoto() {
+  eliminandoFoto.value = true
+  try {
+    await store.deleteFoto(route.params.id)
+    store.empleado.foto_url = null
+    showConfirmEliminarFoto.value = false
+  } finally {
+    eliminandoFoto.value = false
+  }
 }
 
 function formatCurrency(val, moneda = 'HNL') {
@@ -110,16 +144,54 @@ function estadoClass(estado) {
               {{ store.empleado.nombres?.charAt(0) }}{{ store.empleado.apellidos?.charAt(0) }}
             </div>
             <button
-              @click="fotoInput.click()"
+              @click="showFotoMenu = !showFotoMenu"
               :disabled="uploadingFoto"
-              class="absolute bottom-0 right-0 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white shadow hover:bg-blue-700 transition"
+              class="absolute bottom-0 right-0 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white shadow hover:bg-blue-700 transition disabled:opacity-60"
               title="Cambiar foto"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+              <svg v-if="uploadingFoto" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
               </svg>
             </button>
+
+            <!-- Overlay para cerrar el menu al hacer click afuera -->
+            <div v-if="showFotoMenu" class="fixed inset-0 z-40" @click="showFotoMenu = false"></div>
+
+            <!-- Menu de opciones -->
+            <div
+              v-if="showFotoMenu"
+              class="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2 w-44 bg-white rounded-lg shadow-lg border border-slate-200 py-1 text-sm"
+            >
+              <button @click="abrirCamara" class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                </svg>
+                Tomar foto
+              </button>
+              <button @click="abrirGaleria" class="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Subir foto
+              </button>
+              <button
+                v-if="store.empleado.foto_url"
+                @click="pedirEliminarFoto"
+                class="w-full text-left px-3 py-2 hover:bg-red-50 flex items-center gap-2 text-red-600"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+                Eliminar foto
+              </button>
+            </div>
+
             <input ref="fotoInput" type="file" accept="image/*" class="hidden" @change="onFotoChange" />
+            <input ref="camaraInput" type="file" accept="image/*" capture="environment" class="hidden" @change="onFotoChange" />
           </div>
 
           <!-- Info principal -->
@@ -192,7 +264,7 @@ function estadoClass(estado) {
             </div>
             <div class="grid grid-cols-2 gap-2 text-sm">
               <dt class="text-slate-400">Emergencia</dt>
-              <dd class="text-slate-700 font-medium">{{ store.empleado.contacto_emergencia }} · {{ store.empleado.telefono_emergencia }}</dd>
+              <dd class="text-slate-700 font-medium">{{ store.empleado.contacto_emergencia }}<span v-if="store.empleado.parentesco_emergencia"> ({{ store.empleado.parentesco_emergencia }})</span> · {{ store.empleado.telefono_emergencia }}</dd>
             </div>
           </dl>
         </div>
@@ -249,5 +321,55 @@ function estadoClass(estado) {
         </div>
       </div>
     </template>
+
+    <!-- Modal confirmación: eliminar foto -->
+    <Teleport to="body">
+      <div
+        v-if="showConfirmEliminarFoto"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+        @click.self="showConfirmEliminarFoto = false"
+      >
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-800">Eliminar foto</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Esta acción no se puede deshacer</p>
+            </div>
+          </div>
+
+          <p class="text-sm text-slate-600">
+            ¿Seguro que deseas eliminar la foto de {{ store.empleado?.nombres }} {{ store.empleado?.apellidos }}?
+          </p>
+
+          <div class="flex justify-end gap-3 pt-1">
+            <button
+              type="button"
+              @click="showConfirmEliminarFoto = false"
+              :disabled="eliminandoFoto"
+              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              @click="confirmarEliminarFoto"
+              :disabled="eliminandoFoto"
+              class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+            >
+              <svg v-if="eliminandoFoto" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+              {{ eliminandoFoto ? 'Eliminando...' : 'Sí, eliminar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

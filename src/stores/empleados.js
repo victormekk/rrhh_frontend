@@ -49,6 +49,10 @@ export const useEmpleadosStore = defineStore('empleados', () => {
     return data
   }
 
+  async function deleteFoto(id) {
+    await api.delete(`/empleados/${id}/foto`)
+  }
+
   async function deactivateEmpleado(id) {
     await api.delete(`/empleados/${id}`)
     success('Empleado desactivado.')
@@ -57,6 +61,6 @@ export const useEmpleadosStore = defineStore('empleados', () => {
   return {
     empleados, empleado, pagination, loading,
     fetchEmpleados, fetchEmpleado, createEmpleado,
-    updateEmpleado, uploadFoto, deactivateEmpleado,
+    updateEmpleado, uploadFoto, deleteFoto, deactivateEmpleado,
   }
 })
