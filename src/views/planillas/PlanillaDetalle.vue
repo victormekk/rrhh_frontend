@@ -122,37 +122,119 @@ async function guardarModalHoras() {
 }
 
 // ── Modal chico compartido: Otros Ingresos / Otras Deducciones ───────────────
+// Cada uno puede tener varios conceptos (Bono, Evento, Retroactivo...): se
+// arman como una tabla dentro del modal y se combinan en un solo monto +
+// descripcion al guardar, porque el detalle de planilla solo tiene un campo
+// de monto y uno de texto para esto.
 const modalMonto = reactive({
   abierto: false, detalle: null, tipo: 'ingreso',
-  descripcion: '', monto: 0, guardando: false, error: '',
+  items: [], seleccionado: null,
+  concepto: '', monto: '',
+  guardando: false, error: '',
 })
 
+// Se guarda como "Concepto: Monto, Concepto: Monto" (ver guardarModalMonto) para
+// poder reconstruir la lista de conceptos al reabrir el modal. Si el texto no
+// calza con ese formato (dato de antes de que esto fuera una lista, con texto
+// libre), se muestra como un unico renglon para no perder lo que ya estaba
+// guardado; el usuario puede borrarlo y agregar los conceptos separados si quiere.
+const ITEM_REGEX = /^(.+): (-?\d+(?:\.\d+)?)$/
+
+function itemsDesdeDetalle(descripcion, monto) {
+  const m = Number(monto) || 0
+  if (!descripcion && m === 0) return []
+  if (!descripcion) return [{ concepto: '(sin descripción)', monto: m }]
+
+  const segmentos = descripcion.split(', ')
+  const items      = segmentos.map(s => s.match(ITEM_REGEX)).filter(Boolean)
+    .map(match => ({ concepto: match[1], monto: Number(match[2]) }))
+
+  return items.length === segmentos.length ? items : [{ concepto: descripcion, monto: m }]
+}
+
 function abrirModalIngreso(detalle) {
-  modalMonto.detalle     = detalle
-  modalMonto.tipo        = 'ingreso'
-  modalMonto.descripcion = detalle.desc_ingresos ?? ''
-  modalMonto.monto       = detalle.otros_ingresos
-  modalMonto.error       = ''
-  modalMonto.abierto     = true
+  modalMonto.detalle      = detalle
+  modalMonto.tipo         = 'ingreso'
+  modalMonto.items        = itemsDesdeDetalle(detalle.desc_ingresos, detalle.otros_ingresos)
+  modalMonto.seleccionado = null
+  modalMonto.concepto     = ''
+  modalMonto.monto        = ''
+  modalMonto.error        = ''
+  modalMonto.abierto      = true
 }
 
 function abrirModalDeduccion(detalle) {
-  modalMonto.detalle     = detalle
-  modalMonto.tipo        = 'deduccion'
-  modalMonto.descripcion = detalle.desc_otras_deducciones ?? ''
-  modalMonto.monto       = detalle.otras_deducciones
-  modalMonto.error       = ''
-  modalMonto.abierto     = true
+  modalMonto.detalle      = detalle
+  modalMonto.tipo         = 'deduccion'
+  modalMonto.items        = itemsDesdeDetalle(detalle.desc_otras_deducciones, detalle.otras_deducciones)
+  modalMonto.seleccionado = null
+  modalMonto.concepto     = ''
+  modalMonto.monto        = ''
+  modalMonto.error        = ''
+  modalMonto.abierto      = true
 }
 
 const modalMontoTitulo = computed(() => modalMonto.tipo === 'ingreso' ? 'Otros Ingresos' : 'Otras Deducciones')
 
+const modalMontoTotal = computed(() =>
+  modalMonto.items.reduce((sum, it) => sum + Number(it.monto || 0), 0)
+)
+
+const puedeAgregarItem = computed(() =>
+  modalMonto.concepto.trim() !== '' && Number(modalMonto.monto) > 0
+)
+
+// Agrega un concepto nuevo, o si hay uno seleccionado (clic en la tabla lo
+// carga en el formulario para editar) actualiza ese en vez de crear otro.
+function guardarItemModal() {
+  if (!puedeAgregarItem.value) return
+  // Sin comas ni dos puntos: son los separadores usados al combinar la lista
+  // en un solo texto al guardar (ver guardarModalMonto/itemsDesdeDetalle).
+  const concepto = modalMonto.concepto.trim().replace(/[,:]/g, '')
+  const item     = { concepto, monto: Number(modalMonto.monto) }
+
+  if (modalMonto.seleccionado !== null) {
+    modalMonto.items[modalMonto.seleccionado] = item
+  } else {
+    modalMonto.items.push(item)
+  }
+
+  modalMonto.seleccionado = null
+  modalMonto.concepto     = ''
+  modalMonto.monto        = ''
+  requestAnimationFrame(() => document.getElementById('modal-monto-concepto')?.focus())
+}
+
+// Clic en un renglon: lo carga en el formulario para editarlo (clic de nuevo
+// sobre el mismo renglon cancela la edicion y limpia el formulario).
+function seleccionarItemModal(idx) {
+  if (modalMonto.seleccionado === idx) {
+    modalMonto.seleccionado = null
+    modalMonto.concepto     = ''
+    modalMonto.monto        = ''
+    return
+  }
+  modalMonto.seleccionado = idx
+  modalMonto.concepto     = modalMonto.items[idx].concepto
+  modalMonto.monto        = modalMonto.items[idx].monto
+}
+
+function eliminarItemModal() {
+  if (modalMonto.seleccionado === null) return
+  modalMonto.items.splice(modalMonto.seleccionado, 1)
+  modalMonto.seleccionado = null
+  modalMonto.concepto     = ''
+  modalMonto.monto        = ''
+}
+
 async function guardarModalMonto() {
   modalMonto.guardando = true
   modalMonto.error     = ''
+  const total       = modalMontoTotal.value
+  const descripcion = modalMonto.items.map(it => `${it.concepto}: ${it.monto}`).join(', ') || null
   const payload = modalMonto.tipo === 'ingreso'
-    ? { otros_ingresos: Number(modalMonto.monto) || 0, desc_ingresos: modalMonto.descripcion || null }
-    : { otras_deducciones: Number(modalMonto.monto) || 0, desc_otras_deducciones: modalMonto.descripcion || null }
+    ? { otros_ingresos: total, desc_ingresos: descripcion }
+    : { otras_deducciones: total, desc_otras_deducciones: descripcion }
   try {
     await store.updateDetalle(route.params.id, modalMonto.detalle.id, payload)
     modalMonto.abierto = false
@@ -204,13 +286,27 @@ function exportarExcel() {
     .then(blob => descargarBlob(blob, `${nombre}.xlsx`))
 }
 
-function generarPago() {
-  const token = localStorage.getItem('token')
-  const url   = `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/planillas/${route.params.id}/pago`
+// Excel simple para el archivo de pago: solo Empleado y Salario Neto, orden
+// alfabetico, sin agrupar por departamento (todos los empleados de la planilla).
+function exportarPago() {
+  const token  = localStorage.getItem('token')
+  const url    = `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/planillas/${route.params.id}/pago/excel`
   const nombre = sanitizarNombreArchivo(store.planilla?.nombre_planilla ?? String(route.params.id))
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     .then(r => r.blob())
     .then(blob => descargarBlob(blob, `Pago (${nombre}).xlsx`))
+}
+
+// Bancos = empleados con cuenta bancaria registrada (transferencia); Cheques = sin cuenta.
+function exportarPagoPorMetodo(metodo, formato) {
+  const token  = localStorage.getItem('token')
+  const url    = `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/planillas/${route.params.id}/${metodo}/${formato}`
+  const nombre = sanitizarNombreArchivo(store.planilla?.nombre_planilla ?? String(route.params.id))
+  const sufijo = metodo === 'bancos' ? 'Bancos' : 'Cheques'
+  const ext    = formato === 'excel' ? 'xlsx' : 'pdf'
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then(r => r.blob())
+    .then(blob => descargarBlob(blob, `${sufijo} (${nombre}).${ext}`))
 }
 
 function fmt(val) {
@@ -294,7 +390,7 @@ function fmtDate(d) {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
-            Exportar PDF
+            PDF General
           </button>
           <button
             @click="exportarExcel"
@@ -305,11 +401,11 @@ function fmtDate(d) {
               <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
               <path stroke-linecap="round" d="M3 9.75h18M3 15h18M9.75 4.5v15M15 4.5v15" />
             </svg>
-            Exportar Excel
+            Excel General
           </button>
           <button
-            @click="generarPago"
-            title="Excel con Empleado y Salario Neto, para el archivo de pago"
+            @click="exportarPago"
+            title="Excel con Empleado y Salario Neto (solo empleados con cuenta bancaria registrada), ordenado alfabéticamente"
             class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
@@ -317,6 +413,69 @@ function fmtDate(d) {
             </svg>
             Generar Pago
           </button>
+          <!-- Exportar Bancos: empleados con cuenta bancaria registrada (transferencia) -->
+          <div
+            title="Empleados que cobran por transferencia bancaria (tienen cuenta registrada)"
+            class="flex items-stretch border border-slate-300 rounded-lg overflow-hidden"
+          >
+            <span class="flex items-center gap-2 px-3 text-sm font-medium text-slate-700 bg-white">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M4.5 3h15l-1.5 3.75h-12L4.5 3zM4.5 21V9.75m15 11.25V9.75M3 9.75h18M6.75 12.75v5.25M11.25 12.75v5.25M12.75 12.75v5.25M17.25 12.75v5.25" />
+              </svg>
+              Bancos
+            </span>
+            <button
+              @click="exportarPagoPorMetodo('bancos', 'excel')"
+              title="Excel"
+              class="px-2.5 border-l border-slate-300 hover:bg-slate-50 text-emerald-600 transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
+                <path stroke-linecap="round" d="M3 9.75h18M3 15h18M9.75 4.5v15M15 4.5v15" />
+              </svg>
+            </button>
+            <button
+              @click="exportarPagoPorMetodo('bancos', 'pdf')"
+              title="PDF"
+              class="px-2.5 border-l border-slate-300 hover:bg-slate-50 text-red-600 transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Exportar Cheques: empleados sin cuenta bancaria registrada -->
+          <div
+            title="Empleados que cobran por cheque (sin cuenta bancaria registrada)"
+            class="flex items-stretch border border-slate-300 rounded-lg overflow-hidden"
+          >
+            <span class="flex items-center gap-2 px-3 text-sm font-medium text-slate-700 bg-white">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 19.5h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
+              </svg>
+              Cheques
+            </span>
+            <button
+              @click="exportarPagoPorMetodo('cheques', 'excel')"
+              title="Excel"
+              class="px-2.5 border-l border-slate-300 hover:bg-slate-50 text-emerald-600 transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
+                <path stroke-linecap="round" d="M3 9.75h18M3 15h18M9.75 4.5v15M15 4.5v15" />
+              </svg>
+            </button>
+            <button
+              @click="exportarPagoPorMetodo('cheques', 'pdf')"
+              title="PDF"
+              class="px-2.5 border-l border-slate-300 hover:bg-slate-50 text-red-600 transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            </button>
+          </div>
           <button
             v-if="!esCerrada"
             @click="abrirConfirmCerrar"
@@ -575,7 +734,7 @@ function fmtDate(d) {
     <Teleport to="body">
       <div v-if="modalMonto.abierto" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/50" @click="modalMonto.abierto = false" />
-        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
           <h3 class="font-bold text-slate-800 text-base mb-1">{{ modalMontoTitulo }}</h3>
           <p class="text-sm text-slate-500 mb-4">
             {{ modalMonto.detalle?.empleado?.nombres }} {{ modalMonto.detalle?.empleado?.apellidos }}
@@ -585,25 +744,86 @@ function fmtDate(d) {
             {{ modalMonto.error }}
           </div>
 
-          <div class="space-y-3">
-            <div>
-              <label class="field-label">Descripción</label>
-              <input v-model="modalMonto.descripcion" maxlength="100" class="field-input" placeholder="Ej. Bono, préstamo personal..." autofocus />
+          <!-- Formulario para agregar un concepto (o editar el seleccionado en la tabla) -->
+          <div class="flex items-end gap-2">
+            <div class="flex-1">
+              <label class="field-label">Concepto</label>
+              <input
+                id="modal-monto-concepto"
+                v-model="modalMonto.concepto"
+                maxlength="50" class="field-input" placeholder="Ej. Bono, Evento..."
+                autofocus @keyup.enter="guardarItemModal"
+              />
             </div>
-            <div>
+            <div class="w-28">
               <label class="field-label">Monto (L)</label>
-              <input v-model.number="modalMonto.monto" type="text" inputmode="decimal" class="field-input" />
+              <input
+                v-model="modalMonto.monto"
+                type="text" inputmode="decimal" class="field-input"
+                @keyup.enter="guardarItemModal"
+              />
             </div>
+            <button
+              @click="guardarItemModal" :disabled="!puedeAgregarItem"
+              class="px-3 py-2 bg-slate-700 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition"
+            >
+              {{ modalMonto.seleccionado === null ? 'Agregar' : 'Actualizar' }}
+            </button>
+          </div>
+          <p v-if="modalMonto.seleccionado !== null" class="text-xs text-blue-600 mt-1.5">
+            Editando el concepto seleccionado. Haga clic de nuevo en el renglón para cancelar.
+          </p>
+
+          <!-- Tabla de conceptos ya agregados -->
+          <div class="mt-4 border border-slate-200 rounded-lg overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
+                  <th class="px-3 py-2 text-left">Concepto</th>
+                  <th class="px-3 py-2 text-right">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="modalMonto.items.length === 0">
+                  <td colspan="2" class="px-3 py-4 text-center text-slate-400 text-xs">Sin conceptos agregados.</td>
+                </tr>
+                <tr
+                  v-for="(item, idx) in modalMonto.items" :key="idx"
+                  @click="seleccionarItemModal(idx)"
+                  class="border-b border-slate-100 last:border-b-0 cursor-pointer transition"
+                  :class="modalMonto.seleccionado === idx ? 'bg-blue-50' : 'hover:bg-slate-50'"
+                >
+                  <td class="px-3 py-2 text-slate-700">{{ item.concepto }}</td>
+                  <td class="px-3 py-2 text-right font-medium text-slate-700">{{ fmt(item.monto) }}</td>
+                </tr>
+              </tbody>
+              <tfoot v-if="modalMonto.items.length > 0">
+                <tr class="bg-slate-50 border-t border-slate-200 font-semibold">
+                  <td class="px-3 py-2 text-slate-600">Total</td>
+                  <td class="px-3 py-2 text-right text-slate-800">{{ fmt(modalMontoTotal) }}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
 
-          <div class="flex justify-end gap-3 mt-5">
-            <button @click="modalMonto.abierto = false" class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition">Cancelar</button>
+          <div class="flex justify-between items-center gap-3 mt-3">
             <button
-              @click="guardarModalMonto" :disabled="modalMonto.guardando"
-              class="px-5 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-semibold text-sm rounded-lg transition"
+              @click="eliminarItemModal" :disabled="modalMonto.seleccionado === null"
+              class="px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
-              {{ modalMonto.guardando ? 'Guardando...' : 'Guardar' }}
+              Eliminar seleccionado
             </button>
+
+            <div class="flex gap-3">
+              <button @click="modalMonto.abierto = false" class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition">Cancelar</button>
+              <button
+                @click="guardarModalMonto" :disabled="modalMonto.guardando || modalMonto.seleccionado !== null"
+                :title="modalMonto.seleccionado !== null ? 'Actualice o cancele la edición del concepto seleccionado primero' : ''"
+                class="px-5 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-semibold text-sm rounded-lg transition"
+              >
+                {{ modalMonto.guardando ? 'Guardando...' : 'Guardar' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
