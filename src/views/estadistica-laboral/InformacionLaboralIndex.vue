@@ -195,7 +195,7 @@ function formatDate(d) {
           </li>
         </ul>
       </div>
-      <p class="text-xs text-slate-400 mt-2">Hacé clic en un resultado para agregarlo a la selección.</p>
+      <p class="text-xs text-slate-400 mt-2">Haga clic en un resultado para agregarlo a la selección.</p>
     </div>
 
     <!-- Filtro por departamento -->
