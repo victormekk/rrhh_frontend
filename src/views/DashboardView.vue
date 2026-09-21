@@ -40,15 +40,17 @@ const stats = ref([
     path:  { path: '/empleados', query: { tipo_contrato: 'Extra' } },
     icon:  'M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z',
   },
-  {
-    key:   'cumpleanos_mes',
-    label: 'Cumpleaños del Mes',
-    value: null,
-    color: 'rose',
-    path:  '/cumpleanos',
-    icon:  'M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.51 18 9.473 18 10.608v2.513M15 8.25v-1.5m-6 1.5v-1.5m12 9.75-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-1.5-.75M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5',
-  },
 ])
+
+// Se renderiza aparte (al final, despues de la tarjeta de genero).
+const cumpleanosStat = ref({
+  key:   'cumpleanos_mes',
+  label: 'Cumpleaños del Mes',
+  value: null,
+  color: 'rose',
+  path:  '/cumpleanos',
+  icon:  'M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.51 18 9.473 18 10.608v2.513M15 8.25v-1.5m-6 1.5v-1.5m12 9.75-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-1.5-.75M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5',
+})
 
 const colorMap = {
   blue:    { bg: 'bg-blue-50',    icon: 'text-blue-600',    num: 'text-blue-700' },
@@ -57,6 +59,9 @@ const colorMap = {
   amber:   { bg: 'bg-amber-50',   icon: 'text-amber-600',   num: 'text-amber-700' },
   rose:    { bg: 'bg-rose-50',    icon: 'text-rose-500',    num: 'text-rose-600' },
 }
+
+// Tarjeta especial: empleados activos (fijos + extras) por género, en una sola card.
+const generoStats = ref({ masculinos: null, femeninos: null })
 
 // ── Chart ────────────────────────────────────────────────────────────────────
 // Paleta categorica validada (azul/naranja): ver skill de dataviz, ambos pasan
@@ -165,10 +170,17 @@ onMounted(async () => {
       api.get('/dashboard/planillas-chart'),
     ])
     stats.value.forEach(s => { s.value = statsData[s.key] ?? 0 })
+    cumpleanosStat.value.value = statsData.cumpleanos_mes ?? 0
+    generoStats.value = {
+      masculinos: statsData.empleados_masculinos ?? 0,
+      femeninos:  statsData.empleados_femeninos ?? 0,
+    }
     chartData.value  = chart
     chartLoaded.value = true
   } catch {
     stats.value.forEach(s => { s.value = 0 })
+    cumpleanosStat.value.value = 0
+    generoStats.value = { masculinos: 0, femeninos: 0 }
     chartLoaded.value = true
   }
 })
@@ -185,7 +197,7 @@ onMounted(async () => {
     </div>
 
     <!-- Stats cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-7">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-7">
       <RouterLink
         v-for="stat in stats"
         :key="stat.key"
@@ -203,6 +215,53 @@ onMounted(async () => {
           <p :class="[colorMap[stat.color].num, 'text-2xl font-bold mt-0.5']">
             <span v-if="stat.value === null" class="inline-block w-8 h-6 bg-slate-200 rounded animate-pulse" />
             <span v-else>{{ stat.value }}</span>
+          </p>
+        </div>
+      </RouterLink>
+
+      <!-- Tarjeta especial: género (masculino / femenino) de empleados activos -->
+      <div class="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+        <div class="flex -space-x-2 flex-shrink-0">
+          <div class="bg-sky-50 p-3 rounded-xl border-2 border-white z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-sky-600 w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+            </svg>
+          </div>
+          <div class="bg-pink-50 p-3 rounded-xl border-2 border-white">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-pink-600 w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+            </svg>
+          </div>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-medium leading-tight">Empleados por Género</p>
+          <p class="mt-0.5 flex items-center gap-2.5">
+            <span v-if="generoStats.masculinos === null" class="inline-block w-16 h-6 bg-slate-200 rounded animate-pulse" />
+            <template v-else>
+              <span class="text-2xl font-bold text-sky-600">{{ generoStats.masculinos }}</span>
+              <span class="text-slate-300 text-lg font-light">/</span>
+              <span class="text-2xl font-bold text-pink-600">{{ generoStats.femeninos }}</span>
+            </template>
+          </p>
+        </div>
+      </div>
+
+      <!-- Cumpleaños del mes: va al final -->
+      <RouterLink
+        :to="cumpleanosStat.path"
+        class="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4 hover:shadow-md hover:border-gray-300 transition-all duration-150 group"
+      >
+        <div :class="[colorMap[cumpleanosStat.color].bg, 'p-3 rounded-xl flex-shrink-0 group-hover:scale-105 transition-transform duration-150']">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+            :class="[colorMap[cumpleanosStat.color].icon, 'w-6 h-6']">
+            <path stroke-linecap="round" stroke-linejoin="round" :d="cumpleanosStat.icon" />
+          </svg>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-medium leading-tight">{{ cumpleanosStat.label }}</p>
+          <p :class="[colorMap[cumpleanosStat.color].num, 'text-2xl font-bold mt-0.5']">
+            <span v-if="cumpleanosStat.value === null" class="inline-block w-8 h-6 bg-slate-200 rounded animate-pulse" />
+            <span v-else>{{ cumpleanosStat.value }}</span>
           </p>
         </div>
       </RouterLink>
