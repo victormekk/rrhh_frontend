@@ -12,11 +12,13 @@ const isEdit        = computed(() => !!route.params.id)
 const loading       = ref(false)   // spinner del botón Guardar
 const formLoading   = ref(true)    // spinner mientras carga datos iniciales
 const error         = ref('')
+const loadError     = ref('')      // si falla la carga del empleado a editar, no se muestra el form
 const salarioMinimo = ref(0)
 
 // ── Sanitizadores de input ────────────────────────────────────────────────────
+// Todo texto libre se normaliza a mayúsculas para mantener un formato unificado.
 function soloLetras(field, e) {
-  const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚàèìòùÀÈÌÒÙñÑüÜ\s]/g, '')
+  const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚàèìòùÀÈÌÒÙñÑüÜ\s]/g, '').toUpperCase()
   form[field] = val
   e.target.value = val
 }
@@ -30,6 +32,11 @@ function soloTelefono(field, e) {
   form[field] = val
   e.target.value = val
 }
+function mayusculas(field, e) {
+  const val = e.target.value.toUpperCase()
+  form[field] = val
+  e.target.value = val
+}
 
 const departamentos = ref([])
 const cargos          = ref([])
@@ -39,14 +46,17 @@ const form = reactive({
   // Datos personales
   nombres: '', apellidos: '', cedula: '', rtn: '', genero: '',
   fecha_nacimiento: '', estado_civil: '', num_hijos: 0,
-  nacionalidad: 'Hondureño', residencia: '', telefono: '',
-  contacto_emergencia: '', telefono_emergencia: '', correo: '',
+  nacionalidad: 'HONDUREÑO', residencia: '', telefono: '',
+  contacto_emergencia: '', parentesco_emergencia: '', telefono_emergencia: '', correo: '',
   tipo_sangre: '',
   // Asignación
   id_departamento: '', id_cargo: '',
   // Info laboral
   tipo_contrato: '', fecha_inicio: '', moneda: 'Lempiras',
-  forma_de_pago: '', salario_base: '', usa_salario_minimo: false,
+  // Por defecto todo empleado nuevo cobra por cheque; si se le agrega cuenta
+  // bancaria en Informacion Laboral, la planilla lo detecta automaticamente
+  // como pago por transferencia (ver "Exportar Bancos"/"Exportar Cheques").
+  forma_de_pago: 'Cheque', salario_base: '', usa_salario_minimo: false,
   num_cuenta: '', id_banco: '',
   // Solo edición
   estado: 'Activo', fecha_cese: '', motivo_cese: '',
@@ -70,38 +80,45 @@ onMounted(async () => {
     salarioMinimo.value = campos.data.salario_minimo
 
     if (isEdit.value) {
-      const emp = await store.fetchEmpleado(route.params.id)
-      const il  = emp.informacion_laboral ?? {}
-      Object.assign(form, {
-      nombres:              emp.nombres,
-      apellidos:            emp.apellidos,
-      cedula:               emp.cedula,
-      rtn:                  emp.rtn ?? '',
-      genero:               emp.genero,
-      fecha_nacimiento:     emp.fecha_nacimiento ? String(emp.fecha_nacimiento).slice(0, 10) : '',
-      estado_civil:         emp.estado_civil,
-      num_hijos:            emp.num_hijos,
-      nacionalidad:         emp.nacionalidad,
-      residencia:           emp.residencia,
-      telefono:             emp.telefono,
-      contacto_emergencia:  emp.contacto_emergencia,
-      telefono_emergencia:  emp.telefono_emergencia,
-      correo:               emp.correo ?? '',
-      tipo_sangre:          emp.tipo_sangre,
-      id_departamento:      emp.id_departamento,
-      id_cargo:            emp.id_cargo,
-      tipo_contrato:        il.tipo_contrato ?? '',
-      fecha_inicio:         il.fecha_inicio ? String(il.fecha_inicio).slice(0, 10) : '',
-      fecha_cese:           il.fecha_cese   ? String(il.fecha_cese).slice(0, 10)   : '',
-      motivo_cese:          il.motivo_cese ?? '',
-      estado:               il.estado ?? 'Activo',
-      moneda:               il.moneda ?? 'Lempiras',
-      forma_de_pago:        il.forma_de_pago ?? '',
-      salario_base:         il.salario_base ?? '',
-      usa_salario_minimo:   il.usa_salario_minimo ?? false,
-      num_cuenta:           il.num_cuenta ?? '',
-      id_banco:             il.id_banco ?? '',
-    })
+      try {
+        const emp = await store.fetchEmpleado(route.params.id)
+        const il  = emp.informacion_laboral ?? {}
+        Object.assign(form, {
+        nombres:              emp.nombres?.toUpperCase() ?? '',
+        apellidos:            emp.apellidos?.toUpperCase() ?? '',
+        cedula:               emp.cedula,
+        rtn:                  emp.rtn ?? '',
+        genero:               emp.genero,
+        fecha_nacimiento:     emp.fecha_nacimiento ? String(emp.fecha_nacimiento).slice(0, 10) : '',
+        estado_civil:         emp.estado_civil,
+        num_hijos:            emp.num_hijos,
+        nacionalidad:         emp.nacionalidad?.toUpperCase() ?? '',
+        residencia:           emp.residencia?.toUpperCase() ?? '',
+        telefono:             emp.telefono,
+        contacto_emergencia:  emp.contacto_emergencia?.toUpperCase() ?? '',
+        parentesco_emergencia: emp.parentesco_emergencia?.toUpperCase() ?? '',
+        telefono_emergencia:  emp.telefono_emergencia,
+        correo:               emp.correo ?? '',
+        tipo_sangre:          emp.tipo_sangre,
+        id_departamento:      emp.id_departamento,
+        id_cargo:            emp.id_cargo,
+        tipo_contrato:        il.tipo_contrato ?? '',
+        fecha_inicio:         il.fecha_inicio ? String(il.fecha_inicio).slice(0, 10) : '',
+        fecha_cese:           il.fecha_cese   ? String(il.fecha_cese).slice(0, 10)   : '',
+        motivo_cese:          il.motivo_cese?.toUpperCase() ?? '',
+        estado:               il.estado ?? 'Activo',
+        moneda:               il.moneda ?? 'Lempiras',
+        forma_de_pago:        il.forma_de_pago ?? '',
+        salario_base:         il.salario_base ?? '',
+        usa_salario_minimo:   il.usa_salario_minimo ?? false,
+        num_cuenta:           il.num_cuenta?.toUpperCase() ?? '',
+        id_banco:             il.id_banco ?? '',
+      })
+      } catch (e) {
+        // Si falla la carga, NO mostramos el formulario: hacerlo con campos
+        // vacíos permitiría guardar y borrar datos reales del empleado.
+        loadError.value = 'No se pudieron cargar los datos del empleado. Recarga la página antes de continuar.'
+      }
     }
   } finally {
     formLoading.value = false
@@ -162,6 +179,14 @@ function salariosCalculados() {
       <p class="text-sm text-slate-500">{{ isEdit ? 'Cargando datos del empleado...' : 'Preparando formulario...' }}</p>
     </div>
 
+    <!-- Falló la carga del empleado: no se muestra el formulario para evitar guardar datos vacíos -->
+    <div v-else-if="loadError" class="flex flex-col items-center justify-center py-24 gap-4 bg-white rounded-xl border border-red-200">
+      <p class="text-sm text-red-600 font-medium text-center px-6">{{ loadError }}</p>
+      <button @click="router.push('/empleados')" class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+        Volver a Empleados
+      </button>
+    </div>
+
     <template v-else>
     <!-- Error -->
     <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-5 text-sm">
@@ -177,11 +202,11 @@ function salariosCalculados() {
 
           <div>
             <label class="label">Nombres <span class="text-red-500">*</span></label>
-            <input :value="form.nombres" @input="soloLetras('nombres', $event)" required maxlength="30" class="input" placeholder="Ej. Juan Carlos" autocomplete="off" />
+            <input :value="form.nombres" @input="soloLetras('nombres', $event)" required maxlength="30" class="input" placeholder="Ej. JUAN CARLOS" autocomplete="off" />
           </div>
           <div>
             <label class="label">Apellidos <span class="text-red-500">*</span></label>
-            <input :value="form.apellidos" @input="soloLetras('apellidos', $event)" required maxlength="30" class="input" placeholder="Ej. García López" autocomplete="off" />
+            <input :value="form.apellidos" @input="soloLetras('apellidos', $event)" required maxlength="30" class="input" placeholder="Ej. GARCÍA LÓPEZ" autocomplete="off" />
           </div>
           <div>
             <label class="label">DNI <span class="text-red-500">*</span></label>
@@ -234,7 +259,7 @@ function salariosCalculados() {
           </div>
           <div class="sm:col-span-2">
             <label class="label">Residencia <span class="text-red-500">*</span></label>
-            <input v-model="form.residencia" required maxlength="60" class="input" placeholder="Colonia, ciudad, departamento" />
+            <input :value="form.residencia" @input="mayusculas('residencia', $event)" required maxlength="60" class="input" placeholder="COLONIA, CIUDAD, DEPARTAMENTO" />
           </div>
 
           <div>
@@ -245,9 +270,15 @@ function salariosCalculados() {
             <label class="label">Contacto de Emergencia <span class="text-red-500">*</span></label>
             <input :value="form.contacto_emergencia" @input="soloLetras('contacto_emergencia', $event)" required maxlength="50" class="input" autocomplete="off" />
           </div>
-          <div>
-            <label class="label">Teléfono Emergencia <span class="text-red-500">*</span></label>
-            <input :value="form.telefono_emergencia" @input="soloTelefono('telefono_emergencia', $event)" required maxlength="30" inputmode="tel" class="input" autocomplete="off" />
+          <div class="grid grid-cols-5 gap-2">
+            <div class="col-span-3">
+              <label class="label">Teléfono Emergencia <span class="text-red-500">*</span></label>
+              <input :value="form.telefono_emergencia" @input="soloTelefono('telefono_emergencia', $event)" required maxlength="30" inputmode="tel" class="input" autocomplete="off" />
+            </div>
+            <div class="col-span-2">
+              <label class="label">Parentesco <span class="text-red-500">*</span></label>
+              <input :value="form.parentesco_emergencia" @input="soloLetras('parentesco_emergencia', $event)" required maxlength="30" class="input" placeholder="Ej. MADRE" autocomplete="off" />
+            </div>
           </div>
 
           <div class="sm:col-span-2">
@@ -364,7 +395,7 @@ function salariosCalculados() {
           </div>
           <div>
             <label class="label">N° de Cuenta</label>
-            <input v-model="form.num_cuenta" maxlength="25" class="input font-mono" placeholder="000-000-000000" />
+            <input :value="form.num_cuenta" @input="mayusculas('num_cuenta', $event)" maxlength="25" class="input font-mono" placeholder="000-000-000000" />
           </div>
 
           <!-- Solo edición: estado del contrato -->
@@ -383,7 +414,7 @@ function salariosCalculados() {
             </div>
             <div class="sm:col-span-2 lg:col-span-3">
               <label class="label">Motivo de Cese</label>
-              <textarea v-model="form.motivo_cese" maxlength="300" rows="2" class="input resize-none" placeholder="Describir el motivo si aplica..." />
+              <textarea :value="form.motivo_cese" @input="mayusculas('motivo_cese', $event)" maxlength="300" rows="2" class="input resize-none" placeholder="DESCRIBIR EL MOTIVO SI APLICA..." />
             </div>
           </template>
         </div>
