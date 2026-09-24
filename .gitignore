@@ -4,3 +4,6 @@ node_modules/
 
 # Archivos de referencia con datos reales de empleados (nombres, salarios, cuentas bancarias)
 src/assets/recursos/
+
+# Capturas de pantalla para reportar problemas, no son parte del codigo
+src/assets/problemas/
