@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useVacacionesStore } from '../../stores/vacaciones'
 import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
+import { nombreFeriado } from '../../utils/feriadosHn'
 
 const store = useVacacionesStore()
 const authStore = useAuthStore()
@@ -73,10 +74,29 @@ const diasCalculados = computed(() => {
   let dias = 0
   const cur = new Date(a)
   while (cur <= b) {
-    if (cur.getDay() !== 0) dias++ // excluir domingos
+    if (cur.getDay() !== 0 && !nombreFeriado(cur)) dias++ // excluir domingos y feriados
     cur.setDate(cur.getDate() + 1)
   }
   return dias
+})
+
+// Feriados que caen entre semana (lunes-sábado) dentro del rango seleccionado,
+// para avisarle al usuario que esos días no se le están descontando del saldo.
+const feriadosEnRango = computed(() => {
+  if (!form.value.fecha_inicio || !form.value.fecha_fin) return []
+  const a = new Date(form.value.fecha_inicio + 'T00:00:00')
+  const b = new Date(form.value.fecha_fin    + 'T00:00:00')
+  if (b < a) return []
+  const encontrados = []
+  const cur = new Date(a)
+  while (cur <= b) {
+    if (cur.getDay() !== 0) {
+      const nombre = nombreFeriado(cur)
+      if (nombre) encontrados.push({ fecha: cur.toISOString().slice(0, 10), nombre })
+    }
+    cur.setDate(cur.getDate() + 1)
+  }
+  return encontrados
 })
 
 // Saldo real disponible: cuando se edita, devolver los días originales al conteo
@@ -85,13 +105,13 @@ const saldoEfectivo = computed(() => {
   return editando.value ? base + (editando.value.dias_tomados ?? 0) : base
 })
 
-// Fecha máxima de fin que agota exactamente el saldo disponible (excluye domingos)
+// Fecha máxima de fin que agota exactamente el saldo disponible (excluye domingos y feriados)
 const fechaMaxFin = computed(() => {
   if (!form.value.fecha_inicio || saldoEfectivo.value <= 0) return ''
   const cur = new Date(form.value.fecha_inicio + 'T00:00:00')
   let count = 0
   while (count < saldoEfectivo.value) {
-    if (cur.getDay() !== 0) count++
+    if (cur.getDay() !== 0 && !nombreFeriado(cur)) count++
     if (count < saldoEfectivo.value) cur.setDate(cur.getDate() + 1)
   }
   return cur.toISOString().slice(0, 10)
@@ -597,6 +617,10 @@ function formatDate(d) {
                 {{ diasCalculados }}
               </span>
             </div>
+            <p v-if="feriadosEnRango.length" class="text-xs text-blue-600 mt-1.5 pt-1.5 border-t border-blue-100">
+              No cuenta{{ feriadosEnRango.length === 1 ? '' : 'n' }} en el conteo — feriado{{ feriadosEnRango.length === 1 ? '' : 's' }}:
+              {{ feriadosEnRango.map(f => `${formatDate(f.fecha)} (${f.nombre})`).join(', ') }}
+            </p>
           </div>
 
           <!-- Observaciones -->

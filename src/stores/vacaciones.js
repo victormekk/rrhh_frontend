@@ -41,15 +41,27 @@ export const useVacacionesStore = defineStore('vacaciones', () => {
     return data.data
   }
 
+  // Si el rango incluyó feriados nacionales, el backend los excluye del conteo
+  // de días y los informa aquí para avisarle al usuario cuáles no se contaron.
+  function avisarFeriados(data) {
+    const feriados = data?.feriados_excluidos ?? []
+    if (feriados.length === 0) return
+    const detalle = feriados.map(f => `${f.fecha} (${f.nombre})`).join(', ')
+    const verbo   = feriados.length === 1 ? 'contó' : 'contaron'
+    info(`No se ${verbo} ${feriados.length} día${feriados.length === 1 ? '' : 's'} feriado${feriados.length === 1 ? '' : 's'}: ${detalle}`)
+  }
+
   async function createSolicitud(payload) {
     const { data } = await api.post('/vacaciones', payload)
     success('Solicitud registrada exitosamente.')
+    avisarFeriados(data)
     return data
   }
 
   async function updateSolicitud(id, payload) {
     const { data } = await api.put(`/vacaciones/${id}`, payload)
     success('Solicitud actualizada.')
+    avisarFeriados(data)
     return data
   }
 
