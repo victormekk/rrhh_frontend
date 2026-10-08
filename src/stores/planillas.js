@@ -62,14 +62,9 @@ export const usePlanillasStore = defineStore('planillas', () => {
     success('Planilla eliminada.')
   }
 
-  function pdfUrl(id) {
-    const token = localStorage.getItem('token')
-    return `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/planillas/${id}/pdf?token=${token}`
-  }
-
   return {
     planillas, planilla, pagination, loading,
     fetchPlanillas, fetchPlanilla, createPlanilla,
-    updateDetalle, cerrarPlanilla, deletePlanilla, eliminarPlanillaCerrada, pdfUrl,
+    updateDetalle, cerrarPlanilla, deletePlanilla, eliminarPlanillaCerrada,
   }
 })

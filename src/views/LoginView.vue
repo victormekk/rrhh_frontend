@@ -9,8 +9,10 @@ const authStore = useAuthStore()
 
 const email    = ref('')
 const password = ref('')
-const error    = ref('')
+const error    = ref(sessionStorage.getItem('avisoLogin') ?? '')
 const loading  = ref(false)
+
+sessionStorage.removeItem('avisoLogin')
 
 async function handleLogin() {
   error.value   = ''
@@ -22,6 +24,8 @@ async function handleLogin() {
     const status = e.response?.status
     if (!e.response) {
       error.value = 'No se pudo conectar con el servidor. Verifique su conexión e intente nuevamente.'
+    } else if (status === 429) {
+      error.value = 'Demasiados intentos de inicio de sesión. Espere un minuto e intente nuevamente.'
     } else if (status >= 500) {
       error.value = 'Error interno del servidor. Intente más tarde.'
     } else {

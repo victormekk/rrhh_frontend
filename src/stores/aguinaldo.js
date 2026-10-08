@@ -66,12 +66,6 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
     success('Aguinaldo eliminado.')
   }
 
-  function pdfUrl(nombre) {
-    const token = localStorage.getItem('token')
-    const base  = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
-    return `${base}/aguinaldo/${encodeURIComponent(nombre)}/pdf?token=${token}`
-  }
-
   function calcTotalesFijos(fijos) {
     return {
       dias_trabajados: fijos.reduce((s, r) => s + (r.dias_trabajados ?? 0), 0),
@@ -93,6 +87,6 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
   return {
     lista, detalle, loading,
     fetchLista, fetchDetalle, crear,
-    updateFijo, updateExtra, cerrar, eliminar, pdfUrl,
+    updateFijo, updateExtra, cerrar, eliminar,
   }
 })

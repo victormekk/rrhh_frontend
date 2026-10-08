@@ -69,12 +69,24 @@ async function eliminar(u) {
     error('No puedes eliminar tu propio usuario.')
     return
   }
-  if (!confirm(`¿Eliminar al usuario "${u.name}"? Esta acción no se puede deshacer.`)) return
+  if (!confirm(`¿Eliminar al usuario "${u.name}"? Dejará de aparecer en la lista, pero se conserva en el historial del sistema.`)) return
   try {
     await store.deleteUsuario(u.id)
     await store.fetchUsuarios()
   } catch (e) {
     error(e.response?.data?.message ?? 'No se pudo eliminar el usuario.')
+  }
+}
+
+async function cambiarEstado(u) {
+  const accion = u.activo ? 'Deshabilitar' : 'Habilitar'
+  const detalle = u.activo ? ' No podrá iniciar sesión y su sesión abierta se cerrará en su siguiente acción.' : ''
+  if (!confirm(`¿${accion} al usuario "${u.name}"?${detalle}`)) return
+  try {
+    await store.cambiarEstadoUsuario(u.id, !u.activo)
+    await store.fetchUsuarios()
+  } catch (e) {
+    error(e.response?.data?.message ?? 'No se pudo cambiar el estado del usuario.')
   }
 }
 
@@ -165,6 +177,7 @@ const passwordPlaceholder = computed(() =>
             <th class="text-left px-5 py-3 font-semibold text-slate-600">Nombre</th>
             <th class="text-left px-5 py-3 font-semibold text-slate-600">Correo</th>
             <th class="text-center px-5 py-3 font-semibold text-slate-600">Rol</th>
+            <th class="text-center px-5 py-3 font-semibold text-slate-600">Estado</th>
             <th class="text-left px-5 py-3 font-semibold text-slate-600">Registrado</th>
             <th class="text-right px-5 py-3 font-semibold text-slate-600">Acciones</th>
           </tr>
@@ -176,13 +189,14 @@ const passwordPlaceholder = computed(() =>
               <td class="px-5 py-3"><div class="h-4 w-36 bg-slate-200 rounded animate-pulse" /></td>
               <td class="px-5 py-3"><div class="h-4 w-44 bg-slate-200 rounded animate-pulse" /></td>
               <td class="px-5 py-3 text-center"><div class="h-5 w-16 bg-slate-200 rounded-full animate-pulse mx-auto" /></td>
+              <td class="px-5 py-3 text-center"><div class="h-5 w-16 bg-slate-200 rounded-full animate-pulse mx-auto" /></td>
               <td class="px-5 py-3"><div class="h-4 w-24 bg-slate-200 rounded animate-pulse" /></td>
               <td class="px-5 py-3"><div class="h-4 w-20 bg-slate-200 rounded animate-pulse ml-auto" /></td>
             </tr>
           </template>
 
           <tr v-else-if="store.usuarios.length === 0">
-            <td colspan="5" class="text-center py-12 text-slate-400">No hay usuarios registrados.</td>
+            <td colspan="6" class="text-center py-12 text-slate-400">No hay usuarios registrados.</td>
           </tr>
 
           <tr v-else v-for="u in store.usuarios" :key="u.id"
@@ -203,6 +217,12 @@ const passwordPlaceholder = computed(() =>
                 {{ u.rol === 'admin' ? 'Administrador' : 'RRHH' }}
               </span>
             </td>
+            <td class="px-5 py-3 text-center">
+              <span class="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                :class="u.activo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'">
+                {{ u.activo ? 'Activo' : 'Deshabilitado' }}
+              </span>
+            </td>
             <td class="px-5 py-3 text-slate-500 text-xs">{{ formatDate(u.created_at) }}</td>
             <td class="px-5 py-3 text-right whitespace-nowrap">
               <div class="flex items-center justify-end gap-1">
@@ -211,7 +231,18 @@ const passwordPlaceholder = computed(() =>
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                   </svg>
                 </button>
-                <button @click="eliminar(u)" :disabled="u.id === authStore.user?.id" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition disabled:opacity-30 disabled:cursor-not-allowed" title="Eliminar">
+                <button v-if="u.id !== authStore.user?.id" @click="cambiarEstado(u)"
+                  :class="['p-1.5 text-slate-400 rounded transition', u.activo ? 'hover:text-orange-600 hover:bg-orange-50' : 'hover:text-emerald-600 hover:bg-emerald-50']"
+                  :title="u.activo ? 'Deshabilitar' : 'Habilitar'">
+                  <svg v-if="u.activo" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                  <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+                <!-- Solo se puede eliminar un usuario previamente deshabilitado -->
+                <button v-if="!u.activo" @click="eliminar(u)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                   </svg>

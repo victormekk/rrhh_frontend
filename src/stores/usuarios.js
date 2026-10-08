@@ -33,10 +33,16 @@ export const useUsuariosStore = defineStore('usuarios', () => {
     return data
   }
 
+  async function cambiarEstadoUsuario(id, activo) {
+    const { data } = await api.patch(`/usuarios/${id}/estado`, { activo })
+    success(activo ? 'Usuario habilitado.' : 'Usuario deshabilitado.')
+    return data
+  }
+
   async function deleteUsuario(id) {
     await api.delete(`/usuarios/${id}`)
     success('Usuario eliminado.')
   }
 
-  return { usuarios, pagination, loading, fetchUsuarios, createUsuario, updateUsuario, deleteUsuario }
+  return { usuarios, pagination, loading, fetchUsuarios, createUsuario, updateUsuario, cambiarEstadoUsuario, deleteUsuario }
 })

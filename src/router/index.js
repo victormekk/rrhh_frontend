@@ -196,7 +196,7 @@ const router = createRouter({
           path: 'campos-variables',
           name: 'campos-variables',
           component: CamposVariablesIndex,
-          meta: { requiresAuth: true, title: 'Campos Variables' },
+          meta: { requiresAuth: true, adminOnly: true, title: 'Campos Variables' },
         },
 
         // Gestión de usuarios (solo admin)
@@ -204,7 +204,7 @@ const router = createRouter({
           path: 'usuarios',
           name: 'usuarios',
           component: UsuariosIndex,
-          meta: { requiresAuth: true, title: 'Gestión de Usuarios' },
+          meta: { requiresAuth: true, adminOnly: true, title: 'Gestión de Usuarios' },
         },
       ],
     },
@@ -225,6 +225,9 @@ router.beforeEach(async (to, from, next) => {
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'login' })
+  } else if (to.meta.adminOnly && !authStore.isAdmin) {
+    // El backend también lo rechaza (403); esto solo evita mostrar la pantalla.
+    next({ name: 'dashboard' })
   } else if (to.meta.guest && authStore.isAuthenticated) {
     next({ name: 'dashboard' })
   } else {

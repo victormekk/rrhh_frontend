@@ -19,8 +19,13 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status
     if (status === 401) {
+      // El aviso se guarda para que la pantalla de login lo muestre tras la redirección.
+      const aviso = error.response?.data?.codigo === 'cuenta_deshabilitada'
+        ? error.response.data.message
+        : localStorage.getItem('token') ? 'Su sesión expiró. Inicie sesión nuevamente.' : ''
+      if (aviso) sessionStorage.setItem('avisoLogin', aviso)
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      if (window.location.pathname !== '/login') window.location.href = '/login'
     }
     if (status >= 500) {
       error.friendlyMessage = 'Error interno del servidor. Intente más tarde.'
