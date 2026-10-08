@@ -44,7 +44,7 @@ const bancos        = ref([])
 
 const form = reactive({
   // Datos personales
-  nombres: '', apellidos: '', cedula: '', rtn: '', genero: '',
+  nombres: '', apellidos: '', cedula: '', codigo_biometrico: '', rtn: '', genero: '',
   fecha_nacimiento: '', estado_civil: '', num_hijos: 0,
   nacionalidad: 'HONDUREÑO', residencia: '', telefono: '',
   contacto_emergencia: '', parentesco_emergencia: '', telefono_emergencia: '', correo: '',
@@ -87,6 +87,7 @@ onMounted(async () => {
         nombres:              emp.nombres?.toUpperCase() ?? '',
         apellidos:            emp.apellidos?.toUpperCase() ?? '',
         cedula:               emp.cedula,
+        codigo_biometrico:    emp.codigo_biometrico ?? '',
         rtn:                  emp.rtn ?? '',
         genero:               emp.genero,
         fecha_nacimiento:     emp.fecha_nacimiento ? String(emp.fecha_nacimiento).slice(0, 10) : '',
@@ -216,6 +217,10 @@ function salariosCalculados() {
           <div>
             <label class="label">RTN</label>
             <input :value="form.rtn" @input="soloDigitos('rtn', $event)" maxlength="14" inputmode="numeric" class="input font-mono" placeholder="00000000000000" autocomplete="off" />
+          </div>
+          <div>
+            <label class="label">Código Biométrico</label>
+            <input v-model="form.codigo_biometrico" maxlength="20" class="input font-mono" placeholder="ID en el reloj marcador" autocomplete="off" />
           </div>
           <div>
             <label class="label">Sexo <span class="text-red-500">*</span></label>

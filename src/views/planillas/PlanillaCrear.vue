@@ -17,10 +17,33 @@ function hoyLocal() {
 }
 
 const form = reactive({
-  nombre_planilla: '',
-  tipo_planilla:   'Fijos',
-  fecha_generada:  hoyLocal(),
+  nombre_planilla:  '',
+  tipo_planilla:    'Fijos',
+  fecha_generada:   hoyLocal(),
+  usar_marcaciones: false,
+  periodo_desde:    '',
+  periodo_hasta:    '',
 })
+
+// Sugiere el rango de la quincena en curso según la fecha de generación,
+// para precargar "Desde/Hasta" al activar el conteo por marcaciones.
+function sugerirPeriodo() {
+  const fecha = new Date(String(form.fecha_generada).slice(0, 10) + 'T00:00:00')
+  const y = fecha.getFullYear()
+  const m = fecha.getMonth()
+  if (fecha.getDate() <= 15) {
+    form.periodo_desde = `${y}-${String(m + 1).padStart(2, '0')}-01`
+    form.periodo_hasta = `${y}-${String(m + 1).padStart(2, '0')}-15`
+  } else {
+    const ultimo = new Date(y, m + 1, 0).getDate()
+    form.periodo_desde = `${y}-${String(m + 1).padStart(2, '0')}-16`
+    form.periodo_hasta = `${y}-${String(m + 1).padStart(2, '0')}-${String(ultimo).padStart(2, '0')}`
+  }
+}
+
+function onToggleMarcaciones() {
+  if (form.usar_marcaciones && !form.periodo_desde) sugerirPeriodo()
+}
 
 function sugerirNombre() {
   const fecha  = new Date(String(form.fecha_generada).slice(0, 10) + 'T00:00:00')
@@ -126,13 +149,35 @@ async function submit() {
           <input v-model="form.fecha_generada" type="date" required class="input" @change="sugerirNombre" />
         </div>
 
+        <!-- Marcaciones biométricas -->
+        <div class="border border-slate-200 rounded-lg p-4">
+          <label class="flex items-center gap-2.5 cursor-pointer select-none">
+            <input v-model="form.usar_marcaciones" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-blue-600" @change="onToggleMarcaciones" />
+            <span class="text-sm font-medium text-slate-700">Cargar días trabajados desde marcaciones biométricas</span>
+          </label>
+          <p class="text-xs text-slate-400 mt-1 ml-6">
+            Cuenta como día trabajado cualquier día con entrada y salida marcadas en el reloj (requiere que el empleado tenga su código biométrico asignado en su ficha).
+          </p>
+          <div v-if="form.usar_marcaciones" class="grid grid-cols-2 gap-3 mt-3 ml-6">
+            <div>
+              <label class="label text-xs">Desde <span class="text-red-500">*</span></label>
+              <input v-model="form.periodo_desde" type="date" :required="form.usar_marcaciones" class="input" />
+            </div>
+            <div>
+              <label class="label text-xs">Hasta <span class="text-red-500">*</span></label>
+              <input v-model="form.periodo_hasta" type="date" :min="form.periodo_desde" :required="form.usar_marcaciones" class="input" />
+            </div>
+          </div>
+        </div>
+
         <!-- Info box -->
         <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-700">
           <p class="font-semibold mb-1">¿Qué se generará?</p>
           <ul class="list-disc list-inside space-y-0.5 text-xs">
             <li>Una fila por cada empleado <strong>Activo</strong> en el sistema</li>
             <li>IHSS fijo según Campos Variables; RAP, ISR y demás deducciones se editan por empleado</li>
-            <li>0 días trabajados — editable manualmente por empleado</li>
+            <li v-if="!form.usar_marcaciones">0 días trabajados — editable manualmente por empleado</li>
+            <li v-else>Días trabajados precargados desde las marcaciones del período indicado — editable si hace falta ajustar</li>
             <li>Cuotas de deducciones activas incluidas automáticamente</li>
           </ul>
         </div>
