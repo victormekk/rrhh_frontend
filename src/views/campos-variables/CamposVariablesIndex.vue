@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useCamposVariablesStore } from '../../stores/camposVariables'
 import { useToast } from '../../composables/useToast'
+import LoadingSpinner from '../../components/LoadingSpinner.vue'
 
 const store = useCamposVariablesStore()
 const { error: toastError } = useToast()
@@ -101,16 +102,7 @@ function cancelarConfirmar() {
       <p class="text-sm text-red-700">{{ error }}</p>
     </div>
 
-    <!-- Loading skeleton -->
-    <template v-if="store.loading">
-      <div class="bg-white rounded-xl border border-gray-200 p-6 animate-pulse space-y-4">
-        <div class="h-4 bg-gray-200 rounded w-1/3"></div>
-        <div class="h-10 bg-gray-100 rounded"></div>
-        <div class="h-4 bg-gray-200 rounded w-1/4 mt-4"></div>
-        <div class="h-4 bg-gray-100 rounded w-1/2"></div>
-        <div class="h-10 bg-gray-100 rounded"></div>
-      </div>
-    </template>
+    <LoadingSpinner v-if="store.loading" card />
 
     <!-- Formulario -->
     <template v-else>

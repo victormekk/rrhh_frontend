@@ -1,14 +1,37 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import AppToast from './AppToast.vue'
+import LoadingSpinner from './LoadingSpinner.vue'
 import logo from '../assets/images/hpr_logo.png'
 import mariposa from '../assets/images/MariposaPNG (2021_01_15 15_14_58 UTC).png'
 
 const route     = useRoute()
 const router    = useRouter()
 const authStore = useAuthStore()
+
+// Mientras se descarga la vista de la siguiente ruta, el área principal queda
+// vacía; mostramos la rueda de carga. Se espera un poco antes de mostrarla para
+// que no parpadee en navegaciones instantáneas.
+const navegando = ref(false)
+let navTimer = null
+function finNavegacion() {
+  clearTimeout(navTimer)
+  navegando.value = false
+}
+const quitarBefore = router.beforeEach(() => {
+  clearTimeout(navTimer)
+  navTimer = setTimeout(() => { navegando.value = true }, 150)
+})
+const quitarAfter = router.afterEach(finNavegacion)
+const quitarError = router.onError(finNavegacion)
+onUnmounted(() => {
+  finNavegacion()
+  quitarBefore()
+  quitarAfter()
+  quitarError()
+})
 
 const PLANILLAS_PATHS = ['/planillas', '/aguinaldo']
 
@@ -317,7 +340,8 @@ function currentDate() {
 
       <!-- Page -->
       <main class="flex-1 overflow-y-auto p-6">
-        <RouterView />
+        <LoadingSpinner v-if="navegando" card />
+        <RouterView v-show="!navegando" />
       </main>
     </div>
   </div>

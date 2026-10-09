@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAguinaldoStore } from '../../stores/aguinaldo'
 import { useToast } from '../../composables/useToast'
 import { sanitizarNombreArchivo, descargarBlob } from '../../utils/archivos'
+import LoadingSpinner from '../../components/LoadingSpinner.vue'
 
 const route  = useRoute()
 const router = useRouter()
@@ -204,7 +205,7 @@ function fmt(val) {
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
     </svg>
-    <p class="text-sm text-slate-500">Cargando aguinaldo...</p>
+    <p class="text-sm text-slate-500">Cargando Información...</p>
   </div>
 
   <div v-else-if="detalle">
@@ -612,7 +613,7 @@ function fmt(val) {
           Promedio de días — {{ quincenas.registro?.nombres }} {{ quincenas.registro?.apellidos }}
         </h3>
 
-        <div v-if="quincenas.loading" class="py-10 text-center text-sm text-slate-400">Cargando...</div>
+        <LoadingSpinner v-if="quincenas.loading" />
 
         <template v-else-if="quincenas.data">
           <p class="text-xs text-slate-500 mt-1 mb-3">

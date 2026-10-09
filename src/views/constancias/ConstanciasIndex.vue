@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useConstanciasStore } from '../../stores/constancias'
 import { useLogSistemaStore } from '../../stores/logSistema'
 import { useToast } from '../../composables/useToast'
+import LoadingSpinner from '../../components/LoadingSpinner.vue'
 
 const store        = useConstanciasStore()
 const historialStore = useLogSistemaStore()
@@ -360,7 +361,7 @@ async function generar() {
           </thead>
           <tbody>
             <tr v-if="historialStore.loading">
-              <td colspan="3" class="px-4 py-8 text-center text-slate-400 text-sm">Cargando...</td>
+              <td colspan="3"><LoadingSpinner /></td>
             </tr>
             <tr v-else-if="historialStore.logs.length === 0">
               <td colspan="3" class="px-4 py-8 text-center text-slate-400 text-sm">Aún no se ha emitido ninguna constancia.</td>

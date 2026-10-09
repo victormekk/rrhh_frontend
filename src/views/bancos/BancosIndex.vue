@@ -226,7 +226,7 @@ async function desactivar(banco) {
       <div>
         <h3 class="text-lg font-bold text-slate-800">Empleados sin cuenta bancaria</h3>
         <p class="text-sm text-slate-500 mt-0.5">
-          <template v-if="store.loadingSinCuenta">Cargando...</template>
+          <template v-if="store.loadingSinCuenta">Cargando Información...</template>
           <template v-else-if="store.sinCuenta.length === 0">Todos los empleados activos tienen cuenta registrada.</template>
           <template v-else>
             {{ store.sinCuenta.length }} {{ store.sinCuenta.length === 1 ? 'empleado activo cobra' : 'empleados activos cobran' }} por cheque.

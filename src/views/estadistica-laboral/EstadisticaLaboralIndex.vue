@@ -481,7 +481,7 @@ function tipoBadge(tipo) {
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
             </svg>
-            <p class="text-sm text-slate-500">Cargando detalle...</p>
+            <p class="text-sm text-slate-500">Cargando Información...</p>
           </div>
 
           <table v-else-if="store.detalle" class="w-full text-sm">
