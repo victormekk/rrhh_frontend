@@ -21,7 +21,7 @@ function formatDate(d) {
 
 // Modal
 const modal       = reactive({ open: false, tipo: '', registro: null })
-const modalForm   = reactive({ dias_trabajados: 0, anticipo: 0, dias_promedio: 0, antiguedad: 0, anticipos: 0 })
+const modalForm   = reactive({ dias_trabajados: 0, anticipo: 0, dias_promedio: 0, antiguedad: 0, anticipos: 0, sin_promedio: false })
 const modalLoading = ref(false)
 
 const nombre = computed(() => decodeURIComponent(route.params.nombre))
@@ -30,7 +30,8 @@ const esCerrada = computed(() => detalle.value?.estado === 'Cerrado')
 
 // ── Agrupación por departamento, igual que en las planillas de pago ─────────
 const CAMPOS_SUMABLES_FIJOS  = ['dias_trabajados', 'salario_base', 'anticipo', 'total_aguinaldo']
-const CAMPOS_SUMABLES_EXTRAS = ['antiguedad', 'subtotal', 'anticipos', 'total_aguinaldo']
+// La antigüedad (días de 30) y los días promediados no se suman: no son montos.
+const CAMPOS_SUMABLES_EXTRAS = ['subtotal', 'anticipos', 'total_aguinaldo']
 
 function sumarCampos(filas, campos) {
   return campos.reduce((acc, campo) => {
@@ -72,9 +73,10 @@ function abrirModalFijo(r) {
 function abrirModalExtra(r) {
   modal.tipo     = 'extra'
   modal.registro = r
-  modalForm.dias_promedio = r.dias_promedio
+  modalForm.dias_promedio = r.dias_promedio ?? 0
   modalForm.antiguedad    = parseFloat(r.antiguedad)
   modalForm.anticipos     = parseFloat(r.anticipos)
+  modalForm.sin_promedio  = !!r.sin_promedio
   modal.open = true
 }
 
@@ -85,14 +87,42 @@ const totalFijoCalc = computed(() => {
   return Math.max(0, parseFloat(((base / 360) * modalForm.dias_trabajados - modalForm.anticipo).toFixed(2)))
 })
 
+// Mismas fórmulas que la planilla de Excel:
+// Subtotal = diario × antigüedad; Total = días prom. ÷ 30 × subtotal − anticipos
+// (si trabaja todos los días no se aplica el promedio).
 const subtotalExtraCalc = computed(() => {
   if (modal.tipo !== 'extra' || !modal.registro) return 0
-  return parseFloat((parseFloat(modal.registro.diario) * modalForm.dias_promedio + modalForm.antiguedad).toFixed(2))
+  return parseFloat(modal.registro.diario) * (Number(modalForm.antiguedad) || 0)
 })
 
 const totalExtraCalc = computed(() => {
-  return Math.max(0, parseFloat((subtotalExtraCalc.value - modalForm.anticipos).toFixed(2)))
+  const factor = modalForm.sin_promedio ? 1 : (Number(modalForm.dias_promedio) || 0) / 30
+  return Math.max(0, parseFloat((factor * subtotalExtraCalc.value - (Number(modalForm.anticipos) || 0)).toFixed(2)))
 })
+
+// ── Desglose del promedio de días (quincenas) ───────────────────
+const quincenas = reactive({ open: false, loading: false, registro: null, data: null })
+
+async function verQuincenas(e) {
+  Object.assign(quincenas, { open: true, loading: true, registro: e, data: null })
+  try {
+    quincenas.data = await store.fetchQuincenasExtra(e.id)
+  } catch (err) {
+    quincenas.open = false
+    error(err.response?.data?.message ?? 'No se pudo cargar el detalle de quincenas.')
+  } finally {
+    quincenas.loading = false
+  }
+}
+
+const periodoExtras = computed(() => {
+  const r = detalle.value?.extras?.[0]
+  return r?.periodo_desde ? { desde: r.periodo_desde, hasta: r.periodo_hasta, meses: Number(r.meses_promedio) } : null
+})
+
+function fmtAntig(v) {
+  return Number(v ?? 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 async function guardarModal() {
   modalLoading.value = true
@@ -104,7 +134,8 @@ async function guardarModal() {
       })
     } else {
       await store.updateExtra(modal.registro.id, {
-        dias_promedio: modalForm.dias_promedio,
+        sin_promedio:  modalForm.sin_promedio,
+        dias_promedio: modalForm.sin_promedio ? null : modalForm.dias_promedio,
         antiguedad:    modalForm.antiguedad,
         anticipos:     modalForm.anticipos,
       })
@@ -138,14 +169,26 @@ async function cerrar() {
   }
 }
 
-// ── PDF ──────────────────────────────────────────────────────────
-function exportarPdf() {
-  const token = localStorage.getItem('token')
-  const base  = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
-  const url   = `${base}/aguinaldo/${encodeURIComponent(nombre.value)}/pdf`
+// ── Exportaciones (las mismas que en las planillas de pago) ──────
+// ruta: 'pdf' | 'excel' | 'pago/excel' | 'bancos/excel' | 'bancos/pdf' | 'cheques/excel' | 'cheques/pdf'
+function exportar(ruta, prefijo = '') {
+  const token  = localStorage.getItem('token')
+  const base   = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
+  const url    = `${base}/aguinaldo/${encodeURIComponent(nombre.value)}/${ruta}`
+  const ext    = ruta.endsWith('excel') ? 'xlsx' : 'pdf'
+  const archivo = sanitizarNombreArchivo(nombre.value)
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-    .then(r => r.blob())
-    .then(blob => descargarBlob(blob, `${sanitizarNombreArchivo(nombre.value)}.pdf`))
+    .then(r => {
+      if (!r.ok) throw new Error()
+      return r.blob()
+    })
+    .then(blob => descargarBlob(blob, prefijo ? `${prefijo} (${archivo}).${ext}` : `${archivo}.${ext}`))
+    .catch(() => error('No se pudo generar el archivo.'))
+}
+
+// Bancos = empleados con cuenta bancaria registrada (transferencia); Cheques = sin cuenta.
+function exportarPagoPorMetodo(metodo, formato) {
+  exportar(`${metodo}/${formato}`, metodo === 'bancos' ? 'Bancos' : 'Cheques')
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -168,7 +211,7 @@ function fmt(val) {
     <!-- Header -->
     <div class="flex items-start justify-between mb-6">
       <div class="flex items-center gap-3">
-        <button @click="router.push('/aguinaldo')" class="text-slate-400 hover:text-slate-600 transition">
+        <button @click="router.push({ path: '/aguinaldo', query: { concepto: detalle.concepto, tipo: detalle.tipo_aguinaldo } })" class="text-slate-400 hover:text-slate-600 transition">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>
@@ -176,7 +219,7 @@ function fmt(val) {
         <div>
           <h2 class="text-xl font-bold text-slate-800">{{ detalle.nombre_aguinaldo }}</h2>
           <p class="text-xs text-slate-500 mt-0.5">
-            Tipo: {{ detalle.tipo_aguinaldo }} &bull;
+            {{ detalle.concepto }} {{ detalle.tipo_aguinaldo }} &bull;
             Fecha: {{ formatDate(detalle.fecha_generada) }} &bull;
             Corte: {{ formatDate(detalle.fecha_corte) }} &bull;
             Empleados: {{ (detalle.fijos?.length ?? 0) + (detalle.extras?.length ?? 0) }} &bull;
@@ -186,16 +229,63 @@ function fmt(val) {
           </p>
         </div>
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap justify-end gap-2">
         <button
-          @click="exportarPdf"
+          @click="exportar('pdf')"
           class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
           </svg>
-          Exportar PDF
+          PDF General
         </button>
+        <button
+          @click="exportar('excel')"
+          title="Excel con el detalle completo (mismas columnas que la planilla en Excel)"
+          class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+            <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
+            <path stroke-linecap="round" d="M3 9.75h18M3 15h18M9.75 4.5v15M15 4.5v15" />
+          </svg>
+          Excel General
+        </button>
+        <button
+          @click="exportar('pago/excel', 'Pago')"
+          title="Excel con Empleado y Total a Pagar (solo empleados con cuenta bancaria registrada), ordenado alfabéticamente"
+          class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 19.5h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
+          </svg>
+          Generar Pago
+        </button>
+        <!-- Bancos: empleados con cuenta bancaria registrada (transferencia) / Cheques: sin cuenta -->
+        <div
+          v-for="m in [{ metodo: 'bancos', etiqueta: 'Bancos', titulo: 'Empleados que cobran por transferencia bancaria (tienen cuenta registrada)', icono: 'M2.25 21h19.5M4.5 3h15l-1.5 3.75h-12L4.5 3zM4.5 21V9.75m15 11.25V9.75M3 9.75h18M6.75 12.75v5.25M11.25 12.75v5.25M12.75 12.75v5.25M17.25 12.75v5.25' },
+                       { metodo: 'cheques', etiqueta: 'Cheques', titulo: 'Empleados que cobran por cheque (sin cuenta bancaria registrada)', icono: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 19.5h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z' }]"
+          :key="m.metodo"
+          :title="m.titulo"
+          class="flex items-stretch border border-slate-300 rounded-lg overflow-hidden"
+        >
+          <span class="flex items-center gap-2 px-3 text-sm font-medium text-slate-700 bg-white">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" :d="m.icono" />
+            </svg>
+            {{ m.etiqueta }}
+          </span>
+          <button @click="exportarPagoPorMetodo(m.metodo, 'excel')" title="Excel" class="px-2.5 border-l border-slate-300 hover:bg-slate-50 text-emerald-600 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+              <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
+              <path stroke-linecap="round" d="M3 9.75h18M3 15h18M9.75 4.5v15M15 4.5v15" />
+            </svg>
+          </button>
+          <button @click="exportarPagoPorMetodo(m.metodo, 'pdf')" title="PDF" class="px-2.5 border-l border-slate-300 hover:bg-slate-50 text-red-600 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+          </button>
+        </div>
         <button
           v-if="!esCerrada"
           @click="abrirConfirmCerrar"
@@ -205,7 +295,7 @@ function fmt(val) {
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
             <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
           </svg>
-          {{ cerrando ? 'Cerrando...' : 'Cerrar Aguinaldo' }}
+          {{ cerrando ? 'Cerrando...' : `Cerrar ${detalle.concepto}` }}
         </button>
       </div>
     </div>
@@ -225,7 +315,7 @@ function fmt(val) {
                 <th class="px-4 py-3 text-center">Salario Mensual</th>
                 <th class="px-4 py-3 text-center">Días Año</th>
                 <th class="px-4 py-3 text-center">Anticipo</th>
-                <th class="px-4 py-3 text-center">Aguinaldo a Pagar</th>
+                <th class="px-4 py-3 text-center">A Pagar</th>
                 <th v-if="!esCerrada" class="px-4 py-3 text-center">Editar</th>
               </tr>
             </thead>
@@ -280,17 +370,24 @@ function fmt(val) {
 
     <!-- Extras -->
     <template v-if="detalle.extras?.length > 0">
-      <h3 class="text-sm font-semibold text-slate-600 mb-2">Empleados Extras</h3>
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-sm font-semibold text-slate-600">Empleados Extras</h3>
+        <p v-if="periodoExtras" class="text-xs text-slate-500">
+          Promedio de días: planillas del {{ formatDate(periodoExtras.desde) }} al {{ formatDate(periodoExtras.hasta) }}
+          · {{ periodoExtras.meses }} {{ periodoExtras.meses === 1 ? 'mes' : 'meses' }} · máx. 15 días por quincena
+        </p>
+      </div>
       <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
               <tr class="bg-slate-50 border-b border-gray-200 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 <th class="px-4 py-3 text-left">Empleado</th>
+                <th class="px-4 py-3 text-center">F. Inicio</th>
                 <th class="px-4 py-3 text-center">Diario</th>
-                <th class="px-4 py-3 text-center">Días Prom.</th>
-                <th class="px-4 py-3 text-center">Antigüedad</th>
-                <th class="px-4 py-3 text-center">Subtotal</th>
+                <th class="px-4 py-3 text-center" title="Días de 30 según la fecha de inicio: 30 si cumple 360 días al corte">Antigüedad</th>
+                <th class="px-4 py-3 text-center" title="Diario × antigüedad">Subtotal</th>
+                <th class="px-4 py-3 text-center" title="Promedio mensual de días trabajados (clic para ver las quincenas)">Días Prom.</th>
                 <th class="px-4 py-3 text-center">Anticipos</th>
                 <th class="px-4 py-3 text-center">Total</th>
                 <th v-if="!esCerrada" class="px-4 py-3 text-center">Editar</th>
@@ -298,16 +395,24 @@ function fmt(val) {
             </thead>
             <tbody v-for="grupo in gruposExtras" :key="grupo.departamento">
               <tr>
-                <td :colspan="esCerrada ? 7 : 8" class="px-4 py-1.5 bg-amber-50 text-amber-800 font-bold uppercase tracking-wide text-xs">
+                <td :colspan="esCerrada ? 8 : 9" class="px-4 py-1.5 bg-amber-50 text-amber-800 font-bold uppercase tracking-wide text-xs">
                   {{ grupo.departamento }}
                 </td>
               </tr>
               <tr v-for="e in grupo.filas" :key="e.id" class="border-b border-gray-100 hover:bg-slate-50">
                 <td class="px-4 py-2.5 font-medium text-slate-800">{{ e.nombres }} {{ e.apellidos }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-500 text-xs">{{ formatDate(e.fecha_inicio) }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(e.diario) }}</td>
-                <td class="px-4 py-2.5 text-center text-slate-700">{{ e.dias_promedio }}</td>
-                <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(e.antiguedad) }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-700">{{ fmtAntig(e.antiguedad) }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(e.subtotal) }}</td>
+                <td class="px-4 py-2.5 text-center">
+                  <span v-if="e.sin_promedio" class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full" title="Trabaja todos los días: no se aplica el promedio">No aplica</span>
+                  <button v-else type="button" @click="verQuincenas(e)"
+                    class="font-medium text-blue-700 hover:underline"
+                    :title="`Promedio exacto: ${e.promedio_dias ?? '—'} · clic para ver las quincenas`">
+                    {{ e.dias_promedio }}
+                  </button>
+                </td>
                 <td class="px-4 py-2.5 text-center text-amber-600">{{ fmt(e.anticipos) }}</td>
                 <td class="px-4 py-2.5 text-center font-semibold text-slate-800">{{ fmt(e.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada" class="px-4 py-2.5 text-center">
@@ -320,9 +425,9 @@ function fmt(val) {
               </tr>
               <!-- Subtotal por departamento -->
               <tr class="bg-amber-100/60 font-semibold text-xs">
-                <td class="px-4 py-1.5" colspan="3">SUBTOTAL: {{ grupo.departamento }}</td>
-                <td class="px-4 py-1.5 text-center">{{ fmt(grupo.subtotal.antiguedad) }}</td>
+                <td class="px-4 py-1.5" colspan="4">SUBTOTAL: {{ grupo.departamento }}</td>
                 <td class="px-4 py-1.5 text-center">{{ fmt(grupo.subtotal.subtotal) }}</td>
+                <td></td>
                 <td class="px-4 py-1.5 text-center">{{ fmt(grupo.subtotal.anticipos) }}</td>
                 <td class="px-4 py-1.5 text-center">{{ fmt(grupo.subtotal.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada"></td>
@@ -331,9 +436,9 @@ function fmt(val) {
             <tfoot>
               <!-- Total general -->
               <tr class="bg-blue-700 text-white text-xs font-semibold">
-                <td class="px-4 py-2.5" colspan="3">TOTAL GENERAL</td>
-                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.antiguedad) }}</td>
+                <td class="px-4 py-2.5" colspan="4">TOTAL GENERAL</td>
                 <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.subtotal) }}</td>
+                <td></td>
                 <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.anticipos) }}</td>
                 <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada"></td>
@@ -370,7 +475,7 @@ function fmt(val) {
         <!-- Detalle -->
         <div class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm">
           <div class="flex justify-between items-center">
-            <span class="text-slate-500">Aguinaldo</span>
+            <span class="text-slate-500">Planilla</span>
             <span class="font-semibold text-slate-800">{{ detalle?.nombre_aguinaldo }}</span>
           </div>
         </div>
@@ -405,7 +510,7 @@ function fmt(val) {
             <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
             </svg>
-            {{ cerrando ? 'Cerrando...' : 'Cerrar Aguinaldo' }}
+            {{ cerrando ? 'Cerrando...' : `Cerrar ${detalle.concepto}` }}
           </button>
         </div>
       </div>
@@ -441,13 +546,24 @@ function fmt(val) {
         <!-- Extras form -->
         <template v-else-if="modal.tipo === 'extra'">
           <div class="space-y-3">
-            <div>
-              <label class="label">Días Promedio</label>
+            <label class="flex items-start gap-2 cursor-pointer select-none">
+              <input v-model="modalForm.sin_promedio" type="checkbox" class="w-4 h-4 mt-0.5 rounded border-slate-300 text-blue-600" />
+              <span class="text-sm text-slate-700">
+                Trabaja todos los días
+                <span class="block text-xs text-slate-400">No se aplica el promedio: el total depende solo de la antigüedad.</span>
+              </span>
+            </label>
+            <div v-if="!modalForm.sin_promedio">
+              <label class="label">Días Promedio (máx. 30)</label>
               <input v-model.number="modalForm.dias_promedio" type="text" inputmode="numeric" pattern="[0-9]*" class="input" />
+              <p v-if="modal.registro?.promedio_dias != null" class="text-xs text-slate-400 mt-1">
+                Calculado: {{ modal.registro.promedio_dias }} → {{ Math.min(30, Math.floor(modal.registro.promedio_dias)) }} (se cortan los decimales)
+              </p>
             </div>
             <div>
-              <label class="label">Antigüedad (L)</label>
+              <label class="label">Antigüedad (días de 30, máx. 30)</label>
               <input v-model.number="modalForm.antiguedad" type="text" inputmode="decimal" class="input" />
+              <p class="text-xs text-slate-400 mt-1">30 si al corte cumple 360 días; si no, proporcional a su fecha de inicio.</p>
             </div>
             <div>
               <label class="label">Anticipos (L)</label>
@@ -456,7 +572,7 @@ function fmt(val) {
             <div class="bg-blue-50 rounded-lg p-3 text-sm space-y-1">
               <div>
                 <span class="text-slate-500">Subtotal:</span>
-                <span class="float-right font-medium text-slate-700">{{ 'L ' + subtotalExtraCalc.toLocaleString('es-HN', { minimumFractionDigits: 2 }) }}</span>
+                <span class="float-right font-medium text-slate-700">{{ 'L ' + subtotalExtraCalc.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
               </div>
               <div>
                 <span class="text-slate-500">Total calculado:</span>
@@ -483,6 +599,61 @@ function fmt(val) {
             </svg>
             {{ modalLoading ? 'Guardando...' : 'Guardar' }}
           </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- ── Modal: quincenas del promedio de días ── -->
+  <Teleport to="body">
+    <div v-if="quincenas.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="quincenas.open = false">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] flex flex-col">
+        <h3 class="text-base font-bold text-slate-800">
+          Promedio de días — {{ quincenas.registro?.nombres }} {{ quincenas.registro?.apellidos }}
+        </h3>
+
+        <div v-if="quincenas.loading" class="py-10 text-center text-sm text-slate-400">Cargando...</div>
+
+        <template v-else-if="quincenas.data">
+          <p class="text-xs text-slate-500 mt-1 mb-3">
+            Planillas de extras del {{ formatDate(quincenas.data.periodo_desde) }} al {{ formatDate(quincenas.data.periodo_hasta) }}.
+            Cada quincena cuenta como máximo 15 días.
+          </p>
+          <div class="overflow-y-auto border border-slate-200 rounded-lg">
+            <table class="w-full text-sm">
+              <thead class="sticky top-0 bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+                <tr>
+                  <th class="px-3 py-2 text-left">Quincena</th>
+                  <th class="px-3 py-2 text-center">Días en planilla</th>
+                  <th class="px-3 py-2 text-center">Días contados</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="q in quincenas.data.quincenas" :key="q.fecha" class="border-t border-slate-100">
+                  <td class="px-3 py-1.5 text-slate-700">{{ formatDate(q.fecha) }}</td>
+                  <td class="px-3 py-1.5 text-center" :class="q.dias > 15 ? 'text-red-600 font-semibold' : 'text-slate-600'">
+                    {{ q.dias ?? '—' }}
+                  </td>
+                  <td class="px-3 py-1.5 text-center font-medium" :class="q.dias > 15 ? 'text-red-600' : 'text-slate-800'">
+                    {{ q.contado }}<span v-if="q.dias > 15" class="text-xs font-normal"> (tope)</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="bg-blue-50 rounded-lg p-3 text-sm mt-3 space-y-1">
+            <div><span class="text-slate-500">Total de días contados:</span><span class="float-right font-medium">{{ quincenas.data.total_contado }}</span></div>
+            <div><span class="text-slate-500">÷ Meses del período:</span><span class="float-right font-medium">{{ quincenas.data.meses }}</span></div>
+            <div><span class="text-slate-500">Promedio:</span><span class="float-right font-medium">{{ quincenas.data.promedio }}</span></div>
+            <div><span class="text-slate-500">Días promediados (sin decimales):</span><span class="float-right font-bold text-blue-700">{{ quincenas.data.dias_promedio }}</span></div>
+          </div>
+          <p v-if="quincenas.registro && quincenas.registro.dias_promedio !== quincenas.data.dias_promedio" class="text-xs text-amber-600 mt-2">
+            En este aguinaldo figura {{ quincenas.registro.dias_promedio }}: se ajustó a mano o cambiaron las planillas después de generarlo.
+          </p>
+        </template>
+
+        <div class="flex justify-end mt-4">
+          <button type="button" @click="quincenas.open = false" class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition">Cerrar</button>
         </div>
       </div>
     </div>

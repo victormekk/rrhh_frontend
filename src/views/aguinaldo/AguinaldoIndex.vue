@@ -11,18 +11,27 @@ const store  = useAguinaldoStore()
 const authStore = useAuthStore()
 const { error } = useToast()
 
-const filtroTipo = ref(route.query.tipo ?? '')
+// Planillas Especiales: aguinaldo y catorceavo, de fijos y extras, en una sola lista
+// con filtros (el concepto y el tipo se eligen al crear cada planilla).
+const filtroTipo     = ref(route.query.tipo ?? '')
+const filtroConcepto = ref(route.query.concepto ?? '')
 
 const listaFiltrada = computed(() =>
-  filtroTipo.value
-    ? store.lista.filter((a) => a.tipo_aguinaldo === filtroTipo.value)
-    : store.lista
+  store.lista.filter((a) =>
+    (!filtroTipo.value || a.tipo_aguinaldo === filtroTipo.value) &&
+    (!filtroConcepto.value || a.concepto === filtroConcepto.value)
+  )
 )
+
+function generar() {
+  router.push({ path: '/aguinaldo/crear', query: { concepto: filtroConcepto.value || undefined, tipo: filtroTipo.value || undefined } })
+}
 
 onMounted(() => store.fetchLista())
 
-watch(() => route.query.tipo, (tipo) => {
-  filtroTipo.value = tipo ?? ''
+watch(() => route.query, (q) => {
+  filtroTipo.value     = q.tipo ?? ''
+  filtroConcepto.value = q.concepto ?? ''
 })
 
 // ── modal confirmación de eliminar ───────────────────────────────────────────
@@ -84,15 +93,27 @@ function formatDate(d) {
 <template>
   <div>
     <!-- Top bar -->
-    <div class="flex justify-end mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+      <div class="flex-1 flex gap-3">
+        <select v-model="filtroConcepto" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Aguinaldo y Catorceavo</option>
+          <option>Aguinaldo</option>
+          <option>Catorceavo</option>
+        </select>
+        <select v-model="filtroTipo" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Todos los tipos</option>
+          <option>Fijos</option>
+          <option>Extras</option>
+        </select>
+      </div>
       <button
-        @click="router.push('/aguinaldo/crear')"
+        @click="generar"
         class="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
       >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
-        Generar Aguinaldo
+        Nueva Planilla Especial
       </button>
     </div>
 
@@ -103,10 +124,11 @@ function formatDate(d) {
           <thead>
             <tr class="bg-slate-50 border-b border-gray-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
               <th class="px-4 py-3">Nombre</th>
+              <th class="px-4 py-3">Concepto</th>
               <th class="px-4 py-3">Tipo</th>
               <th class="px-4 py-3">Fecha</th>
               <th class="px-4 py-3 text-right">Empleados</th>
-              <th class="px-4 py-3 text-right">Total Aguinaldo</th>
+              <th class="px-4 py-3 text-right">Total</th>
               <th class="px-4 py-3">Estado</th>
               <th class="px-4 py-3 text-right">Acciones</th>
             </tr>
@@ -114,15 +136,15 @@ function formatDate(d) {
           <tbody>
             <template v-if="store.loading">
               <tr v-for="n in 4" :key="n" class="border-b border-slate-100">
-                <td v-for="i in 7" :key="i" class="px-4 py-3">
+                <td v-for="i in 8" :key="i" class="px-4 py-3">
                   <div class="h-4 bg-slate-200 rounded animate-pulse" />
                 </td>
               </tr>
             </template>
 
             <tr v-else-if="listaFiltrada.length === 0">
-              <td colspan="7" class="px-4 py-12 text-center text-slate-400">
-                No hay aguinaldos generados.
+              <td colspan="8" class="px-4 py-12 text-center text-slate-400">
+                No hay planillas especiales generadas.
               </td>
             </tr>
 
@@ -133,6 +155,7 @@ function formatDate(d) {
               class="border-b border-gray-100 hover:bg-slate-50 transition-colors"
             >
               <td class="px-4 py-3 font-medium text-slate-800">{{ a.nombre_aguinaldo }}</td>
+              <td class="px-4 py-3 text-slate-700">{{ a.concepto }}</td>
               <td class="px-4 py-3">
                 <span :class="[tipoClass(a.tipo_aguinaldo), 'text-xs font-medium px-2.5 py-1 rounded-full']">
                   {{ a.tipo_aguinaldo }}
@@ -193,15 +216,15 @@ function formatDate(d) {
             </svg>
           </div>
           <div>
-            <h3 class="text-base font-bold text-slate-800">Eliminar aguinaldo</h3>
-            <p class="text-xs text-slate-500 mt-0.5">¿Seguro que quieres eliminar este aguinaldo?</p>
+            <h3 class="text-base font-bold text-slate-800">Eliminar planilla especial</h3>
+            <p class="text-xs text-slate-500 mt-0.5">¿Seguro que quieres eliminar esta planilla?</p>
           </div>
         </div>
 
         <!-- Detalle -->
         <div class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm">
           <div class="flex justify-between items-center">
-            <span class="text-slate-500">Aguinaldo</span>
+            <span class="text-slate-500">Planilla</span>
             <span class="font-semibold text-slate-800">{{ confirmItem }}</span>
           </div>
         </div>

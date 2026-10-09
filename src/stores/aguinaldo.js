@@ -28,7 +28,7 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
 
   async function crear(payload) {
     const { data } = await api.post('/aguinaldo', payload)
-    success('Aguinaldo generado.')
+    success('Planilla generada.')
     return data
   }
 
@@ -39,7 +39,13 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
       if (idx !== -1) detalle.value.fijos[idx] = data
       detalle.value.totales_fijos = calcTotalesFijos(detalle.value.fijos)
     }
-    success('Aguinaldo actualizado.')
+    success('Planilla actualizada.')
+    return data
+  }
+
+  // Quincenas usadas para el promedio de días de un extra (desglose tipo Excel).
+  async function fetchQuincenasExtra(id) {
+    const { data } = await api.get(`/aguinaldo/extras/${id}/quincenas`)
     return data
   }
 
@@ -50,20 +56,20 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
       if (idx !== -1) detalle.value.extras[idx] = data
       detalle.value.totales_extras = calcTotalesExtras(detalle.value.extras)
     }
-    success('Aguinaldo actualizado.')
+    success('Planilla actualizada.')
     return data
   }
 
   async function cerrar(nombre) {
     const { data } = await api.post(`/aguinaldo/${encodeURIComponent(nombre)}/cerrar`)
     if (detalle.value) detalle.value.estado = 'Cerrado'
-    success('Aguinaldo cerrado.')
+    success('Planilla cerrada.')
     return data
   }
 
   async function eliminar(nombre) {
     await api.delete(`/aguinaldo/${encodeURIComponent(nombre)}`)
-    success('Aguinaldo eliminado.')
+    success('Planilla eliminada.')
   }
 
   function calcTotalesFijos(fijos) {
@@ -78,7 +84,6 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
   function calcTotalesExtras(extras) {
     return {
       subtotal:        extras.reduce((s, r) => s + parseFloat(r.subtotal ?? 0), 0),
-      antiguedad:      extras.reduce((s, r) => s + parseFloat(r.antiguedad ?? 0), 0),
       anticipos:       extras.reduce((s, r) => s + parseFloat(r.anticipos ?? 0), 0),
       total_aguinaldo: extras.reduce((s, r) => s + parseFloat(r.total_aguinaldo ?? 0), 0),
     }
@@ -87,6 +92,6 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
   return {
     lista, detalle, loading,
     fetchLista, fetchDetalle, crear,
-    updateFijo, updateExtra, cerrar, eliminar,
+    updateFijo, updateExtra, fetchQuincenasExtra, cerrar, eliminar,
   }
 })

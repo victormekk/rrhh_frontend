@@ -1,9 +1,10 @@
 <script setup>
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAguinaldoStore } from '../../stores/aguinaldo'
 
 const router  = useRouter()
+const route   = useRoute()
 const store   = useAguinaldoStore()
 
 const loading = ref(false)
@@ -16,25 +17,42 @@ function hoyLocal() {
   return `${d.getFullYear()}-${mm}-${dd}`
 }
 
-function finDeAnio() {
-  return `${new Date().getFullYear()}-12-31`
+// Corte por defecto: aguinaldo al 31 de diciembre, catorceavo al 30 de junio.
+function cortePorConcepto(concepto) {
+  const anio = new Date().getFullYear()
+  return concepto === 'Catorceavo' ? `${anio}-06-30` : `${anio}-12-31`
 }
+
+const conceptoInicial = route.query.concepto === 'Catorceavo' ? 'Catorceavo' : 'Aguinaldo'
 
 const form = reactive({
   nombre_aguinaldo: '',
-  tipo_aguinaldo:   'Fijos',
+  concepto:         conceptoInicial,
+  tipo_aguinaldo:   route.query.tipo === 'Extras' ? 'Extras' : 'Fijos',
   fecha_generada:   hoyLocal(),
-  fecha_corte:      finDeAnio(),
+  fecha_corte:      cortePorConcepto(conceptoInicial),
+})
+
+function cambiarConcepto() {
+  form.fecha_corte = cortePorConcepto(form.concepto)
+  sugerirNombre()
+}
+
+// Período del promedio de días de extras: los 12 meses que terminan en la fecha de corte
+// (corte 30/06 → 01/07 del año anterior; corte 31/12 → 01/01 del mismo año).
+const periodoExtras = computed(() => {
+  const corte = new Date(String(form.fecha_corte).slice(0, 10) + 'T00:00:00')
+  if (isNaN(corte)) return null
+  const desde = new Date(corte.getFullYear() - 1, corte.getMonth(), corte.getDate() + 1)
+  const fmt = d => d.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return { desde: fmt(desde), hasta: fmt(corte) }
 })
 
 function sugerirNombre() {
-  const anio = new Date().getFullYear()
-  const tipos = { Fijos: 'Fijos', Extras: 'Extras', Ambos: '' }
-  const suf   = tipos[form.tipo_aguinaldo]
-  form.nombre_aguinaldo = suf
-    ? `Aguinaldo ${suf} ${anio}`
-    : `Aguinaldo ${anio}`
+  const anio = String(form.fecha_corte).slice(0, 4) || new Date().getFullYear()
+  form.nombre_aguinaldo = `${form.concepto} ${form.tipo_aguinaldo} ${anio}`
 }
+sugerirNombre()
 
 async function submit() {
   error.value   = ''
@@ -46,7 +64,7 @@ async function submit() {
     const errs = e.response?.data?.errors
     error.value = errs
       ? Object.values(errs).flat().join(' | ')
-      : e.response?.data?.message ?? 'Error al generar el aguinaldo.'
+      : e.response?.data?.message ?? 'Error al generar la planilla.'
   } finally {
     loading.value = false
   }
@@ -62,7 +80,7 @@ async function submit() {
           <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
         </svg>
       </button>
-      <h2 class="text-xl font-bold text-slate-800">Generar Aguinaldo</h2>
+      <h2 class="text-xl font-bold text-slate-800">Nueva Planilla Especial <span class="text-slate-400 font-normal">· {{ form.concepto }} {{ form.tipo_aguinaldo }}</span></h2>
     </div>
 
     <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-5 text-sm">
@@ -72,12 +90,31 @@ async function submit() {
     <div class="bg-white rounded-xl border border-gray-200 p-6">
       <form @submit.prevent="submit" class="space-y-5">
 
+        <!-- Concepto -->
+        <div>
+          <label class="label">Concepto <span class="text-red-500">*</span></label>
+          <div class="grid grid-cols-2 gap-3">
+            <label
+              v-for="c in [{ valor: 'Aguinaldo', detalle: 'Décimo tercer mes · diciembre' }, { valor: 'Catorceavo', detalle: 'Décimo cuarto mes · junio' }]"
+              :key="c.valor"
+              :class="[
+                'flex flex-col items-center gap-0.5 border-2 rounded-xl p-3 cursor-pointer transition text-sm font-medium',
+                form.concepto === c.valor ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 hover:border-slate-300 text-slate-600'
+              ]"
+            >
+              <input type="radio" v-model="form.concepto" :value="c.valor" class="sr-only" @change="cambiarConcepto" />
+              {{ c.valor }}
+              <span class="text-xs font-normal opacity-70">{{ c.detalle }}</span>
+            </label>
+          </div>
+        </div>
+
         <!-- Tipo -->
         <div>
-          <label class="label">Tipo de Aguinaldo <span class="text-red-500">*</span></label>
-          <div class="grid grid-cols-3 gap-3">
+          <label class="label">Tipo de Empleado <span class="text-red-500">*</span></label>
+          <div class="grid grid-cols-2 gap-3">
             <label
-              v-for="tipo in ['Fijos', 'Extras', 'Ambos']"
+              v-for="tipo in ['Fijos', 'Extras']"
               :key="tipo"
               :class="[
                 'flex flex-col items-center gap-2 border-2 rounded-xl p-4 cursor-pointer transition text-sm font-medium',
@@ -89,8 +126,7 @@ async function submit() {
               <input type="radio" v-model="form.tipo_aguinaldo" :value="tipo" class="sr-only" @change="sugerirNombre" />
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
                 <path v-if="tipo==='Fijos'" stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                <path v-else-if="tipo==='Extras'" stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                <path v-else stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1012 10.5m0-5.625a2.625 2.625 0 100 5.625M12 10.5V21m0-10.5H6.375c-.621 0-1.125-.504-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125H12m0 0h5.625c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H12" />
+                <path v-else stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
               </svg>
               {{ tipo }}
             </label>
@@ -100,7 +136,7 @@ async function submit() {
         <!-- Nombre -->
         <div>
           <div class="flex items-center justify-between mb-1.5">
-            <label class="label mb-0">Nombre del Aguinaldo <span class="text-red-500">*</span></label>
+            <label class="label mb-0">Nombre de la Planilla <span class="text-red-500">*</span></label>
             <button type="button" @click="sugerirNombre" class="text-xs text-blue-600 hover:text-blue-700 font-medium">
               Auto-completar
             </button>
@@ -110,7 +146,7 @@ async function submit() {
             required
             maxlength="50"
             class="input"
-            placeholder="Ej. Aguinaldo Fijos 2026"
+            placeholder="Ej. Catorceavo Extras 2026"
           />
         </div>
 
@@ -122,10 +158,9 @@ async function submit() {
           </div>
           <div>
             <label class="label">Fecha de Corte <span class="text-red-500">*</span></label>
-            <input v-model="form.fecha_corte" type="date" required class="input" />
+            <input v-model="form.fecha_corte" type="date" required class="input" @change="sugerirNombre" />
             <p class="text-xs text-slate-400 mt-1">
-              Fecha que se toma en cuenta para calcular los días (normalmente 31/12/AAAA,
-              pero puede cambiarse para calcular un catorceavo u otro corte).
+              Fecha hasta la que se cuentan los días: 31/12 para el aguinaldo y 30/06 para el catorceavo.
             </p>
           </div>
         </div>
@@ -139,7 +174,11 @@ async function submit() {
               desde su fecha de inicio hasta la Fecha de Corte (máximo 360 días)
             </li>
             <li v-if="form.tipo_aguinaldo !== 'Fijos'">
-              Empleados <strong>Extras</strong>: aguinaldo = diario × días promedio de planillas
+              Empleados <strong>Extras</strong>: (días promedio ÷ 30) × diario × antigüedad.
+              Días promedio = días de las planillas de extras
+              <template v-if="periodoExtras">del <strong>{{ periodoExtras.desde }}</strong> al <strong>{{ periodoExtras.hasta }}</strong></template>
+              (máx. 15 por quincena) ÷ meses con planilla, sin decimales. A los que trabajan todos los días
+              no se les aplica el promedio.
             </li>
             <li>Solo empleados con estado <strong>Activo</strong></li>
             <li>Anticipos se pueden registrar individualmente después</li>
@@ -159,7 +198,7 @@ async function submit() {
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
             </svg>
-            {{ loading ? 'Generando...' : 'Generar Aguinaldo' }}
+            {{ loading ? 'Generando...' : `Generar ${form.concepto}` }}
           </button>
         </div>
       </form>

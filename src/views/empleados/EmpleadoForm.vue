@@ -56,7 +56,7 @@ const form = reactive({
   // Por defecto todo empleado nuevo cobra por cheque; si se le agrega cuenta
   // bancaria en Informacion Laboral, la planilla lo detecta automaticamente
   // como pago por transferencia (ver "Exportar Bancos"/"Exportar Cheques").
-  forma_de_pago: 'Cheque', salario_base: '', usa_salario_minimo: false,
+  forma_de_pago: 'Cheque', salario_base: '', usa_salario_minimo: false, sin_promedio_dias: false,
   num_cuenta: '', id_banco: '',
   // Solo edición
   estado: 'Activo', fecha_cese: '', motivo_cese: '',
@@ -112,6 +112,7 @@ onMounted(async () => {
         forma_de_pago:        il.forma_de_pago ?? '',
         salario_base:         il.salario_base ?? '',
         usa_salario_minimo:   il.usa_salario_minimo ?? false,
+        sin_promedio_dias:    il.sin_promedio_dias ?? false,
         num_cuenta:           il.num_cuenta?.toUpperCase() ?? '',
         id_banco:             il.id_banco ?? '',
       })
@@ -369,6 +370,17 @@ function salariosCalculados() {
               <span class="text-sm text-slate-700">
                 Usa salario mínimo
                 <span class="text-xs text-slate-400 ml-1">(L {{ Number(salarioMinimo).toLocaleString('es-HN', {minimumFractionDigits:2}) }})</span>
+              </span>
+            </label>
+          </div>
+
+          <!-- Solo extras: los que trabajan todos los días (ej. Animación) no llevan promedio de días -->
+          <div v-if="form.tipo_contrato === 'Extra'" class="sm:col-span-2 lg:col-span-3">
+            <label class="flex items-start gap-2 cursor-pointer select-none">
+              <input v-model="form.sin_promedio_dias" type="checkbox" class="w-4 h-4 mt-0.5 rounded border-slate-300 text-blue-600" />
+              <span class="text-sm text-slate-700">
+                Trabaja todos los días
+                <span class="block text-xs text-slate-400">En aguinaldo y catorceavo no se le aplica el promedio de días trabajados: se calcula solo con su antigüedad (fecha de inicio).</span>
               </span>
             </label>
           </div>
