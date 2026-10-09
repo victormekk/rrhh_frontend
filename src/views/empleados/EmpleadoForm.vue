@@ -27,6 +27,12 @@ function soloDigitos(field, e) {
   form[field] = val
   e.target.value = val
 }
+// DNI: números y guiones (el carnet de residencia de extranjeros trae guiones).
+function soloDigitosYGuiones(field, e) {
+  const val = e.target.value.replace(/[^0-9-]/g, '')
+  form[field] = val
+  e.target.value = val
+}
 function soloTelefono(field, e) {
   const val = e.target.value.replace(/[^0-9+\-\s()]/g, '')
   form[field] = val
@@ -178,7 +184,7 @@ function salariosCalculados() {
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
       </svg>
-      <p class="text-sm text-slate-500">{{ isEdit ? 'Cargando datos del empleado...' : 'Preparando formulario...' }}</p>
+      <p class="text-sm text-slate-500">Cargando Información...</p>
     </div>
 
     <!-- Falló la carga del empleado: no se muestra el formulario para evitar guardar datos vacíos -->
@@ -202,6 +208,7 @@ function salariosCalculados() {
         <h3 class="font-semibold text-slate-700 mb-4 pb-3 border-b border-gray-100 text-sm uppercase tracking-wide">Datos Personales</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
+          <!-- Nombres | Apellidos | Fecha de Nacimiento -->
           <div>
             <label class="label">Nombres <span class="text-red-500">*</span></label>
             <input :value="form.nombres" @input="soloLetras('nombres', $event)" required maxlength="30" class="input" placeholder="Ej. JUAN CARLOS" autocomplete="off" />
@@ -211,40 +218,31 @@ function salariosCalculados() {
             <input :value="form.apellidos" @input="soloLetras('apellidos', $event)" required maxlength="30" class="input" placeholder="Ej. GARCÍA LÓPEZ" autocomplete="off" />
           </div>
           <div>
-            <label class="label">DNI <span class="text-red-500">*</span></label>
-            <input :value="form.cedula" @input="soloDigitos('cedula', $event)" required maxlength="13" inputmode="numeric" class="input font-mono" placeholder="0000000000000" autocomplete="off" />
+            <label class="label">Fecha de Nacimiento <span class="text-red-500">*</span></label>
+            <input v-model="form.fecha_nacimiento" type="date" required class="input" />
           </div>
 
+          <!-- DNI | RTN | Teléfono -->
+          <div>
+            <label class="label">DNI <span class="text-red-500">*</span></label>
+            <input :value="form.cedula" @input="soloDigitosYGuiones('cedula', $event)" required maxlength="30" class="input font-mono" placeholder="0000000000000" autocomplete="off" />
+          </div>
           <div>
             <label class="label">RTN</label>
             <input :value="form.rtn" @input="soloDigitos('rtn', $event)" maxlength="14" inputmode="numeric" class="input font-mono" placeholder="00000000000000" autocomplete="off" />
           </div>
           <div>
-            <label class="label">Código Biométrico</label>
-            <input v-model="form.codigo_biometrico" maxlength="20" class="input font-mono" placeholder="ID en el reloj marcador" autocomplete="off" />
+            <label class="label">Teléfono <span class="text-red-500">*</span></label>
+            <input :value="form.telefono" @input="soloTelefono('telefono', $event)" required maxlength="20" inputmode="tel" class="input" placeholder="+504 0000-0000" autocomplete="off" />
           </div>
+
+          <!-- Sexo | N° de Hijos | Tipo de Sangre -->
           <div>
             <label class="label">Sexo <span class="text-red-500">*</span></label>
             <select v-model="form.genero" required class="input">
               <option value="">Seleccionar</option>
               <option>Masculino</option>
               <option>Femenino</option>
-            </select>
-          </div>
-          <div>
-            <label class="label">Fecha de Nacimiento <span class="text-red-500">*</span></label>
-            <input v-model="form.fecha_nacimiento" type="date" required class="input" />
-          </div>
-
-          <div>
-            <label class="label">Estado Civil <span class="text-red-500">*</span></label>
-            <select v-model="form.estado_civil" required class="input">
-              <option value="">Seleccionar</option>
-              <option>Soltero/a</option>
-              <option>Casado/a</option>
-              <option>Divorciado/a</option>
-              <option>Viudo/a</option>
-              <option>Unión Libre</option>
             </select>
           </div>
           <div>
@@ -259,37 +257,49 @@ function salariosCalculados() {
             </select>
           </div>
 
+          <!-- Nacionalidad | Residencia | Código Biométrico -->
           <div>
             <label class="label">Nacionalidad <span class="text-red-500">*</span></label>
             <input :value="form.nacionalidad" @input="soloLetras('nacionalidad', $event)" required maxlength="50" class="input" autocomplete="off" />
           </div>
-          <div class="sm:col-span-2">
+          <div>
             <label class="label">Residencia <span class="text-red-500">*</span></label>
             <input :value="form.residencia" @input="mayusculas('residencia', $event)" required maxlength="60" class="input" placeholder="COLONIA, CIUDAD, DEPARTAMENTO" />
           </div>
-
           <div>
-            <label class="label">Teléfono <span class="text-red-500">*</span></label>
-            <input :value="form.telefono" @input="soloTelefono('telefono', $event)" required maxlength="20" inputmode="tel" class="input" placeholder="+504 0000-0000" autocomplete="off" />
+            <label class="label">Código Biométrico</label>
+            <input v-model="form.codigo_biometrico" maxlength="20" class="input font-mono" placeholder="ID en el reloj marcador" autocomplete="off" />
           </div>
+
+          <!-- Correo Electrónico | Estado Civil -->
+          <div class="sm:col-span-2">
+            <label class="label">Correo Electrónico</label>
+            <input v-model="form.correo" type="email" maxlength="50" class="input" placeholder="correo@ejemplo.com" />
+          </div>
+          <div>
+            <label class="label">Estado Civil <span class="text-red-500">*</span></label>
+            <select v-model="form.estado_civil" required class="input">
+              <option value="">Seleccionar</option>
+              <option>Soltero/a</option>
+              <option>Casado/a</option>
+              <option>Divorciado/a</option>
+              <option>Viudo/a</option>
+              <option>Unión Libre</option>
+            </select>
+          </div>
+
+          <!-- Contacto de Emergencia | Teléfono de Emergencia | Parentesco -->
           <div>
             <label class="label">Contacto de Emergencia <span class="text-red-500">*</span></label>
             <input :value="form.contacto_emergencia" @input="soloLetras('contacto_emergencia', $event)" required maxlength="50" class="input" autocomplete="off" />
           </div>
-          <div class="grid grid-cols-5 gap-2">
-            <div class="col-span-3">
-              <label class="label">Teléfono Emergencia <span class="text-red-500">*</span></label>
-              <input :value="form.telefono_emergencia" @input="soloTelefono('telefono_emergencia', $event)" required maxlength="30" inputmode="tel" class="input" autocomplete="off" />
-            </div>
-            <div class="col-span-2">
-              <label class="label">Parentesco <span class="text-red-500">*</span></label>
-              <input :value="form.parentesco_emergencia" @input="soloLetras('parentesco_emergencia', $event)" required maxlength="30" class="input" placeholder="Ej. MADRE" autocomplete="off" />
-            </div>
+          <div>
+            <label class="label">Teléfono de Emergencia <span class="text-red-500">*</span></label>
+            <input :value="form.telefono_emergencia" @input="soloTelefono('telefono_emergencia', $event)" required maxlength="30" inputmode="tel" class="input" autocomplete="off" />
           </div>
-
-          <div class="sm:col-span-2">
-            <label class="label">Correo Electrónico</label>
-            <input v-model="form.correo" type="email" maxlength="50" class="input" placeholder="correo@ejemplo.com" />
+          <div>
+            <label class="label">Parentesco <span class="text-red-500">*</span></label>
+            <input :value="form.parentesco_emergencia" @input="soloLetras('parentesco_emergencia', $event)" required maxlength="30" class="input" placeholder="Ej. MADRE" autocomplete="off" />
           </div>
         </div>
       </div>
