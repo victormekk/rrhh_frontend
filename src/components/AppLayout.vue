@@ -9,6 +9,17 @@ import mariposa from '../assets/images/MariposaPNG (2021_01_15 15_14_58 UTC).png
 
 const route     = useRoute()
 const router    = useRouter()
+
+// ── Menú en celular/tablet (< lg): el sidebar se oculta y se abre con el botón ☰ ──
+const menuMovil = ref(false)
+
+watch(() => route.fullPath, () => { menuMovil.value = false })
+
+function cerrarConEscape(e) {
+  if (e.key === 'Escape') menuMovil.value = false
+}
+window.addEventListener('keydown', cerrarConEscape)
+onUnmounted(() => window.removeEventListener('keydown', cerrarConEscape))
 const authStore = useAuthStore()
 
 // Mientras se descarga la vista de la siguiente ruta, el área principal queda
@@ -84,12 +95,6 @@ const planillasSubItems = [
   { name: 'Planillas Especiales', path: '/aguinaldo' },
 ]
 
-const planillasOpen = ref(PLANILLAS_PATHS.some((p) => route.path.startsWith(p)))
-
-watch(() => route.path, (p) => {
-  if (PLANILLAS_PATHS.some((base) => p.startsWith(base))) planillasOpen.value = true
-})
-
 // Configuración: solo administradores (el router y el backend también lo restringen).
 const CONFIG_PATHS = ['/usuarios', '/campos-variables', '/log-sistema']
 
@@ -99,24 +104,36 @@ const configSubItems = [
   { name: 'Log del Sistema',  path: '/log-sistema' },
 ]
 
-const configOpen = ref(CONFIG_PATHS.some((p) => route.path.startsWith(p)))
-
-watch(() => route.path, (p) => {
-  if (CONFIG_PATHS.some((base) => p.startsWith(base))) configOpen.value = true
-})
-
-const ESTADISTICA_PATHS = ['/estadistica-laboral', '/informacion-laboral']
+const ESTADISTICA_PATHS = ['/estadistica-laboral', '/informacion-laboral', '/movimientos-personal']
 
 const estadisticaSubItems = [
   { name: 'Estadística Laboral', path: '/estadistica-laboral' },
   { name: 'Información Laboral', path: '/informacion-laboral' },
+  { name: 'Movimientos de Personal', path: '/movimientos-personal' },
 ]
 
-const estadisticaOpen = ref(ESTADISTICA_PATHS.some((p) => route.path.startsWith(p)))
+// Menús desplegables como acordeón: solo uno abierto a la vez.
+const SUBMENUS = {
+  planillas:   PLANILLAS_PATHS,
+  estadistica: ESTADISTICA_PATHS,
+  config:      CONFIG_PATHS,
+}
 
+function submenuDeRuta(path) {
+  return Object.keys(SUBMENUS).find((k) => SUBMENUS[k].some((base) => path.startsWith(base))) ?? null
+}
+
+const submenuAbierto = ref(submenuDeRuta(route.path))
+
+// Al entrar a una pantalla de un submenú, ese queda abierto (y se cierra el otro).
 watch(() => route.path, (p) => {
-  if (ESTADISTICA_PATHS.some((base) => p.startsWith(base))) estadisticaOpen.value = true
+  const actual = submenuDeRuta(p)
+  if (actual) submenuAbierto.value = actual
 })
+
+function toggleSubmenu(nombre) {
+  submenuAbierto.value = submenuAbierto.value === nombre ? null : nombre
+}
 
 function isActive(path) {
   return route.path.startsWith(path)
@@ -146,16 +163,32 @@ function currentDate() {
 <template>
   <div class="flex h-screen bg-gray-50 overflow-hidden">
 
-    <!-- Sidebar -->
-    <aside class="w-64 bg-stone-900 flex flex-col fixed inset-y-0 left-0 z-50">
+    <!-- Fondo oscuro detrás del menú abierto (solo celular/tablet) -->
+    <Transition
+      enter-active-class="transition-opacity duration-300" enter-from-class="opacity-0"
+      leave-active-class="transition-opacity duration-300" leave-to-class="opacity-0"
+    >
+      <div v-if="menuMovil" class="fixed inset-0 z-40 bg-black/50 lg:hidden" @click="menuMovil = false" aria-hidden="true" />
+    </Transition>
+
+    <!-- Sidebar: fijo en pantallas grandes; en celular/tablet entra deslizándose -->
+    <aside
+      class="w-64 bg-stone-900 flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out lg:translate-x-0"
+      :class="menuMovil ? 'translate-x-0 shadow-2xl' : '-translate-x-full'"
+    >
 
       <!-- Brand -->
       <div class="px-4 py-4 bg-stone-900 border-b border-stone-700/60 flex-shrink-0 flex items-center gap-3">
         <img :src="mariposa" alt="Palma Real Hotel y Villas" class="h-10 w-auto flex-shrink-0" />
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
           <p class="text-white font-bold text-sm leading-tight truncate">Hotel Palma Real</p>
           <p class="text-amber-400 text-[10px] font-semibold uppercase tracking-widest">Sistema RRHH</p>
         </div>
+        <button @click="menuMovil = false" class="lg:hidden p-1.5 -mr-1 text-stone-400 hover:text-white rounded-lg transition" aria-label="Cerrar menú">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
       </div>
 
       <!-- Nav -->
@@ -178,7 +211,7 @@ function currentDate() {
         <!-- Grupo Planillas (expandible) -->
         <div>
           <button
-            @click="planillasOpen = !planillasOpen"
+            @click="toggleSubmenu('planillas')"
             class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150"
             :class="PLANILLAS_PATHS.some(p => route.path.startsWith(p))
               ? 'bg-blue-700 text-white'
@@ -189,27 +222,36 @@ function currentDate() {
             </svg>
             <span class="flex-1 text-left">Planillas</span>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-              class="w-3.5 h-3.5 transition-transform duration-200"
-              :class="planillasOpen ? 'rotate-180' : ''"
+              class="w-3.5 h-3.5 transition-transform duration-300 ease-in-out"
+              :class="submenuAbierto === 'planillas' ? 'rotate-180' : ''"
             >
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </button>
 
           <!-- Sub-ítems -->
-          <div v-show="planillasOpen" class="mt-0.5 ml-3 pl-3 border-l border-stone-700 space-y-0.5">
-            <RouterLink
-              v-for="sub in planillasSubItems"
-              :key="sub.name"
-              :to="{ path: sub.path, query: sub.query }"
-              class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
-              :class="isSubActive(sub) ? 'bg-blue-600 text-white' : 'text-stone-400 hover:text-white hover:bg-stone-800'"
-            >
-              <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                :class="isSubActive(sub) ? 'bg-white' : 'bg-stone-600'"
-              />
-              {{ sub.name }}
-            </RouterLink>
+          <!-- Despliegue suave: anima la altura de 0 a su tamaño real (grid 0fr -> 1fr) -->
+          <div
+            class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out"
+            :class="submenuAbierto === 'planillas' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'"
+            :inert="submenuAbierto !== 'planillas'"
+          >
+            <div class="min-h-0 overflow-hidden">
+              <div class="mt-0.5 ml-3 pl-3 border-l border-stone-700 space-y-0.5">
+                <RouterLink
+                  v-for="sub in planillasSubItems"
+                  :key="sub.name"
+                  :to="{ path: sub.path, query: sub.query }"
+                  class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
+                  :class="isSubActive(sub) ? 'bg-blue-600 text-white' : 'text-stone-400 hover:text-white hover:bg-stone-800'"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    :class="isSubActive(sub) ? 'bg-white' : 'bg-stone-600'"
+                  />
+                  {{ sub.name }}
+                </RouterLink>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -231,7 +273,7 @@ function currentDate() {
         <!-- Grupo Estadística Laboral (expandible) -->
         <div>
           <button
-            @click="estadisticaOpen = !estadisticaOpen"
+            @click="toggleSubmenu('estadistica')"
             class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150"
             :class="ESTADISTICA_PATHS.some(p => route.path.startsWith(p))
               ? 'bg-blue-700 text-white'
@@ -242,34 +284,43 @@ function currentDate() {
             </svg>
             <span class="flex-1 text-left">Estadística Laboral</span>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-              class="w-3.5 h-3.5 transition-transform duration-200"
-              :class="estadisticaOpen ? 'rotate-180' : ''"
+              class="w-3.5 h-3.5 transition-transform duration-300 ease-in-out"
+              :class="submenuAbierto === 'estadistica' ? 'rotate-180' : ''"
             >
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </button>
 
           <!-- Sub-ítems -->
-          <div v-show="estadisticaOpen" class="mt-0.5 ml-3 pl-3 border-l border-stone-700 space-y-0.5">
-            <RouterLink
-              v-for="sub in estadisticaSubItems"
-              :key="sub.name"
-              :to="sub.path"
-              class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
-              :class="isSubActive(sub) ? 'bg-blue-600 text-white' : 'text-stone-400 hover:text-white hover:bg-stone-800'"
-            >
-              <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                :class="isSubActive(sub) ? 'bg-white' : 'bg-stone-600'"
-              />
-              {{ sub.name }}
-            </RouterLink>
+          <!-- Despliegue suave: anima la altura de 0 a su tamaño real (grid 0fr -> 1fr) -->
+          <div
+            class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out"
+            :class="submenuAbierto === 'estadistica' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'"
+            :inert="submenuAbierto !== 'estadistica'"
+          >
+            <div class="min-h-0 overflow-hidden">
+              <div class="mt-0.5 ml-3 pl-3 border-l border-stone-700 space-y-0.5">
+                <RouterLink
+                  v-for="sub in estadisticaSubItems"
+                  :key="sub.name"
+                  :to="sub.path"
+                  class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
+                  :class="isSubActive(sub) ? 'bg-blue-600 text-white' : 'text-stone-400 hover:text-white hover:bg-stone-800'"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    :class="isSubActive(sub) ? 'bg-white' : 'bg-stone-600'"
+                  />
+                  {{ sub.name }}
+                </RouterLink>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- Grupo Configuración (expandible, solo administradores) -->
         <div v-if="authStore.isAdmin">
           <button
-            @click="configOpen = !configOpen"
+            @click="toggleSubmenu('config')"
             class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150"
             :class="CONFIG_PATHS.some(p => route.path.startsWith(p))
               ? 'bg-blue-700 text-white'
@@ -280,27 +331,36 @@ function currentDate() {
             </svg>
             <span class="flex-1 text-left">Configuración</span>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-              class="w-3.5 h-3.5 transition-transform duration-200"
-              :class="configOpen ? 'rotate-180' : ''"
+              class="w-3.5 h-3.5 transition-transform duration-300 ease-in-out"
+              :class="submenuAbierto === 'config' ? 'rotate-180' : ''"
             >
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </button>
 
           <!-- Sub-ítems -->
-          <div v-show="configOpen" class="mt-0.5 ml-3 pl-3 border-l border-stone-700 space-y-0.5">
-            <RouterLink
-              v-for="sub in configSubItems"
-              :key="sub.name"
-              :to="sub.path"
-              class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
-              :class="isSubActive(sub) ? 'bg-blue-600 text-white' : 'text-stone-400 hover:text-white hover:bg-stone-800'"
-            >
-              <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                :class="isSubActive(sub) ? 'bg-white' : 'bg-stone-600'"
-              />
-              {{ sub.name }}
-            </RouterLink>
+          <!-- Despliegue suave: anima la altura de 0 a su tamaño real (grid 0fr -> 1fr) -->
+          <div
+            class="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out"
+            :class="submenuAbierto === 'config' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'"
+            :inert="submenuAbierto !== 'config'"
+          >
+            <div class="min-h-0 overflow-hidden">
+              <div class="mt-0.5 ml-3 pl-3 border-l border-stone-700 space-y-0.5">
+                <RouterLink
+                  v-for="sub in configSubItems"
+                  :key="sub.name"
+                  :to="sub.path"
+                  class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
+                  :class="isSubActive(sub) ? 'bg-blue-600 text-white' : 'text-stone-400 hover:text-white hover:bg-stone-800'"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    :class="isSubActive(sub) ? 'bg-white' : 'bg-stone-600'"
+                  />
+                  {{ sub.name }}
+                </RouterLink>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -330,16 +390,27 @@ function currentDate() {
     </aside>
 
     <!-- Main area -->
-    <div class="flex-1 ml-64 flex flex-col min-h-screen overflow-hidden">
+    <div class="flex-1 min-w-0 lg:ml-64 flex flex-col min-h-screen overflow-hidden">
 
       <!-- Top header -->
-      <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <h1 class="text-lg font-semibold text-slate-800">{{ route.meta.title ?? 'Sistema RRHH' }}</h1>
-        <span class="text-sm text-slate-500 capitalize">{{ currentDate() }}</span>
+      <header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3 flex-shrink-0 relative">
+        <div class="flex items-center gap-2 min-w-0">
+          <button @click="menuMovil = true" class="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition" aria-label="Abrir menú">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </button>
+          <h1 class="text-base sm:text-lg font-semibold text-slate-800 truncate">{{ route.meta.title ?? 'Sistema RRHH' }}</h1>
+        </div>
+        <span class="hidden sm:inline text-sm text-slate-500 capitalize whitespace-nowrap">{{ currentDate() }}</span>
+        <!-- En celular, la mariposa ocupa el lugar de la fecha -->
+        <img :src="mariposa" alt="Palma Real Hotel y Villas" class="sm:hidden h-8 w-auto flex-shrink-0" />
+        <!-- En iPad/tablet (md a lg), la mariposa va centrada en la barra; de 640 a 767 px no cabe junto a títulos largos -->
+        <img :src="mariposa" alt="" aria-hidden="true" class="hidden md:block lg:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-9 w-auto pointer-events-none" />
       </header>
 
       <!-- Page -->
-      <main class="flex-1 overflow-y-auto p-6">
+      <main class="flex-1 overflow-y-auto p-4 sm:p-6">
         <LoadingSpinner v-if="navegando" card />
         <RouterView v-show="!navegando" />
       </main>

@@ -202,7 +202,7 @@ const eliminarLabel = computed(() => confirmEliminarTipo.value === 'dept' ? 'dep
       <!-- ── DEPARTAMENTOS ───────────────────────────────────────────────── -->
       <div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
         <!-- Cabecera del panel -->
-        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-4 border-b border-slate-100">
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-blue-600"></div>
             <h3 class="font-semibold text-slate-700">Departamentos</h3>
@@ -305,7 +305,7 @@ const eliminarLabel = computed(() => confirmEliminarTipo.value === 'dept' ? 'dep
       <!-- ── CARGOS ─────────────────────────────────────────────────────── -->
       <div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
         <!-- Cabecera del panel -->
-        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-4 border-b border-slate-100">
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-purple-600"></div>
             <h3 class="font-semibold text-slate-700">Cargos</h3>

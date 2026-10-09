@@ -183,10 +183,10 @@ async function generar() {
       <p class="text-sm text-slate-500 mt-0.5">Selecciona el tipo de constancia y el empleado para generar el documento.</p>
     </div>
 
-    <div class="flex gap-6 items-start">
+    <div class="flex flex-col md:flex-row gap-6 md:items-start">
 
       <!-- Panel izquierdo: opciones -->
-      <div class="w-72 flex-shrink-0 space-y-3">
+      <div class="w-full md:w-72 flex-shrink-0 space-y-3">
         <button
           v-for="tipo in TIPOS"
           :key="tipo.id"
@@ -211,7 +211,7 @@ async function generar() {
       </div>
 
       <!-- Panel derecho: formulario de generación -->
-      <div class="flex-1 bg-white rounded-xl border border-gray-200 p-6">
+      <div class="flex-1 min-w-0 bg-white rounded-xl border border-gray-200 p-6">
 
         <div v-if="!tipoSel" class="text-center py-16 text-slate-400">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-12 h-12 mx-auto mb-3 text-slate-300">
