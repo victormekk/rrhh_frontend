@@ -24,13 +24,10 @@ onMounted(async () => {
   departamentos.value = data
 })
 
-watch(() => route.query.tipo_contrato, (tipo) => {
+// Las tarjetas del Dashboard llegan con contrato y estado juntos: una sola recarga.
+watch(() => [route.query.tipo_contrato, route.query.estado], ([tipo, estado]) => {
   filtroModalidad.value = tipo ?? ''
-  cargarDatos()
-})
-
-watch(() => route.query.estado, (estado) => {
-  filtroEstado.value = estado ?? ''
+  filtroEstado.value    = estado ?? ''
   cargarDatos()
 })
 

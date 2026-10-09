@@ -15,7 +15,8 @@ const MESES = [
 ]
 const MESES_CORTO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
-onMounted(() => store.fetchCumpleanos())
+// Al entrar siempre se muestra el mes actual, no el último que se dejó seleccionado.
+onMounted(() => store.fetchCumpleanos(new Date().getMonth() + 1))
 
 function seleccionarMes(n) {
   store.fetchCumpleanos(n)

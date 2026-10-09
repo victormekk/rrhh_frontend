@@ -91,19 +91,30 @@ function onEnterDias(detalle, event) {
 }
 
 // ── Modal chico: Horas Extra ──────────────────────────────────────────────────
-const modalHoras = reactive({ abierto: false, detalle: null, horas: 0, guardando: false, error: '' })
+// Recargo opcional: sin marcar ninguno la hora extra se paga a diario ÷ 8; marcar uno desmarca los demás.
+const RECARGOS_HORAS = [
+  { valor: 25, etiqueta: 'Hora Diurna' },
+  { valor: 50, etiqueta: 'Hora Nocturna' },
+  { valor: 75, etiqueta: 'Hora Extra 75%' },
+]
+const modalHoras = reactive({ abierto: false, detalle: null, horas: 0, recargo: 0, guardando: false, error: '' })
 
 function abrirModalHoras(detalle) {
   modalHoras.detalle   = detalle
   modalHoras.horas     = detalle.horas_extras
+  modalHoras.recargo   = Number(detalle.recargo_horas_extras) || 0
   modalHoras.error     = ''
   modalHoras.abierto   = true
+}
+
+function marcarRecargo(valor) {
+  modalHoras.recargo = modalHoras.recargo === valor ? 0 : valor
 }
 
 const montoHorasPreview = computed(() => {
   if (!modalHoras.detalle) return 0
   const horas = Number(modalHoras.horas) || 0
-  return Number((modalHoras.detalle.salario_diario / 8 * horas).toFixed(2))
+  return Number((modalHoras.detalle.salario_diario / 8 * horas * (1 + modalHoras.recargo / 100)).toFixed(2))
 })
 
 async function guardarModalHoras() {
@@ -111,7 +122,8 @@ async function guardarModalHoras() {
   modalHoras.error     = ''
   try {
     await store.updateDetalle(route.params.id, modalHoras.detalle.id, {
-      horas_extras: Number(modalHoras.horas) || 0,
+      horas_extras:         Number(modalHoras.horas) || 0,
+      recargo_horas_extras: modalHoras.recargo,
     })
     modalHoras.abierto = false
   } catch (e) {
@@ -578,7 +590,8 @@ function fmtDate(d) {
                   <td class="px-1 py-1 text-right">
                     <button
                       v-if="!esCerrada" @click="abrirModalHoras(d)"
-                      class="celda-btn" :title="d.horas_extras ? `${d.horas_extras} hora(s) extra` : 'Registrar horas extra'"
+                      class="celda-btn"
+                      :title="d.horas_extras ? `${d.horas_extras} hora(s) extra${d.recargo_horas_extras ? ` +${d.recargo_horas_extras}%` : ''}` : 'Registrar horas extra'"
                     >
                       {{ fmt(d.monto_horas_extras) }}
                     </button>
@@ -712,8 +725,21 @@ function fmtDate(d) {
           <label class="field-label">¿Cuántas horas extra trabajó?</label>
           <input v-model.number="modalHoras.horas" type="text" inputmode="decimal" class="field-input" autofocus />
 
+          <p class="text-xs text-slate-500 mt-3 mb-1.5">Recargo (opcional)</p>
+          <div class="flex flex-wrap gap-x-4 gap-y-2">
+            <label v-for="r in RECARGOS_HORAS" :key="r.valor" class="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox" class="cursor-pointer"
+                :checked="modalHoras.recargo === r.valor" @change="marcarRecargo(r.valor)"
+              />
+              {{ r.etiqueta }} <span class="text-slate-400">(+{{ r.valor }}%)</span>
+            </label>
+          </div>
+
           <div class="bg-slate-50 rounded-xl p-3 mt-3 text-center">
-            <p class="text-xs text-slate-400 mb-0.5">Monto calculado (salario diario ÷ 8 × horas)</p>
+            <p class="text-xs text-slate-400 mb-0.5">
+              Monto calculado (salario diario ÷ 8 × horas{{ modalHoras.recargo ? ` + ${modalHoras.recargo}%` : '' }})
+            </p>
             <p class="font-bold text-slate-800 text-lg">{{ fmt(montoHorasPreview) }}</p>
           </div>
 

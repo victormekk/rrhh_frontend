@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEmpleadosStore } from '../../stores/empleados'
 import HistorialLaboral from '../../components/empleados/HistorialLaboral.vue'
@@ -92,14 +92,22 @@ function formatDate(d) {
   return date.toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-function tiempoLaborando(fechaInicio) {
+// Inactivo con fecha de cese: se mide hasta el cese ("Tiempo laborado"); si no, hasta hoy.
+const fechaCeseVigente = computed(() => {
+  const il = store.empleado?.informacion_laboral
+  return il?.estado === 'Inactivo' && il.fecha_cese ? il.fecha_cese : null
+})
+
+function tiempoLaborando(fechaInicio, fechaFin = null) {
   if (!fechaInicio) return null
   const inicio = new Date(String(fechaInicio).slice(0, 10) + 'T00:00:00')
   if (isNaN(inicio.getTime())) return null
 
-  const hoy = new Date()
+  const hoy = fechaFin ? new Date(String(fechaFin).slice(0, 10) + 'T00:00:00') : new Date()
+  if (isNaN(hoy.getTime())) return null
   // Fecha de inicio futura (p. ej. reintegro o cambio de contrato programado)
-  if (inicio > hoy) return `Inicia el ${formatDate(fechaInicio)}`
+  if (!fechaFin && inicio > hoy) return `Inicia el ${formatDate(fechaInicio)}`
+  if (inicio > hoy) return null
   let years  = hoy.getFullYear() - inicio.getFullYear()
   let months = hoy.getMonth() - inicio.getMonth()
 
@@ -325,9 +333,11 @@ function estadoClass(estado) {
               <dt class="text-slate-400">Fecha Inicio</dt>
               <dd class="text-slate-700 font-medium">{{ formatDate(store.empleado.informacion_laboral.fecha_inicio) }}</dd>
             </div>
-            <div v-if="tiempoLaborando(store.empleado.informacion_laboral.fecha_inicio)" class="grid grid-cols-2 gap-2 text-sm">
-              <dt class="text-slate-400">Tiempo laborando</dt>
-              <dd class="text-emerald-600 font-medium">{{ tiempoLaborando(store.empleado.informacion_laboral.fecha_inicio) }}</dd>
+            <div v-if="tiempoLaborando(store.empleado.informacion_laboral.fecha_inicio, fechaCeseVigente)" class="grid grid-cols-2 gap-2 text-sm">
+              <dt class="text-slate-400">{{ fechaCeseVigente ? 'Tiempo laborado' : 'Tiempo laborando' }}</dt>
+              <dd :class="fechaCeseVigente ? 'text-slate-700' : 'text-emerald-600'" class="font-medium">
+                {{ tiempoLaborando(store.empleado.informacion_laboral.fecha_inicio, fechaCeseVigente) }}
+              </dd>
             </div>
             <div class="grid grid-cols-2 gap-2 text-sm">
               <dt class="text-slate-400">Salario Base</dt>

@@ -305,7 +305,7 @@ function tipoBadge(tipo) {
               <tr>
                 <th class="text-left px-5 py-3 font-semibold text-slate-600">Empleado</th>
                 <th class="text-left px-4 py-3 font-semibold text-slate-600">Departamento</th>
-                <th class="text-center px-4 py-3 font-semibold text-slate-600">Quincenas</th>
+                <th class="text-center px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Fecha de inicio</th>
                 <th class="text-center px-4 py-3 font-semibold text-slate-600">Días trabajados</th>
                 <th class="text-right px-4 py-3 font-semibold text-slate-600">Salario base</th>
                 <th class="text-right px-4 py-3 font-semibold text-slate-600">Deducciones</th>
@@ -356,11 +356,7 @@ function tipoBadge(tipo) {
                   </div>
                 </td>
                 <td class="px-4 py-3 text-slate-600">{{ row.departamento }}</td>
-                <td class="px-4 py-3 text-center">
-                  <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold min-w-[1.75rem]">
-                    {{ row.total_quincenas }}
-                  </span>
-                </td>
+                <td class="px-4 py-3 text-center text-slate-600 whitespace-nowrap">{{ formatFecha(row.fecha_inicio) }}</td>
                 <td class="px-4 py-3 text-center">
                   <span class="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-sm font-bold min-w-[2.5rem]">
                     {{ formatDias(row.total_dias) }}
