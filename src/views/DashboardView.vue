@@ -156,7 +156,7 @@ const quickLinks = [
   { name: 'Nuevo Empleado',  path: '/empleados/crear',  color: 'bg-blue-600' },
   { name: 'Nueva Planilla',  path: '/planillas/crear',  color: 'bg-emerald-600' },
   { name: 'Registrar Inc.',  path: '/incidencias',      color: 'bg-amber-600' },
-  { name: 'Ver Aguinaldo',   path: '/aguinaldo',         color: 'bg-purple-600' },
+  { name: 'Planillas Especiales', path: '/aguinaldo',         color: 'bg-purple-600' },
   { name: 'Vacaciones',      path: '/vacaciones',        color: 'bg-cyan-600' },
   { name: 'Cumpleaños',      path: '/cumpleanos',        color: 'bg-rose-500' },
 ]

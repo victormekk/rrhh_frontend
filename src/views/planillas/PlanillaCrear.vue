@@ -58,13 +58,7 @@ function sugerirNombre() {
 
   const mesCap = mes.charAt(0).toUpperCase() + mes.slice(1)
 
-  if (tipo === 'Fijos') {
-    form.nombre_planilla = `Planilla Fijos ${dia} de ${mesCap} ${anio}`
-  } else if (tipo === 'Extras') {
-    form.nombre_planilla = `Planilla Extras ${dia} de ${mesCap} ${anio}`
-  } else {
-    form.nombre_planilla = `Planilla Especial ${dia} de ${mesCap} ${anio}`
-  }
+  form.nombre_planilla = `Planilla ${tipo} ${dia} de ${mesCap} ${anio}`
 }
 
 async function submit() {
@@ -106,9 +100,9 @@ async function submit() {
 
         <div>
           <label class="label">Tipo de Planilla <span class="text-red-500">*</span></label>
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-2 gap-3">
             <label
-              v-for="tipo in ['Fijos', 'Extras', 'Especial']"
+              v-for="tipo in ['Fijos', 'Extras']"
               :key="tipo"
               :class="[
                 'flex flex-col items-center gap-2 border-2 rounded-xl p-4 cursor-pointer transition text-sm font-medium',
@@ -120,8 +114,7 @@ async function submit() {
               <input type="radio" v-model="form.tipo_planilla" :value="tipo" class="sr-only" @change="sugerirNombre" />
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
                 <path v-if="tipo==='Fijos'" stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
-                <path v-else-if="tipo==='Extras'" stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                <path v-else stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                <path v-else stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {{ tipo }}
             </label>

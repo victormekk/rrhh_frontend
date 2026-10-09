@@ -126,7 +126,7 @@ const router = createRouter({
           path: 'planillas',
           name: 'planillas',
           component: PlanillasIndex,
-          meta: { requiresAuth: true, title: 'Planillas' },
+          meta: { requiresAuth: true, title: 'Planillas de Pago' },
         },
         {
           path: 'planillas/crear',
@@ -146,19 +146,19 @@ const router = createRouter({
           path: 'aguinaldo',
           name: 'aguinaldo',
           component: AguinaldoIndex,
-          meta: { requiresAuth: true, title: 'Aguinaldo' },
+          meta: { requiresAuth: true, title: 'Planillas Especiales' },
         },
         {
           path: 'aguinaldo/crear',
           name: 'aguinaldo.crear',
           component: AguinaldoCrear,
-          meta: { requiresAuth: true, title: 'Generar Aguinaldo' },
+          meta: { requiresAuth: true, title: 'Nueva Planilla Especial' },
         },
         {
           path: 'aguinaldo/:nombre',
           name: 'aguinaldo.detalle',
           component: AguinaldoDetalle,
-          meta: { requiresAuth: true, title: 'Detalle de Aguinaldo' },
+          meta: { requiresAuth: true, title: 'Detalle de Planilla Especial' },
         },
 
         // Cumpleaños
@@ -188,7 +188,7 @@ const router = createRouter({
           path: 'log-sistema',
           name: 'log-sistema',
           component: LogSistemaIndex,
-          meta: { requiresAuth: true, title: 'Log del Sistema' },
+          meta: { requiresAuth: true, adminOnly: true, title: 'Log del Sistema' },
         },
 
         // Campos Variables (solo admin)
