@@ -42,5 +42,32 @@ export const useBancosStore = defineStore('bancos', () => {
     success('Banco desactivado.')
   }
 
-  return { bancos, loading, fetchBancos, createBanco, updateBanco, deleteBanco }
+  // ── Empleados activos sin cuenta bancaria (cobran por cheque) ──
+  const sinCuenta        = ref([])
+  const loadingSinCuenta = ref(false)
+
+  async function fetchSinCuenta() {
+    loadingSinCuenta.value = true
+    try {
+      const { data } = await api.get('/empleados-sin-cuenta')
+      sinCuenta.value = data
+    } finally {
+      loadingSinCuenta.value = false
+    }
+  }
+
+  async function asignarCuenta(idEmpleado, payload) {
+    const { data } = await api.post(`/empleados/${idEmpleado}/cuenta`, payload)
+    sinCuenta.value = sinCuenta.value.filter((e) => e.id !== idEmpleado)
+    const abiertas = data.planillas_actualizadas + data.especiales_actualizadas
+    success(abiertas
+      ? `Cuenta asignada. También se aplicó a ${abiertas} planilla(s) abierta(s).`
+      : 'Cuenta asignada. Desde ahora cobra por banco.')
+    return data
+  }
+
+  return {
+    bancos, loading, fetchBancos, createBanco, updateBanco, deleteBanco,
+    sinCuenta, loadingSinCuenta, fetchSinCuenta, asignarCuenta,
+  }
 })
