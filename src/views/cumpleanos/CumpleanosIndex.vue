@@ -1,8 +1,13 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCumpleanosStore } from '../../stores/cumpleanos'
+import { useToast } from '../../composables/useToast'
+import { generarTarjetaCumpleanos } from '../../utils/tarjetaCumpleanos'
+import { nombreArchivo, descargarBlob } from '../../utils/archivos'
+import LoadingSpinner from '../../components/LoadingSpinner.vue'
 
 const store = useCumpleanosStore()
+const { error: toastError } = useToast()
 
 const MESES = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -27,6 +32,39 @@ function formatFecha(fechaStr) {
   const [, m, d] = fechaStr.split('-')
   return `${parseInt(d)} de ${MESES[parseInt(m) - 1]}`
 }
+
+// ── Tarjeta de felicitación ──────────────────────────────────────────────────
+const tarjeta = ref(null) // { id, emp, blob, url, generando }
+let ultimaTarjetaId = 0
+
+async function felicitar(emp) {
+  cerrarTarjeta()
+  // Se compara por id y no por objeto: el ref envuelve el objeto en un proxy reactivo.
+  const id = ++ultimaTarjetaId
+  tarjeta.value = { id, emp, blob: null, url: '', generando: true }
+  try {
+    const blob = await generarTarjetaCumpleanos(emp)
+    // Si se cerró o se abrió otra tarjeta mientras se generaba, se descarta.
+    if (tarjeta.value?.id !== id) return
+    tarjeta.value = { id, emp, blob, url: URL.createObjectURL(blob), generando: false }
+  } catch {
+    if (tarjeta.value?.id === id) tarjeta.value = null
+    toastError('No se pudo generar la tarjeta de cumpleaños.')
+  }
+}
+
+function descargarTarjeta() {
+  const t = tarjeta.value
+  if (!t?.blob) return
+  descargarBlob(t.blob, nombreArchivo('Cumpleanos', `${t.emp.nombres} ${t.emp.apellidos}`, 'png'))
+}
+
+function cerrarTarjeta() {
+  if (tarjeta.value?.url) URL.revokeObjectURL(tarjeta.value.url)
+  tarjeta.value = null
+}
+
+onUnmounted(cerrarTarjeta)
 
 function colorAvatar(id) {
   const colors = ['bg-blue-500','bg-emerald-500','bg-violet-500','bg-rose-500','bg-amber-500','bg-cyan-500','bg-pink-500','bg-indigo-500']
@@ -94,7 +132,7 @@ function colorAvatar(id) {
               class="relative bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl border border-rose-200 p-4 flex gap-3 overflow-hidden"
             >
               <!-- Confetti accent -->
-              <div class="absolute top-0 right-0 text-4xl opacity-10 leading-none pr-2 pt-1">🎉</div>
+              <div class="absolute top-0 right-0 text-4xl leading-none pr-2 pt-1">🎉</div>
 
               <div class="relative">
                 <img v-if="emp.foto_url" :src="emp.foto_url" class="w-12 h-12 rounded-full object-cover flex-shrink-0" />
@@ -111,6 +149,13 @@ function colorAvatar(id) {
                   <span class="text-xs text-rose-700 font-medium">{{ formatFecha(emp.fecha_nacimiento) }}</span>
                   <span class="bg-rose-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">¡{{ emp.edad_cumple }} años hoy!</span>
                 </div>
+                <button
+                  type="button"
+                  @click="felicitar(emp)"
+                  class="relative mt-2.5 inline-flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <span aria-hidden="true">🎉</span> Felicitar
+                </button>
               </div>
             </div>
           </div>
@@ -144,6 +189,13 @@ function colorAvatar(id) {
                     en {{ emp.dias_para }} día{{ emp.dias_para !== 1 ? 's' : '' }}
                   </span>
                 </div>
+                <button
+                  type="button"
+                  @click="felicitar(emp)"
+                  class="mt-2.5 inline-flex items-center gap-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <span aria-hidden="true">🎉</span> Felicitar
+                </button>
               </div>
             </div>
           </div>
@@ -158,5 +210,43 @@ function colorAvatar(id) {
       </div>
 
     </template>
+    <!-- Tarjeta de cumpleaños -->
+    <div v-if="tarjeta" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="cerrarTarjeta">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[95vh] flex flex-col">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h3 class="text-base font-bold text-slate-800">Tarjeta de cumpleaños</h3>
+            <p class="text-xs text-slate-500 truncate">{{ tarjeta.emp.nombres }} {{ tarjeta.emp.apellidos }}</p>
+          </div>
+          <button @click="cerrarTarjeta" class="text-slate-400 hover:text-slate-600 transition" aria-label="Cerrar">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 bg-slate-50">
+          <LoadingSpinner v-if="tarjeta.generando" />
+          <img v-else :src="tarjeta.url" alt="Tarjeta de cumpleaños" class="w-full rounded-lg shadow-sm border border-slate-200" />
+        </div>
+
+        <div class="px-5 py-4 border-t border-slate-100 flex justify-end gap-3">
+          <button @click="cerrarTarjeta" class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+            Cerrar
+          </button>
+          <button
+            @click="descargarTarjeta"
+            :disabled="tarjeta.generando"
+            class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+            </svg>
+            Descargar imagen
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
