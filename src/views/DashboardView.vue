@@ -152,13 +152,14 @@ function tooltipY(i) {
 
 // ── Quick links ──────────────────────────────────────────────────────────────
 
+// Solo atajos a pantallas que en el menú están dentro de un submenú o requieren
+// varios clics; los menús principales (y lo que ya tiene card arriba) no se repiten.
 const quickLinks = [
-  { name: 'Nuevo Empleado',  path: '/empleados/crear',  color: 'bg-blue-600' },
-  { name: 'Nueva Planilla',  path: '/planillas/crear',  color: 'bg-emerald-600' },
-  { name: 'Registrar Inc.',  path: '/incidencias',      color: 'bg-amber-600' },
-  { name: 'Planillas Especiales', path: '/aguinaldo',         color: 'bg-purple-600' },
-  { name: 'Vacaciones',      path: '/vacaciones',        color: 'bg-cyan-600' },
-  { name: 'Cumpleaños',      path: '/cumpleanos',        color: 'bg-rose-500' },
+  { name: 'Nuevo Empleado',        path: '/empleados/crear',     color: 'bg-blue-600' },
+  { name: 'Ver Planillas',         path: '/planillas',           color: 'bg-emerald-600' },
+  { name: 'Ver Planilla Especial', path: '/aguinaldo',           color: 'bg-purple-600' },
+  { name: 'Estadística Laboral',   path: '/estadistica-laboral', color: 'bg-indigo-600' },
+  { name: 'Generar Constancia',    path: '/constancias',         color: 'bg-amber-600' },
 ]
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -196,8 +197,9 @@ onMounted(async () => {
       <p class="text-slate-500 text-sm mt-1">Resumen del estado actual del sistema.</p>
     </div>
 
-    <!-- Stats cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-7">
+    <!-- Stats cards: en una sola fila solo en pantallas muy anchas; en laptops,
+         6 columnas dejan cada tarjeta demasiado angosta y los números se enciman. -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 min-[1800px]:grid-cols-6 gap-4 mb-7">
       <RouterLink
         v-for="stat in stats"
         :key="stat.key"
@@ -221,25 +223,20 @@ onMounted(async () => {
 
       <!-- Tarjeta especial: género (masculino / femenino) de empleados activos -->
       <div class="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
-        <div class="flex -space-x-2 flex-shrink-0">
-          <div class="bg-sky-50 p-3 rounded-xl border-2 border-white z-10">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-sky-600 w-6 h-6">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-          </div>
-          <div class="bg-pink-50 p-3 rounded-xl border-2 border-white">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-pink-600 w-6 h-6">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-          </div>
+        <!-- Un solo ícono (dos personas: celeste y rosado) para que ocupe lo mismo que las demás -->
+        <div class="bg-gradient-to-br from-sky-50 to-pink-50 p-3 rounded-xl flex-shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+            <path class="text-sky-600" stroke-linecap="round" stroke-linejoin="round" d="M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM2.25 19.125v-.109a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766z" />
+            <path class="text-pink-600" stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0zM15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-6.24-3.548" />
+          </svg>
         </div>
-        <div>
+        <div class="min-w-0">
           <p class="text-xs text-slate-500 font-medium leading-tight">Empleados por Género</p>
-          <p class="mt-0.5 flex items-center gap-2.5">
+          <p class="mt-0.5 flex items-center gap-1.5 whitespace-nowrap">
             <span v-if="generoStats.masculinos === null" class="inline-block w-16 h-6 bg-slate-200 rounded animate-pulse" />
             <template v-else>
               <span class="text-2xl font-bold text-sky-600">{{ generoStats.masculinos }}</span>
-              <span class="text-slate-300 text-lg font-light">/</span>
+              <span class="text-slate-300 text-xl font-light">/</span>
               <span class="text-2xl font-bold text-pink-600">{{ generoStats.femeninos }}</span>
             </template>
           </p>
@@ -394,10 +391,10 @@ onMounted(async () => {
       </svg>
     </div>
 
-    <!-- Quick links -->
+    <!-- Accesos rápidos -->
     <div class="bg-white rounded-xl border border-gray-200 p-6">
       <h3 class="font-semibold text-slate-700 mb-4 text-sm">Accesos Rápidos</h3>
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <RouterLink
           v-for="link in quickLinks"
           :key="link.path"
