@@ -3,6 +3,8 @@ import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useEmpleadosStore } from '../../stores/empleados'
 import api from '../../services/api'
+import CeseModal from '../../components/empleados/CeseModal.vue'
+import ReintegroModal from '../../components/empleados/ReintegroModal.vue'
 
 const router        = useRouter()
 const route         = useRoute()
@@ -58,30 +60,14 @@ async function cambiarPagina(url) {
   })
 }
 
-// ── modal confirmación de desactivar ─────────────────────────────────────────
-const showConfirm  = ref(false)
-const confirmItem  = ref(null)
-const desactivando = ref(false)
+// ── Dar de baja / reintegrar (quedan en el historial laboral) ────────────────
+const empleadoCese      = ref(null)
+const empleadoReintegro = ref(null)
 
-function desactivar(emp) {
-  confirmItem.value = emp
-  showConfirm.value = true
-}
-
-function cancelarDesactivar() {
-  showConfirm.value = false
-  confirmItem.value = null
-}
-
-async function confirmarDesactivar() {
-  desactivando.value = true
-  try {
-    await store.deactivateEmpleado(confirmItem.value.id)
-    await cargarDatos()
-    cancelarDesactivar()
-  } finally {
-    desactivando.value = false
-  }
+async function despuesDeMovimiento() {
+  empleadoCese.value = null
+  empleadoReintegro.value = null
+  await cargarDatos()
 }
 
 function estadoClass(estado) {
@@ -237,10 +223,20 @@ function formatCurrency(val) {
                     </svg>
                   </button>
                   <button
-                    v-if="emp.informacion_laboral?.estado === 'Activo'"
-                    @click="desactivar(emp)"
+                    v-if="emp.informacion_laboral?.estado === 'Inactivo'"
+                    @click="empleadoReintegro = emp"
+                    class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+                    title="Reintegrar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                  </button>
+                  <button
+                    v-else
+                    @click="empleadoCese = emp"
                     class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
-                    title="Desactivar"
+                    title="Dar de baja"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -275,78 +271,6 @@ function formatCurrency(val) {
     </div>
   </div>
 
-  <!-- Modal confirmación desactivar -->
-  <Teleport to="body">
-    <div
-      v-if="showConfirm"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-      @click.self="cancelarDesactivar"
-    >
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-
-        <!-- Encabezado -->
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-base font-bold text-slate-800">Desactivar empleado</h3>
-            <p class="text-xs text-slate-500 mt-0.5">Esta acción cambiará el estado a inactivo</p>
-          </div>
-        </div>
-
-        <!-- Detalle -->
-        <div class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm space-y-1">
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500">Empleado</span>
-            <span class="font-semibold text-slate-800">{{ confirmItem?.nombres }} {{ confirmItem?.apellidos }}</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500">Estado actual</span>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Activo</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500">Nuevo estado</span>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Inactivo</span>
-          </div>
-        </div>
-
-        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          El registro del empleado no se elimina, solo pasa a inactivo y dejará de aparecer en planillas nuevas.
-        </p>
-
-        <!-- Acciones -->
-        <div class="flex justify-end gap-3 pt-1">
-          <button
-            type="button"
-            @click="cancelarDesactivar"
-            :disabled="desactivando"
-            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
-          >
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            @click="confirmarDesactivar"
-            :disabled="desactivando"
-            class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
-          >
-            <svg v-if="desactivando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-            </svg>
-            <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
-            {{ desactivando ? 'Desactivando...' : 'Desactivar' }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
+  <CeseModal :empleado="empleadoCese" @cerrar="empleadoCese = null" @guardado="despuesDeMovimiento" />
+  <ReintegroModal :empleado="empleadoReintegro" @cerrar="empleadoReintegro = null" @guardado="despuesDeMovimiento" />
 </template>

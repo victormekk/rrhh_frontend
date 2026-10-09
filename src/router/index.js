@@ -28,6 +28,7 @@ const CamposVariablesIndex = () => import('../views/campos-variables/CamposVaria
 const CumpleanosIndex          = () => import('../views/cumpleanos/CumpleanosIndex.vue')
 const EstadisticaLaboralIndex  = () => import('../views/estadistica-laboral/EstadisticaLaboralIndex.vue')
 const InformacionLaboralIndex  = () => import('../views/estadistica-laboral/InformacionLaboralIndex.vue')
+const MovimientosPersonalIndex = () => import('../views/estadistica-laboral/MovimientosPersonalIndex.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -181,6 +182,12 @@ const router = createRouter({
           name: 'informacion-laboral',
           component: InformacionLaboralIndex,
           meta: { requiresAuth: true, title: 'Información Laboral' },
+        },
+        {
+          path: 'movimientos-personal',
+          name: 'movimientos-personal',
+          component: MovimientosPersonalIndex,
+          meta: { requiresAuth: true, title: 'Movimientos de Personal' },
         },
 
         // Log del sistema

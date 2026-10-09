@@ -2,6 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEmpleadosStore } from '../../stores/empleados'
+import HistorialLaboral from '../../components/empleados/HistorialLaboral.vue'
+import CeseModal from '../../components/empleados/CeseModal.vue'
+import ReintegroModal from '../../components/empleados/ReintegroModal.vue'
 
 const route  = useRoute()
 const router = useRouter()
@@ -18,7 +21,24 @@ const eliminandoFoto = ref(false)
 onMounted(async () => {
   await store.fetchEmpleado(route.params.id)
   loading.value = false
+  // Viene del formulario al detectar un DNI de un empleado inactivo: abre el reintegro.
+  if (route.query.reintegrar && store.empleado?.informacion_laboral?.estado === 'Inactivo') {
+    empleadoReintegro.value = store.empleado
+    router.replace({ query: {} })
+  }
 })
+
+// ── Baja / reintegro ─────────────────────────────────────────────────────────
+const empleadoCese      = ref(null)
+const empleadoReintegro = ref(null)
+const versionHistorial  = ref(0)
+
+async function despuesDeMovimiento() {
+  empleadoCese.value = null
+  empleadoReintegro.value = null
+  await store.fetchEmpleado(route.params.id)
+  versionHistorial.value++
+}
 
 function abrirGaleria() {
   showFotoMenu.value = false
@@ -78,6 +98,8 @@ function tiempoLaborando(fechaInicio) {
   if (isNaN(inicio.getTime())) return null
 
   const hoy = new Date()
+  // Fecha de inicio futura (p. ej. reintegro o cambio de contrato programado)
+  if (inicio > hoy) return `Inicia el ${formatDate(fechaInicio)}`
   let years  = hoy.getFullYear() - inicio.getFullYear()
   let months = hoy.getMonth() - inicio.getMonth()
 
@@ -207,15 +229,37 @@ function estadoClass(estado) {
           </div>
 
           <!-- Acciones -->
-          <button
-            @click="router.push(`/empleados/${store.empleado.id}/editar`)"
-            class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex-shrink-0"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-            </svg>
-            Editar
-          </button>
+          <div class="flex flex-wrap gap-2 flex-shrink-0">
+            <button
+              @click="router.push(`/empleados/${store.empleado.id}/editar`)"
+              class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+              </svg>
+              Editar
+            </button>
+            <button
+              v-if="store.empleado.informacion_laboral?.estado === 'Inactivo'"
+              @click="empleadoReintegro = store.empleado"
+              class="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              Reintegrar
+            </button>
+            <button
+              v-else
+              @click="empleadoCese = store.empleado"
+              class="flex items-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold px-4 py-2 rounded-lg transition"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+              Dar de baja
+            </button>
+          </div>
         </div>
       </div>
 
@@ -320,7 +364,12 @@ function estadoClass(estado) {
           </dl>
         </div>
       </div>
+
+      <HistorialLaboral class="mt-6" :id-empleado="store.empleado.id" :version="versionHistorial" />
     </template>
+
+    <CeseModal :empleado="empleadoCese" @cerrar="empleadoCese = null" @guardado="despuesDeMovimiento" />
+    <ReintegroModal :empleado="empleadoReintegro" @cerrar="empleadoReintegro = null" @guardado="despuesDeMovimiento" />
 
     <!-- Modal confirmación: eliminar foto -->
     <Teleport to="body">

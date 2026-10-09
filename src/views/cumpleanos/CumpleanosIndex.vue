@@ -146,7 +146,7 @@ function colorAvatar(id) {
                 <p class="font-semibold text-slate-800 text-sm truncate">{{ emp.nombres }} {{ emp.apellidos }}</p>
                 <p class="text-xs text-slate-500 truncate">{{ emp.departamento }}</p>
                 <div class="flex items-center gap-2 mt-1.5">
-                  <span class="text-xs text-rose-700 font-medium">{{ formatFecha(emp.fecha_nacimiento) }}</span>
+                  <span class="text-xs text-rose-700 font-medium">{{ formatFecha(emp.fecha_celebracion ?? emp.fecha_nacimiento) }}</span>
                   <span class="bg-rose-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">¡{{ emp.edad_cumple }} años hoy!</span>
                 </div>
                 <button
@@ -183,7 +183,7 @@ function colorAvatar(id) {
                 <p class="font-semibold text-slate-800 text-sm truncate">{{ emp.nombres }} {{ emp.apellidos }}</p>
                 <p class="text-xs text-slate-500 truncate">{{ emp.departamento }}</p>
                 <div class="flex items-center gap-2 mt-1.5">
-                  <span class="text-xs text-slate-600">{{ formatFecha(emp.fecha_nacimiento) }}</span>
+                  <span class="text-xs text-slate-600">{{ formatFecha(emp.fecha_celebracion ?? emp.fecha_nacimiento) }}</span>
                   <span class="bg-slate-100 text-slate-600 text-xs font-medium px-1.5 py-0.5 rounded-full">{{ emp.edad_cumple }} años</span>
                   <span v-if="emp.dias_para <= 7 && emp.dias_para > 0" class="bg-amber-100 text-amber-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">
                     en {{ emp.dias_para }} día{{ emp.dias_para !== 1 ? 's' : '' }}

@@ -53,14 +53,40 @@ export const useEmpleadosStore = defineStore('empleados', () => {
     await api.delete(`/empleados/${id}/foto`)
   }
 
-  async function deactivateEmpleado(id) {
-    await api.delete(`/empleados/${id}`)
-    success('Empleado desactivado.')
+  // ── Historial laboral ──────────────────────────────────────────────────────
+  // Dar de baja: { fecha_cese, motivo_cese, liquidacion, observaciones }
+  async function darDeBaja(id, payload) {
+    await api.post(`/empleados/${id}/cese`, payload)
+    success('Empleado dado de baja.')
+  }
+
+  // Reintegro: { fecha_inicio, tipo_contrato, motivo }
+  async function reintegrar(id, payload) {
+    await api.post(`/empleados/${id}/reintegro`, payload)
+    success('Empleado reintegrado.')
+  }
+
+  async function fetchHistorial(id) {
+    const { data } = await api.get(`/empleados/${id}/historial`)
+    return data
+  }
+
+  async function actualizarLiquidacion(idMovimiento, liquidacion) {
+    const { data } = await api.patch(`/historial-laboral/${idMovimiento}/liquidacion`, { liquidacion })
+    success('Liquidación actualizada.')
+    return data
+  }
+
+  // Devuelve { existe, empleado: { id, nombre, cedula, estado, fecha_cese } }
+  async function verificarDni(cedula, excluir) {
+    const { data } = await api.get('/empleados-verificar-dni', { params: { cedula, excluir } })
+    return data
   }
 
   return {
     empleados, empleado, pagination, loading,
     fetchEmpleados, fetchEmpleado, createEmpleado,
-    updateEmpleado, uploadFoto, deleteFoto, deactivateEmpleado,
+    updateEmpleado, uploadFoto, deleteFoto,
+    darDeBaja, reintegrar, fetchHistorial, actualizarLiquidacion, verificarDni,
   }
 })

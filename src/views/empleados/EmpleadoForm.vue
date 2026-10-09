@@ -3,6 +3,10 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEmpleadosStore } from '../../stores/empleados'
 import api from '../../services/api'
+import CambioContratoModal from '../../components/empleados/CambioContratoModal.vue'
+import CambioFechaModal from '../../components/empleados/CambioFechaModal.vue'
+import { formatFecha, es29Febrero, AVISO_29_FEBRERO } from '../../constants/historialLaboral'
+import { useToast } from '../../composables/useToast'
 
 const route   = useRoute()
 const router  = useRouter()
@@ -64,8 +68,21 @@ const form = reactive({
   // como pago por transferencia (ver "Exportar Bancos"/"Exportar Cheques").
   forma_de_pago: 'Cheque', salario_base: '', usa_salario_minimo: false, sin_promedio_dias: false,
   num_cuenta: '', id_banco: '',
-  // Solo edición
-  estado: 'Activo', fecha_cese: '', motivo_cese: '',
+  // Solo edición (Inactivo solo con "Dar de baja"; volver a Activo solo con "Reintegrar")
+  estado: 'Activo',
+})
+
+// Valores al cargar el empleado: para detectar cambio de contrato y saber si está inactivo.
+const original = reactive({ tipo_contrato: '', fecha_inicio: '', estado: '' })
+
+const { warning } = useToast()
+
+// Fecha de inicio el 29 de febrero: se avisa y se vuelve a la fecha anterior
+watch(() => form.fecha_inicio, (nueva, anterior) => {
+  if (es29Febrero(nueva)) {
+    warning(AVISO_29_FEBRERO)
+    form.fecha_inicio = es29Febrero(anterior) ? '' : (anterior ?? '')
+  }
 })
 
 watch(() => form.usa_salario_minimo, (checked) => {
@@ -111,8 +128,6 @@ onMounted(async () => {
         id_cargo:            emp.id_cargo,
         tipo_contrato:        il.tipo_contrato ?? '',
         fecha_inicio:         il.fecha_inicio ? String(il.fecha_inicio).slice(0, 10) : '',
-        fecha_cese:           il.fecha_cese   ? String(il.fecha_cese).slice(0, 10)   : '',
-        motivo_cese:          il.motivo_cese?.toUpperCase() ?? '',
         estado:               il.estado ?? 'Activo',
         moneda:               il.moneda ?? 'Lempiras',
         forma_de_pago:        il.forma_de_pago ?? '',
@@ -122,6 +137,7 @@ onMounted(async () => {
         num_cuenta:           il.num_cuenta?.toUpperCase() ?? '',
         id_banco:             il.id_banco ?? '',
       })
+      Object.assign(original, { tipo_contrato: form.tipo_contrato, fecha_inicio: form.fecha_inicio, estado: form.estado })
       } catch (e) {
         // Si falla la carga, NO mostramos el formulario: hacerlo con campos
         // vacíos permitiría guardar y borrar datos reales del empleado.
@@ -133,17 +149,86 @@ onMounted(async () => {
   }
 })
 
+// ── DNI: no se puede registrar a la misma persona dos veces ───────────────────
+const dniExistente = ref(null) // { id, nombre, cedula, estado, fecha_cese }
+let ultimaVerificacion = 0
+
+async function verificarDni() {
+  const cedula = form.cedula.trim()
+  const id = ++ultimaVerificacion
+  if (cedula.replace(/\D/g, '').length < 6) { dniExistente.value = null; return }
+  try {
+    const res = await store.verificarDni(cedula, isEdit.value ? route.params.id : undefined)
+    if (id === ultimaVerificacion) dniExistente.value = res.existe ? res.empleado : null
+  } catch {
+    // Si falla la verificación, el backend igual rechaza el duplicado al guardar.
+  }
+}
+
+watch(() => form.cedula, () => { dniExistente.value = null })
+
+// ── Cambio de tipo de contrato (Extra ↔ Fijo) ────────────────────────────────
+const cambioPendiente = ref(null) // datos para el modal
+
+// ── Cambio de la fecha de inicio: pide el motivo (queda en el historial laboral) ──
+const cambioFechaPendiente = ref(null) // { anterior, nueva } para el modal
+
+// Antes de guardar se piden, en orden, los datos del cambio de contrato y el motivo
+// del cambio de fecha. Cada modal, al confirmar, vuelve a llamar a continuarGuardado().
+let cambioContratoConfirmado = null
+let motivoFechaConfirmado    = null
+
 async function submit() {
+  if (dniExistente.value) {
+    error.value = 'El DNI ya pertenece a otro empleado. Revisa el aviso junto al DNI.'
+    return
+  }
+  cambioContratoConfirmado = null
+  motivoFechaConfirmado    = null
+  await continuarGuardado()
+}
+
+async function continuarGuardado() {
+  if (isEdit.value) {
+    const cambiaContrato = original.tipo_contrato && form.tipo_contrato !== original.tipo_contrato
+    if (cambiaContrato && !cambioContratoConfirmado) {
+      cambioPendiente.value = { de: original.tipo_contrato, a: form.tipo_contrato, fechaInicio: original.fecha_inicio }
+      return
+    }
+    // Si el cambio de contrato asigna nueva fecha, ese modal ya la registra.
+    const fechaPorContrato = cambioContratoConfirmado?.modo === 'nueva_fecha'
+    if (!fechaPorContrato && form.fecha_inicio !== original.fecha_inicio && !motivoFechaConfirmado) {
+      cambioFechaPendiente.value = { anterior: original.fecha_inicio, nueva: form.fecha_inicio }
+      return
+    }
+  }
+  await guardar(cambioContratoConfirmado, motivoFechaConfirmado)
+}
+
+async function confirmarCambioContrato(cambio) {
+  cambioPendiente.value = null
+  cambioContratoConfirmado = cambio
+  await continuarGuardado()
+}
+
+async function confirmarCambioFecha(motivo) {
+  cambioFechaPendiente.value = null
+  motivoFechaConfirmado = motivo
+  await continuarGuardado()
+}
+
+async function guardar(cambioContrato = null, motivoCambioFecha = null) {
   error.value   = ''
   loading.value = true
   try {
     if (isEdit.value) {
-      await store.updateEmpleado(route.params.id, { ...form })
+      await store.updateEmpleado(route.params.id, { ...form, cambio_contrato: cambioContrato, motivo_cambio_fecha: motivoCambioFecha })
     } else {
       await store.createEmpleado({ ...form })
     }
     router.push('/empleados')
   } catch (e) {
+    if (e.response?.data?.empleado_existente) dniExistente.value = e.response.data.empleado_existente
     const errs = e.response?.data?.errors
     if (errs) {
       error.value = Object.values(errs).flat().join(' | ')
@@ -225,7 +310,23 @@ function salariosCalculados() {
           <!-- DNI | RTN | Teléfono -->
           <div>
             <label class="label">DNI <span class="text-red-500">*</span></label>
-            <input :value="form.cedula" @input="soloDigitosYGuiones('cedula', $event)" required maxlength="30" class="input font-mono" placeholder="0000000000000" autocomplete="off" />
+            <input :value="form.cedula" @input="soloDigitosYGuiones('cedula', $event)" @blur="verificarDni" required maxlength="30"
+              :class="['input font-mono', dniExistente ? 'border-red-400' : '']" placeholder="0000000000000" autocomplete="off" />
+            <!-- La misma persona no se registra dos veces: si está inactiva, se reintegra -->
+            <div v-if="dniExistente" class="mt-1.5 text-xs rounded-lg px-2.5 py-2 border"
+              :class="dniExistente.estado === 'Inactivo' ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-red-50 border-red-200 text-red-700'">
+              <template v-if="dniExistente.estado === 'Inactivo'">
+                Este DNI es de <strong>{{ dniExistente.nombre }}</strong>, inactivo
+                <template v-if="dniExistente.fecha_cese">desde el {{ formatFecha(dniExistente.fecha_cese) }}</template>.
+                <RouterLink :to="{ path: `/empleados/${dniExistente.id}`, query: { reintegrar: 1 } }" class="font-semibold underline">
+                  Reintegrarlo
+                </RouterLink>
+              </template>
+              <template v-else>
+                Este DNI ya pertenece a
+                <RouterLink :to="`/empleados/${dniExistente.id}`" class="font-semibold underline">{{ dniExistente.nombre }}</RouterLink>.
+              </template>
+            </div>
           </div>
           <div>
             <label class="label">RTN</label>
@@ -425,23 +526,22 @@ function salariosCalculados() {
             <input :value="form.num_cuenta" @input="mayusculas('num_cuenta', $event)" maxlength="25" class="input font-mono" placeholder="000-000-000000" />
           </div>
 
-          <!-- Solo edición: estado del contrato -->
+          <!-- Solo edición: estado del contrato. La baja y el reintegro se hacen desde la ficha
+               o la lista de empleados, para que el motivo quede en el historial laboral. -->
           <template v-if="isEdit">
             <div>
               <label class="label">Estado <span class="text-red-500">*</span></label>
-              <select v-model="form.estado" required class="input">
+              <select v-if="original.estado !== 'Inactivo'" v-model="form.estado" required class="input">
                 <option>Activo</option>
-                <option>Inactivo</option>
                 <option>Suspendido</option>
               </select>
+              <input v-else value="Inactivo" disabled class="input bg-slate-50 text-slate-500" />
             </div>
-            <div>
-              <label class="label">Fecha de Cese</label>
-              <input v-model="form.fecha_cese" type="date" class="input" />
-            </div>
-            <div class="sm:col-span-2 lg:col-span-3">
-              <label class="label">Motivo de Cese</label>
-              <textarea :value="form.motivo_cese" @input="mayusculas('motivo_cese', $event)" maxlength="300" rows="2" class="input resize-none" placeholder="DESCRIBIR EL MOTIVO SI APLICA..." />
+            <div class="sm:col-span-1 lg:col-span-2 flex items-end">
+              <p class="text-xs text-slate-500 pb-2">
+                <template v-if="original.estado === 'Inactivo'">Para reactivarlo usa <strong>Reintegrar</strong> en su ficha.</template>
+                <template v-else>Para darlo de baja usa <strong>Dar de baja</strong> en su ficha o en la lista de empleados.</template>
+              </p>
             </div>
           </template>
         </div>
@@ -462,6 +562,9 @@ function salariosCalculados() {
       </div>
     </form>
     </template>
+
+    <CambioContratoModal :cambio="cambioPendiente" @cerrar="cambioPendiente = null" @confirmar="confirmarCambioContrato" />
+    <CambioFechaModal :cambio="cambioFechaPendiente" @cerrar="cambioFechaPendiente = null" @confirmar="confirmarCambioFecha" />
   </div>
 </template>
 
