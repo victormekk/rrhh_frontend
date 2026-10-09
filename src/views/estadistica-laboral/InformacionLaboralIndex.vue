@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useInformacionLaboralStore } from '../../stores/informacionLaboral'
 import { useToast } from '../../composables/useToast'
 
@@ -60,6 +60,15 @@ const buscandoDeptos    = ref(false)
 onMounted(async () => {
   departamentos.value = await store.fetchDepartamentos()
 })
+
+const todosDeptos = computed(() =>
+  departamentos.value.length > 0 && deptosFiltro.value.length === departamentos.value.length
+)
+
+// "Todos" marca todos los departamentos; si ya están todos marcados, los desmarca.
+function toggleTodos() {
+  deptosFiltro.value = todosDeptos.value ? [] : departamentos.value.map((d) => d.id)
+}
 
 function toggleDepto(id) {
   deptosFiltro.value = deptosFiltro.value.includes(id)
@@ -202,6 +211,17 @@ function formatDate(d) {
     <div class="bg-white rounded-xl border border-gray-200 p-5">
       <label class="text-xs font-medium text-slate-500 mb-2 block">Filtrar por departamento</label>
       <div class="flex flex-wrap gap-2">
+        <button
+          v-if="departamentos.length > 0"
+          type="button"
+          @click="toggleTodos"
+          class="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+          :class="todosDeptos
+            ? 'bg-blue-600 border-blue-600 text-white'
+            : 'border-gray-300 text-slate-600 hover:border-blue-300 hover:bg-slate-50'"
+        >
+          TODOS
+        </button>
         <button
           v-for="dep in departamentos"
           :key="dep.id"
