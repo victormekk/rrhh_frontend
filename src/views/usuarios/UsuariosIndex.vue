@@ -64,29 +64,75 @@ async function guardar() {
   }
 }
 
-async function eliminar(u) {
+// ── Modal de confirmación (deshabilitar / habilitar / eliminar) ────────────────
+const confirmacion = ref(null)   // { accion: 'deshabilitar' | 'habilitar' | 'eliminar', usuario }
+const procesando   = ref(false)
+
+const ACCIONES = {
+  deshabilitar: {
+    titulo:  'Deshabilitar usuario',
+    detalle: 'No podrá iniciar sesión y su sesión abierta se cerrará en su siguiente acción.',
+    boton:   'Sí, deshabilitar',
+    enCurso: 'Deshabilitando...',
+    color:   'orange',
+  },
+  habilitar: {
+    titulo:  'Habilitar usuario',
+    detalle: 'Podrá volver a iniciar sesión en el sistema.',
+    boton:   'Sí, habilitar',
+    enCurso: 'Habilitando...',
+    color:   'emerald',
+  },
+  eliminar: {
+    titulo:  'Eliminar usuario',
+    detalle: 'Dejará de aparecer en la lista, pero se conserva en el historial del sistema.',
+    boton:   'Sí, eliminar',
+    enCurso: 'Eliminando...',
+    color:   'red',
+  },
+}
+
+// Clases completas (no interpoladas) para que Tailwind las incluya en el build
+const ESTILO_ACCION = {
+  orange:  { icono: 'bg-orange-100 text-orange-600',   boton: 'bg-orange-600 hover:bg-orange-700' },
+  emerald: { icono: 'bg-emerald-100 text-emerald-600', boton: 'bg-emerald-600 hover:bg-emerald-700' },
+  red:     { icono: 'bg-red-100 text-red-600',         boton: 'bg-red-600 hover:bg-red-700' },
+}
+
+const accionActual = computed(() => confirmacion.value ? ACCIONES[confirmacion.value.accion] : null)
+const estiloActual = computed(() => accionActual.value ? ESTILO_ACCION[accionActual.value.color] : null)
+
+function pedirCambioEstado(u) {
+  confirmacion.value = { accion: u.activo ? 'deshabilitar' : 'habilitar', usuario: u }
+}
+
+function pedirEliminar(u) {
   if (u.id === authStore.user?.id) {
     error('No puedes eliminar tu propio usuario.')
     return
   }
-  if (!confirm(`¿Eliminar al usuario "${u.name}"? Dejará de aparecer en la lista, pero se conserva en el historial del sistema.`)) return
-  try {
-    await store.deleteUsuario(u.id)
-    await store.fetchUsuarios()
-  } catch (e) {
-    error(e.response?.data?.message ?? 'No se pudo eliminar el usuario.')
-  }
+  confirmacion.value = { accion: 'eliminar', usuario: u }
 }
 
-async function cambiarEstado(u) {
-  const accion = u.activo ? 'Deshabilitar' : 'Habilitar'
-  const detalle = u.activo ? ' No podrá iniciar sesión y su sesión abierta se cerrará en su siguiente acción.' : ''
-  if (!confirm(`¿${accion} al usuario "${u.name}"?${detalle}`)) return
+function cancelarConfirmacion() {
+  if (!procesando.value) confirmacion.value = null
+}
+
+async function confirmarAccion() {
+  const { accion, usuario } = confirmacion.value
+  procesando.value = true
   try {
-    await store.cambiarEstadoUsuario(u.id, !u.activo)
+    if (accion === 'eliminar') {
+      await store.deleteUsuario(usuario.id)
+    } else {
+      await store.cambiarEstadoUsuario(usuario.id, accion === 'habilitar')
+    }
+    confirmacion.value = null
     await store.fetchUsuarios()
   } catch (e) {
-    error(e.response?.data?.message ?? 'No se pudo cambiar el estado del usuario.')
+    error(e.response?.data?.message ?? (accion === 'eliminar' ? 'No se pudo eliminar el usuario.' : 'No se pudo cambiar el estado del usuario.'))
+  } finally {
+    procesando.value = false
   }
 }
 
@@ -231,9 +277,10 @@ const passwordPlaceholder = computed(() =>
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                   </svg>
                 </button>
-                <button v-if="u.id !== authStore.user?.id" @click="cambiarEstado(u)"
+                <button v-if="u.id !== authStore.user?.id" @click="pedirCambioEstado(u)"
                   :class="['p-1.5 text-slate-400 rounded transition', u.activo ? 'hover:text-orange-600 hover:bg-orange-50' : 'hover:text-emerald-600 hover:bg-emerald-50']"
-                  :title="u.activo ? 'Deshabilitar' : 'Habilitar'">
+                  :title="u.activo ? 'Deshabilitar usuario' : 'Habilitar usuario'"
+                  :aria-label="u.activo ? 'Deshabilitar usuario' : 'Habilitar usuario'">
                   <svg v-if="u.activo" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                   </svg>
@@ -242,7 +289,7 @@ const passwordPlaceholder = computed(() =>
                   </svg>
                 </button>
                 <!-- Solo se puede eliminar un usuario previamente deshabilitado -->
-                <button v-if="!u.activo" @click="eliminar(u)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar">
+                <button v-if="!u.activo && u.id !== authStore.user?.id" @click="pedirEliminar(u)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar usuario" aria-label="Eliminar usuario">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                   </svg>
@@ -345,6 +392,82 @@ const passwordPlaceholder = computed(() =>
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Modal confirmación deshabilitar / habilitar / eliminar -->
+  <Teleport to="body">
+    <div
+      v-if="confirmacion"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      @click.self="cancelarConfirmacion"
+    >
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+
+        <!-- Encabezado -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" :class="estiloActual.icono">
+            <svg v-if="confirmacion.accion === 'deshabilitar'" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <svg v-else-if="confirmacion.accion === 'habilitar'" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <svg v-else class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800">{{ accionActual.titulo }}</h3>
+            <p class="text-xs text-slate-500 mt-0.5">{{ accionActual.detalle }}</p>
+          </div>
+        </div>
+
+        <!-- Detalle -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm space-y-1">
+          <div class="flex justify-between items-center gap-4">
+            <span class="text-slate-500">Usuario</span>
+            <span class="font-semibold text-slate-800 truncate">{{ confirmacion.usuario.name }}</span>
+          </div>
+          <div class="flex justify-between items-center gap-4">
+            <span class="text-slate-500">Correo</span>
+            <span class="font-semibold text-slate-800 truncate">{{ confirmacion.usuario.email }}</span>
+          </div>
+          <div class="flex justify-between items-center gap-4">
+            <span class="text-slate-500">Rol</span>
+            <span class="font-semibold text-slate-800">{{ confirmacion.usuario.rol === 'admin' ? 'Administrador' : 'RRHH' }}</span>
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            @click="cancelarConfirmacion"
+            :disabled="procesando"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            @click="confirmarAccion"
+            :disabled="procesando"
+            class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+            :class="estiloActual.boton"
+          >
+            <svg v-if="procesando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            {{ procesando ? accionActual.enCurso : accionActual.boton }}
+          </button>
+        </div>
+
       </div>
     </div>
   </Teleport>

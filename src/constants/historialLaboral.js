@@ -7,7 +7,7 @@ export const MOTIVOS_CESE = [
 
 export const OPCIONES_LIQUIDACION = ['Sí', 'No', 'Pendiente']
 
-export const TIPOS_EVENTO = ['Ingreso', 'Cese', 'Reintegro', 'Cambio de contrato', 'Cambio de fecha']
+export const TIPOS_EVENTO = ['Ingreso', 'Cese', 'Reintegro', 'Cambio de contrato', 'Cambio de fecha', 'Cambio de puesto']
 
 export const ESTILO_EVENTO = {
   'Ingreso':            { punto: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700' },
@@ -15,12 +15,30 @@ export const ESTILO_EVENTO = {
   'Reintegro':          { punto: 'bg-blue-500',    badge: 'bg-blue-100 text-blue-700' },
   'Cambio de contrato': { punto: 'bg-amber-500',   badge: 'bg-amber-100 text-amber-700' },
   'Cambio de fecha':    { punto: 'bg-violet-500',  badge: 'bg-violet-100 text-violet-700' },
+  'Cambio de puesto':   { punto: 'bg-cyan-500',    badge: 'bg-cyan-100 text-cyan-700' },
+  // No es un movimiento laboral: el historial de la ficha muestra también las incidencias
+  'Incidencia':         { punto: 'bg-slate-400',   badge: 'bg-slate-100 text-slate-700' },
+}
+
+// Mismos colores que en la pantalla de Incidencias
+export const ESTILO_GRADO_INCIDENCIA = {
+  Leve:     'bg-amber-100 text-amber-700',
+  Moderada: 'bg-orange-100 text-orange-700',
+  Grave:    'bg-red-100 text-red-700',
 }
 
 export const ESTILO_LIQUIDACION = {
   'Sí':        'bg-emerald-100 text-emerald-700',
   'No':        'bg-slate-100 text-slate-600',
   'Pendiente': 'bg-amber-100 text-amber-700',
+}
+
+// Cambio de puesto: solo lo que cambió, p. ej. ["Cargo: Mesero → Capitán", "Departamento: ..."]
+export function detallePuesto(m) {
+  const partes = []
+  if (m.cargo_anterior !== m.cargo_nuevo) partes.push(`Cargo: ${m.cargo_anterior ?? '—'} → ${m.cargo_nuevo ?? '—'}`)
+  if (m.departamento_anterior !== m.departamento_nuevo) partes.push(`Departamento: ${m.departamento_anterior ?? '—'} → ${m.departamento_nuevo ?? '—'}`)
+  return partes
 }
 
 // Fecha de inicio laboral: no se permite 29 de febrero (el aniversario no existiría

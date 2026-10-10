@@ -353,7 +353,16 @@ function estadoClass(estado) {
             </div>
             <div class="grid grid-cols-2 gap-2 text-sm">
               <dt class="text-slate-400">Forma de Pago</dt>
-              <dd class="text-slate-700 font-medium">{{ store.empleado.informacion_laboral.forma_de_pago }}</dd>
+              <dd class="text-slate-700 font-medium">
+                {{ store.empleado.informacion_laboral.forma_de_pago }}
+                <span
+                  v-if="store.empleado.informacion_laboral.forma_de_pago !== 'Transferencia' && store.empleado.informacion_laboral.num_cuenta"
+                  class="block text-xs font-normal text-blue-600"
+                  title="Tiene cuenta registrada, pero cobra por cheque a solicitud suya. Para volver a depositarle, cambie la forma de pago a Transferencia."
+                >
+                  A solicitud (tiene cuenta)
+                </span>
+              </dd>
             </div>
             <div class="grid grid-cols-2 gap-2 text-sm">
               <dt class="text-slate-400">Banco</dt>

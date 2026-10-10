@@ -5,6 +5,7 @@ import { useEmpleadosStore } from '../../stores/empleados'
 import api from '../../services/api'
 import CambioContratoModal from '../../components/empleados/CambioContratoModal.vue'
 import CambioFechaModal from '../../components/empleados/CambioFechaModal.vue'
+import CambioPuestoModal from '../../components/empleados/CambioPuestoModal.vue'
 import { formatFecha, es29Febrero, AVISO_29_FEBRERO } from '../../constants/historialLaboral'
 import { useToast } from '../../composables/useToast'
 
@@ -73,7 +74,19 @@ const form = reactive({
 })
 
 // Valores al cargar el empleado: para detectar cambio de contrato y saber si está inactivo.
-const original = reactive({ tipo_contrato: '', fecha_inicio: '', estado: '' })
+const original = reactive({ tipo_contrato: '', fecha_inicio: '', estado: '', id_cargo: null, id_departamento: null })
+
+// Aviso según forma de pago y cuenta (ver InformacionLaboral::cuentaParaPago en el backend)
+const avisoPago = computed(() => {
+  const tieneCuenta = !!form.num_cuenta?.trim()
+  if (form.forma_de_pago === 'Transferencia' && !tieneCuenta) {
+    return { clase: 'bg-amber-50 border-amber-200 text-amber-700', texto: 'Sin número de cuenta no se le puede depositar: en planillas y aguinaldos saldrá en el listado de cheques.' }
+  }
+  if (form.forma_de_pago && form.forma_de_pago !== 'Transferencia' && tieneCuenta) {
+    return { clase: 'bg-blue-50 border-blue-200 text-blue-700', texto: `Cobrará por ${form.forma_de_pago.toLowerCase()} aunque tenga cuenta. La cuenta se conserva: cuando vuelva a cobrar en banco, basta con cambiar la forma de pago a Transferencia.` }
+  }
+  return null
+})
 
 const { warning } = useToast()
 
@@ -137,7 +150,10 @@ onMounted(async () => {
         num_cuenta:           il.num_cuenta?.toUpperCase() ?? '',
         id_banco:             il.id_banco ?? '',
       })
-      Object.assign(original, { tipo_contrato: form.tipo_contrato, fecha_inicio: form.fecha_inicio, estado: form.estado })
+      Object.assign(original, {
+        tipo_contrato: form.tipo_contrato, fecha_inicio: form.fecha_inicio, estado: form.estado,
+        id_cargo: form.id_cargo, id_departamento: form.id_departamento,
+      })
       } catch (e) {
         // Si falla la carga, NO mostramos el formulario: hacerlo con campos
         // vacíos permitiría guardar y borrar datos reales del empleado.
@@ -173,10 +189,16 @@ const cambioPendiente = ref(null) // datos para el modal
 // ── Cambio de la fecha de inicio: pide el motivo (queda en el historial laboral) ──
 const cambioFechaPendiente = ref(null) // { anterior, nueva } para el modal
 
+// ── Cambio de cargo y/o departamento: pide la fecha en que se hace efectivo ──
+const cambioPuestoPendiente = ref(null) // { cargo?: { de, a }, departamento?: { de, a } }
+
+const nombreDe = (lista, id) => lista.find((x) => x.id === id)?.nombre ?? '—'
+
 // Antes de guardar se piden, en orden, los datos del cambio de contrato y el motivo
 // del cambio de fecha. Cada modal, al confirmar, vuelve a llamar a continuarGuardado().
 let cambioContratoConfirmado = null
 let motivoFechaConfirmado    = null
+let cambioPuestoConfirmado   = null
 
 async function submit() {
   if (dniExistente.value) {
@@ -185,6 +207,7 @@ async function submit() {
   }
   cambioContratoConfirmado = null
   motivoFechaConfirmado    = null
+  cambioPuestoConfirmado   = null
   await continuarGuardado()
 }
 
@@ -201,8 +224,17 @@ async function continuarGuardado() {
       cambioFechaPendiente.value = { anterior: original.fecha_inicio, nueva: form.fecha_inicio }
       return
     }
+    const cambiaCargo = original.id_cargo && form.id_cargo !== original.id_cargo
+    const cambiaDepto = original.id_departamento && form.id_departamento !== original.id_departamento
+    if ((cambiaCargo || cambiaDepto) && !cambioPuestoConfirmado) {
+      cambioPuestoPendiente.value = {
+        cargo:        cambiaCargo ? { de: nombreDe(cargos.value, original.id_cargo), a: nombreDe(cargos.value, form.id_cargo) } : null,
+        departamento: cambiaDepto ? { de: nombreDe(departamentos.value, original.id_departamento), a: nombreDe(departamentos.value, form.id_departamento) } : null,
+      }
+      return
+    }
   }
-  await guardar(cambioContratoConfirmado, motivoFechaConfirmado)
+  await guardar(cambioContratoConfirmado, motivoFechaConfirmado, cambioPuestoConfirmado)
 }
 
 async function confirmarCambioContrato(cambio) {
@@ -217,12 +249,18 @@ async function confirmarCambioFecha(motivo) {
   await continuarGuardado()
 }
 
-async function guardar(cambioContrato = null, motivoCambioFecha = null) {
+async function confirmarCambioPuesto(cambio) {
+  cambioPuestoPendiente.value = null
+  cambioPuestoConfirmado = cambio
+  await continuarGuardado()
+}
+
+async function guardar(cambioContrato = null, motivoCambioFecha = null, cambioPuesto = null) {
   error.value   = ''
   loading.value = true
   try {
     if (isEdit.value) {
-      await store.updateEmpleado(route.params.id, { ...form, cambio_contrato: cambioContrato, motivo_cambio_fecha: motivoCambioFecha })
+      await store.updateEmpleado(route.params.id, { ...form, cambio_contrato: cambioContrato, motivo_cambio_fecha: motivoCambioFecha, cambio_puesto: cambioPuesto })
     } else {
       await store.createEmpleado({ ...form })
     }
@@ -526,6 +564,17 @@ function salariosCalculados() {
             <input :value="form.num_cuenta" @input="mayusculas('num_cuenta', $event)" maxlength="25" class="input font-mono" placeholder="000-000-000000" />
           </div>
 
+          <!-- La forma de pago decide el destino en planillas y aguinaldos: solo
+               "Transferencia" cobra por banco; con otra forma la cuenta se conserva. -->
+          <div v-if="avisoPago" class="sm:col-span-2 lg:col-span-3">
+            <p class="flex items-start gap-2 text-xs rounded-lg px-3 py-2 border" :class="avisoPago.clase">
+              <svg class="w-4 h-4 flex-shrink-0 mt-px" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+              </svg>
+              <span>{{ avisoPago.texto }}</span>
+            </p>
+          </div>
+
           <!-- Solo edición: estado del contrato. La baja y el reintegro se hacen desde la ficha
                o la lista de empleados, para que el motivo quede en el historial laboral. -->
           <template v-if="isEdit">
@@ -565,6 +614,7 @@ function salariosCalculados() {
 
     <CambioContratoModal :cambio="cambioPendiente" @cerrar="cambioPendiente = null" @confirmar="confirmarCambioContrato" />
     <CambioFechaModal :cambio="cambioFechaPendiente" @cerrar="cambioFechaPendiente = null" @confirmar="confirmarCambioFecha" />
+    <CambioPuestoModal :cambio="cambioPuestoPendiente" @cerrar="cambioPuestoPendiente = null" @confirmar="confirmarCambioPuesto" />
   </div>
 </template>
 

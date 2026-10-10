@@ -4,7 +4,7 @@ import { ref, watch } from 'vue'
 import { useEmpleadosStore } from '../../stores/empleados'
 import { useToast } from '../../composables/useToast'
 import LoadingSpinner from '../LoadingSpinner.vue'
-import { ESTILO_EVENTO, ESTILO_LIQUIDACION, OPCIONES_LIQUIDACION, formatFecha, mensajeError } from '../../constants/historialLaboral'
+import { ESTILO_EVENTO, ESTILO_LIQUIDACION, ESTILO_GRADO_INCIDENCIA, OPCIONES_LIQUIDACION, detallePuesto, formatFecha, mensajeError } from '../../constants/historialLaboral'
 
 const props = defineProps({
   idEmpleado: { type: [Number, String], required: true },
@@ -71,13 +71,25 @@ function contrato(m) {
           </span>
           <span class="text-sm font-semibold text-slate-800">{{ formatFecha(m.fecha) }}</span>
           <span v-if="contrato(m)" class="text-xs text-slate-500">· {{ contrato(m) }}</span>
+          <span
+            v-if="m.tipo_evento === 'Incidencia'"
+            :class="[ESTILO_GRADO_INCIDENCIA[m.grado] ?? 'bg-gray-100 text-gray-600', 'text-xs font-semibold px-2 py-0.5 rounded-full']"
+            :title="`Grado de la incidencia: ${m.grado}`"
+          >
+            {{ m.grado }}
+          </span>
         </div>
 
-        <dl class="mt-1.5 text-sm text-slate-600 space-y-0.5">
+        <p v-if="m.tipo_evento === 'Incidencia'" class="mt-1.5 text-sm font-medium text-slate-700">{{ m.titulo }}</p>
+
+        <dl v-else class="mt-1.5 text-sm text-slate-600 space-y-0.5">
           <div v-if="m.tipo_evento === 'Cese'">
             Trabajó desde <strong class="text-slate-700">{{ formatFecha(m.fecha_inicio_anterior) }}</strong>.
             Motivo: <strong class="text-slate-700">{{ m.motivo_cese ?? '—' }}</strong>
           </div>
+          <template v-if="m.tipo_evento === 'Cambio de puesto'">
+            <div v-for="linea in detallePuesto(m)" :key="linea">{{ linea }}</div>
+          </template>
           <div v-if="m.fecha_inicio_nueva && m.fecha_inicio_anterior && m.tipo_evento !== 'Ingreso'">
             Fecha de inicio: {{ formatFecha(m.fecha_inicio_anterior) }} → <strong class="text-slate-700">{{ formatFecha(m.fecha_inicio_nueva) }}</strong>
           </div>

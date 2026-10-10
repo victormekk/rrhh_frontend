@@ -35,6 +35,14 @@ export const useBancosStore = defineStore('bancos', () => {
     return data
   }
 
+  async function reactivarBanco(banco) {
+    const { data } = await api.put(`/bancos/${banco.id}`, { nombre: banco.nombre, estado: 'Activo' })
+    const idx = bancos.value.findIndex((b) => b.id === banco.id)
+    if (idx !== -1) bancos.value[idx] = data
+    success('Banco reactivado.')
+    return data
+  }
+
   async function deleteBanco(id) {
     await api.delete(`/bancos/${id}`)
     const idx = bancos.value.findIndex((b) => b.id === id)
@@ -67,7 +75,7 @@ export const useBancosStore = defineStore('bancos', () => {
   }
 
   return {
-    bancos, loading, fetchBancos, createBanco, updateBanco, deleteBanco,
+    bancos, loading, fetchBancos, createBanco, updateBanco, reactivarBanco, deleteBanco,
     sinCuenta, loadingSinCuenta, fetchSinCuenta, asignarCuenta,
   }
 })

@@ -114,12 +114,33 @@ async function guardar() {
   }
 }
 
-async function desactivar(banco) {
-  if (!confirm(`¿Desactivar el banco "${banco.nombre}"?`)) return
+// ── Modal confirmación desactivar / reactivar ─────────────────────────────────
+const confirmacion = ref(null)   // { accion: 'desactivar' | 'reactivar', banco }
+const procesando   = ref(false)
+
+function pedirDesactivar(banco) { confirmacion.value = { accion: 'desactivar', banco } }
+function pedirReactivar(banco)  { confirmacion.value = { accion: 'reactivar', banco } }
+
+function cancelarConfirmacion() {
+  if (!procesando.value) confirmacion.value = null
+}
+
+async function confirmarAccion() {
+  const { accion, banco } = confirmacion.value
+  procesando.value = true
   try {
-    await store.deleteBanco(banco.id)
-  } catch {
-    error('No se pudo desactivar el banco.')
+    accion === 'desactivar'
+      ? await store.deleteBanco(banco.id)
+      : await store.reactivarBanco(banco)
+    confirmacion.value = null
+  } catch (e) {
+    console.error(e)
+    error(
+      e.response?.data?.message ??
+      (accion === 'desactivar' ? 'No se pudo desactivar el banco.' : 'No se pudo reactivar el banco.')
+    )
+  } finally {
+    procesando.value = false
   }
 }
 </script>
@@ -208,9 +229,14 @@ async function desactivar(banco) {
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                   </svg>
                 </button>
-                <button v-if="banco.estado === 'Activo'" @click="desactivar(banco)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Desactivar">
+                <button v-if="banco.estado === 'Activo'" @click="pedirDesactivar(banco)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Desactivar banco" aria-label="Desactivar banco">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                </button>
+                <button v-else @click="pedirReactivar(banco)" class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition" title="Reactivar banco" aria-label="Reactivar banco">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </button>
               </div>
@@ -360,17 +386,6 @@ async function desactivar(banco) {
             />
           </div>
 
-          <div v-if="editando">
-            <label class="block text-sm font-medium text-slate-700 mb-1.5">Estado</label>
-            <select
-              v-model="form.estado"
-              class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-            >
-              <option value="Activo">Activo</option>
-              <option value="Inactivo">Inactivo</option>
-            </select>
-          </div>
-
           <div class="flex justify-end gap-3 pt-2">
             <button
               type="button"
@@ -394,6 +409,81 @@ async function desactivar(banco) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Modal confirmación desactivar / reactivar -->
+  <Teleport to="body">
+    <div
+      v-if="confirmacion"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      @click.self="cancelarConfirmacion"
+    >
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+
+        <!-- Encabezado -->
+        <div class="flex items-center gap-3">
+          <div
+            class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            :class="confirmacion.accion === 'desactivar' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'"
+          >
+            <svg v-if="confirmacion.accion === 'desactivar'" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <svg v-else class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800">
+              {{ confirmacion.accion === 'desactivar' ? 'Desactivar banco' : 'Reactivar banco' }}
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">
+              {{ confirmacion.accion === 'desactivar'
+                ? 'Dejará de ofrecerse al registrar cuentas. Puede reactivarlo desde la lista de inactivos.'
+                : 'Volverá a ofrecerse al registrar cuentas bancarias.' }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Detalle -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm">
+          <div class="flex justify-between items-center gap-4">
+            <span class="text-slate-500">Banco</span>
+            <span class="font-semibold text-slate-800 truncate">{{ confirmacion.banco.nombre }}</span>
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            @click="cancelarConfirmacion"
+            :disabled="procesando"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            @click="confirmarAccion"
+            :disabled="procesando"
+            class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg disabled:opacity-60 text-white text-sm font-semibold transition-colors"
+            :class="confirmacion.accion === 'desactivar' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'"
+          >
+            <svg v-if="procesando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            <template v-if="confirmacion.accion === 'desactivar'">{{ procesando ? 'Desactivando...' : 'Sí, desactivar' }}</template>
+            <template v-else>{{ procesando ? 'Reactivando...' : 'Sí, reactivar' }}</template>
+          </button>
+        </div>
+
       </div>
     </div>
   </Teleport>

@@ -150,13 +150,13 @@ async function handleLogout() {
   router.push('/login')
 }
 
+// Formato: "Sábado 10 de Octubre de 2026"
 function currentDate() {
-  return new Date().toLocaleDateString('es-HN', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  const hoy = new Date()
+  const mayuscula = (s) => s.charAt(0).toUpperCase() + s.slice(1)
+  const dia = mayuscula(hoy.toLocaleDateString('es-HN', { weekday: 'long' }))
+  const mes = mayuscula(hoy.toLocaleDateString('es-HN', { month: 'long' }))
+  return `${dia} ${hoy.getDate()} de ${mes} de ${hoy.getFullYear()}`
 }
 </script>
 
@@ -402,7 +402,7 @@ function currentDate() {
           </button>
           <h1 class="text-base sm:text-lg font-semibold text-slate-800 truncate">{{ route.meta.title ?? 'Sistema RRHH' }}</h1>
         </div>
-        <span class="hidden sm:inline text-sm text-slate-500 capitalize whitespace-nowrap">{{ currentDate() }}</span>
+        <span class="hidden sm:inline text-sm text-slate-500 whitespace-nowrap">{{ currentDate() }}</span>
         <!-- En celular, la mariposa ocupa el lugar de la fecha -->
         <img :src="mariposa" alt="Palma Real Hotel y Villas" class="sm:hidden h-8 w-auto flex-shrink-0" />
         <!-- En iPad/tablet (md a lg), la mariposa va centrada en la barra; de 640 a 767 px no cabe junto a títulos largos -->

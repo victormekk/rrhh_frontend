@@ -5,7 +5,7 @@ import { useToast } from '../../composables/useToast'
 import LoadingSpinner from '../../components/LoadingSpinner.vue'
 import {
   TIPOS_EVENTO, MOTIVOS_CESE, OPCIONES_LIQUIDACION,
-  ESTILO_EVENTO, ESTILO_LIQUIDACION, formatFecha, mensajeError,
+  ESTILO_EVENTO, ESTILO_LIQUIDACION, detallePuesto, formatFecha, mensajeError,
 } from '../../constants/historialLaboral'
 
 const store = useMovimientosPersonalStore()
@@ -82,6 +82,7 @@ function contrato(m) {
 
 function detalle(m) {
   if (m.tipo_evento === 'Cese') return m.motivo_cese ?? '—'
+  if (m.tipo_evento === 'Cambio de puesto') return detallePuesto(m).join(' · ')
   if (m.fecha_inicio_nueva && m.fecha_inicio_anterior && m.tipo_evento !== 'Ingreso') {
     return `Inicio: ${formatFecha(m.fecha_inicio_anterior)} → ${formatFecha(m.fecha_inicio_nueva)}`
   }
