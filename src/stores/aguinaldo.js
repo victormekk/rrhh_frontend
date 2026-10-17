@@ -69,7 +69,7 @@ export const useAguinaldoStore = defineStore('aguinaldo', () => {
 
   async function eliminar(nombre) {
     await api.delete(`/aguinaldo/${encodeURIComponent(nombre)}`)
-    success('Planilla eliminada.')
+    success('Planilla especial anulada.')
   }
 
   function calcTotalesFijos(fijos) {

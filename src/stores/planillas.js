@@ -60,7 +60,7 @@ export const usePlanillasStore = defineStore('planillas', () => {
 
   async function deletePlanilla(id) {
     await api.delete(`/planillas/${id}`)
-    success('Planilla eliminada.')
+    success('Planilla anulada.')
   }
 
   async function eliminarPlanillaCerrada(id, password) {
