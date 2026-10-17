@@ -59,19 +59,55 @@ const grupos = computed(() => {
 const totales = computed(() => sumarCampos(store.planilla?.detalles ?? []))
 
 // ── Edición directa en celda (números simples: días, IHSS, RAP, ISR, etc.) ───
+// Lo que se está escribiendo se guarda aparte hasta salir de la celda: así, si mientras
+// tanto llega la respuesta del guardado de otra fila y la tabla se vuelve a dibujar,
+// la celda conserva lo escrito en vez de volver al valor guardado.
+const borradores = reactive({})
+const claveCelda = (detalle, campo) => `${detalle.id}:${campo}`
+
+function valorCelda(detalle, campo, guardado = detalle[campo]) {
+  const clave = claveCelda(detalle, campo)
+  return clave in borradores ? borradores[clave] : guardado
+}
+
+function escribirCelda(detalle, campo, event) {
+  borradores[claveCelda(detalle, campo)] = event.target.value
+}
+
 async function onBlurCampo(detalle, campo, event) {
+  const clave = claveCelda(detalle, campo)
   const valor = Number(event.target.value)
+  delete borradores[clave]
   if (Number.isNaN(valor)) {
     event.target.value = detalle[campo]
     return
   }
   if (valor === Number(detalle[campo])) return
+
+  // Se muestra el resultado al instante (misma fórmula que el servidor) y se guarda en
+  // segundo plano; la respuesta del servidor reemplaza la fila. Si falla, se revierte.
+  const antes = { ...detalle }
+  recalcularFila(detalle, campo, valor)
   try {
     await store.updateDetalle(route.params.id, detalle.id, { [campo]: valor }, { silent: true })
   } catch (e) {
-    event.target.value = detalle[campo]
+    Object.assign(detalle, antes)
+    event.target.value = antes[campo]
     error(e.response?.data?.message ?? 'No se pudo guardar el cambio.')
   }
+}
+
+const CAMPOS_DEDUCCION = [
+  'ihss', 'retencion_ahorro', 'crefisa', 'isr', 'transporte',
+  'radios', 'uniforme', 'garden', 'i_vecinal', 'otras_deducciones',
+]
+
+function recalcularFila(detalle, campo, valor) {
+  detalle[campo] = valor
+  const n = (c) => Number(detalle[c] || 0)
+  detalle.salario_base   = Math.round(n('salario_diario') * n('dias_trabajados') * 100) / 100
+  detalle.deduccion_neta = CAMPOS_DEDUCCION.reduce((s, c) => s + n(c), 0)
+  detalle.salario_neto   = detalle.salario_base + n('otros_ingresos') + n('monto_horas_extras') - detalle.deduccion_neta
 }
 
 // Enter en "Días": guarda (dispara el @blur normal) y salta al mismo campo del siguiente empleado
@@ -640,7 +676,8 @@ function fmtDate(d) {
                   <td class="px-1 py-1">
                     <input
                       v-if="!esCerrada" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
-                      :value="d.dias_trabajados || ''" placeholder="0"
+                      :value="valorCelda(d, 'dias_trabajados', d.dias_trabajados || '')" placeholder="0"
+                      @input="escribirCelda(d, 'dias_trabajados', $event)"
                       :data-dias-id="d.id"
                       @focus="$event.target.select()"
                       @blur="onBlurCampo(d, 'dias_trabajados', $event)" @keyup.enter="onEnterDias(d, $event)"
@@ -671,39 +708,39 @@ function fmtDate(d) {
                   </td>
 
                   <td v-if="mostrarColumnasFijos" class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.ihss" @blur="onBlurCampo(d, 'ihss', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'ihss')" @input="escribirCelda(d, 'ihss', $event)" @blur="onBlurCampo(d, 'ihss', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.ihss) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.retencion_ahorro" @blur="onBlurCampo(d, 'retencion_ahorro', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'retencion_ahorro')" @input="escribirCelda(d, 'retencion_ahorro', $event)" @blur="onBlurCampo(d, 'retencion_ahorro', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.retencion_ahorro) }}</span>
                   </td>
                   <td v-if="mostrarColumnasFijos" class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.isr" @blur="onBlurCampo(d, 'isr', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'isr')" @input="escribirCelda(d, 'isr', $event)" @blur="onBlurCampo(d, 'isr', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.isr) }}</span>
                   </td>
                   <td v-if="mostrarColumnasFijos" class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.crefisa" @blur="onBlurCampo(d, 'crefisa', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'crefisa')" @input="escribirCelda(d, 'crefisa', $event)" @blur="onBlurCampo(d, 'crefisa', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.crefisa) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.transporte" @blur="onBlurCampo(d, 'transporte', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'transporte')" @input="escribirCelda(d, 'transporte', $event)" @blur="onBlurCampo(d, 'transporte', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.transporte) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.radios" @blur="onBlurCampo(d, 'radios', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'radios')" @input="escribirCelda(d, 'radios', $event)" @blur="onBlurCampo(d, 'radios', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.radios) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.i_vecinal" @blur="onBlurCampo(d, 'i_vecinal', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'i_vecinal')" @input="escribirCelda(d, 'i_vecinal', $event)" @blur="onBlurCampo(d, 'i_vecinal', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.i_vecinal) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.uniforme" @blur="onBlurCampo(d, 'uniforme', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'uniforme')" @input="escribirCelda(d, 'uniforme', $event)" @blur="onBlurCampo(d, 'uniforme', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.uniforme) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="d.garden" @blur="onBlurCampo(d, 'garden', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'garden')" @input="escribirCelda(d, 'garden', $event)" @blur="onBlurCampo(d, 'garden', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.garden) }}</span>
                   </td>
 

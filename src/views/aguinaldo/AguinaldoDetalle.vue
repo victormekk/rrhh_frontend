@@ -331,10 +331,10 @@ function fmt(val) {
                 <td class="px-4 py-2.5 text-center text-slate-600 text-xs">{{ f.cuenta ?? '—' }}</td>
                 <td class="px-4 py-2.5 text-slate-600 text-xs">{{ f.cargo ?? '—' }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-600 text-xs">{{ formatDate(f.fecha_inicio) }}</td>
-                <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(f.salario_base) }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-700 whitespace-nowrap">{{ fmt(f.salario_base) }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-700">{{ f.dias_trabajados }}</td>
-                <td class="px-4 py-2.5 text-center text-amber-600">{{ fmt(f.anticipo) }}</td>
-                <td class="px-4 py-2.5 text-center font-semibold text-slate-800">{{ fmt(f.total_aguinaldo) }}</td>
+                <td class="px-4 py-2.5 text-center text-amber-600 whitespace-nowrap">{{ fmt(f.anticipo) }}</td>
+                <td class="px-4 py-2.5 text-center font-semibold text-slate-800 whitespace-nowrap">{{ fmt(f.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada" class="px-4 py-2.5 text-center">
                   <button @click="abrirModalFijo(f)" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" title="Editar">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
@@ -346,10 +346,10 @@ function fmt(val) {
               <!-- Subtotal por departamento -->
               <tr class="bg-amber-100/60 font-semibold text-xs">
                 <td class="px-4 py-1.5" colspan="4">SUBTOTAL: {{ grupo.departamento }}</td>
-                <td class="px-4 py-1.5 text-center">{{ fmt(grupo.subtotal.salario_base) }}</td>
+                <td class="px-4 py-1.5 text-center whitespace-nowrap">{{ fmt(grupo.subtotal.salario_base) }}</td>
                 <td class="px-4 py-1.5 text-center">{{ grupo.subtotal.dias_trabajados }}</td>
-                <td class="px-4 py-1.5 text-center">{{ fmt(grupo.subtotal.anticipo) }}</td>
-                <td class="px-4 py-1.5 text-center">{{ fmt(grupo.subtotal.total_aguinaldo) }}</td>
+                <td class="px-4 py-1.5 text-center whitespace-nowrap">{{ fmt(grupo.subtotal.anticipo) }}</td>
+                <td class="px-4 py-1.5 text-center whitespace-nowrap">{{ fmt(grupo.subtotal.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada"></td>
               </tr>
             </tbody>
@@ -357,10 +357,10 @@ function fmt(val) {
               <!-- Total general -->
               <tr class="bg-blue-700 text-white text-xs font-semibold">
                 <td class="px-4 py-2.5" colspan="4">TOTAL GENERAL</td>
-                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_fijos?.salario_base) }}</td>
+                <td class="px-4 py-2.5 text-center whitespace-nowrap">{{ fmt(detalle.totales_fijos?.salario_base) }}</td>
                 <td class="px-4 py-2.5 text-center">{{ detalle.totales_fijos?.dias_trabajados }}</td>
-                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_fijos?.anticipo) }}</td>
-                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_fijos?.total_aguinaldo) }}</td>
+                <td class="px-4 py-2.5 text-center whitespace-nowrap">{{ fmt(detalle.totales_fijos?.anticipo) }}</td>
+                <td class="px-4 py-2.5 text-center whitespace-nowrap">{{ fmt(detalle.totales_fijos?.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada"></td>
               </tr>
             </tfoot>
@@ -403,9 +403,9 @@ function fmt(val) {
               <tr v-for="e in grupo.filas" :key="e.id" class="border-b border-gray-100 hover:bg-slate-50">
                 <td class="px-4 py-2.5 font-medium text-slate-800">{{ e.nombres }} {{ e.apellidos }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-500 text-xs">{{ formatDate(e.fecha_inicio) }}</td>
-                <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(e.diario) }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-700 whitespace-nowrap">{{ fmt(e.diario) }}</td>
                 <td class="px-4 py-2.5 text-center text-slate-700">{{ fmtAntig(e.antiguedad) }}</td>
-                <td class="px-4 py-2.5 text-center text-slate-700">{{ fmt(e.subtotal) }}</td>
+                <td class="px-4 py-2.5 text-center text-slate-700 whitespace-nowrap">{{ fmt(e.subtotal) }}</td>
                 <td class="px-4 py-2.5 text-center">
                   <span v-if="e.sin_promedio" class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full" title="Trabaja todos los días: no se aplica el promedio">No aplica</span>
                   <button v-else type="button" @click="verQuincenas(e)"
@@ -414,8 +414,8 @@ function fmt(val) {
                     {{ e.dias_promedio }}
                   </button>
                 </td>
-                <td class="px-4 py-2.5 text-center text-amber-600">{{ fmt(e.anticipos) }}</td>
-                <td class="px-4 py-2.5 text-center font-semibold text-slate-800">{{ fmt(e.total_aguinaldo) }}</td>
+                <td class="px-4 py-2.5 text-center text-amber-600 whitespace-nowrap">{{ fmt(e.anticipos) }}</td>
+                <td class="px-4 py-2.5 text-center font-semibold text-slate-800 whitespace-nowrap">{{ fmt(e.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada" class="px-4 py-2.5 text-center">
                   <button @click="abrirModalExtra(e)" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" title="Editar">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
@@ -427,10 +427,10 @@ function fmt(val) {
               <!-- Subtotal por departamento -->
               <tr class="bg-amber-100/60 font-semibold text-xs">
                 <td class="px-4 py-1.5" colspan="4">SUBTOTAL: {{ grupo.departamento }}</td>
-                <td class="px-4 py-1.5 text-center">{{ fmt(grupo.subtotal.subtotal) }}</td>
+                <td class="px-4 py-1.5 text-center whitespace-nowrap">{{ fmt(grupo.subtotal.subtotal) }}</td>
                 <td></td>
-                <td class="px-4 py-1.5 text-center">{{ fmt(grupo.subtotal.anticipos) }}</td>
-                <td class="px-4 py-1.5 text-center">{{ fmt(grupo.subtotal.total_aguinaldo) }}</td>
+                <td class="px-4 py-1.5 text-center whitespace-nowrap">{{ fmt(grupo.subtotal.anticipos) }}</td>
+                <td class="px-4 py-1.5 text-center whitespace-nowrap">{{ fmt(grupo.subtotal.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada"></td>
               </tr>
             </tbody>
@@ -438,10 +438,10 @@ function fmt(val) {
               <!-- Total general -->
               <tr class="bg-blue-700 text-white text-xs font-semibold">
                 <td class="px-4 py-2.5" colspan="4">TOTAL GENERAL</td>
-                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.subtotal) }}</td>
+                <td class="px-4 py-2.5 text-center whitespace-nowrap">{{ fmt(detalle.totales_extras?.subtotal) }}</td>
                 <td></td>
-                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.anticipos) }}</td>
-                <td class="px-4 py-2.5 text-center">{{ fmt(detalle.totales_extras?.total_aguinaldo) }}</td>
+                <td class="px-4 py-2.5 text-center whitespace-nowrap">{{ fmt(detalle.totales_extras?.anticipos) }}</td>
+                <td class="px-4 py-2.5 text-center whitespace-nowrap">{{ fmt(detalle.totales_extras?.total_aguinaldo) }}</td>
                 <td v-if="!esCerrada"></td>
               </tr>
             </tfoot>
