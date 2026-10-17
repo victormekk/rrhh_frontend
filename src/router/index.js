@@ -22,6 +22,7 @@ const VacacionesIndex    = () => import('../views/vacaciones/VacacionesIndex.vue
 
 const AguinaldoCrear   = () => import('../views/aguinaldo/AguinaldoCrear.vue')
 const AguinaldoDetalle = () => import('../views/aguinaldo/AguinaldoDetalle.vue')
+const CargarMarcas     = () => import('../views/planillas/CargarMarcas.vue')
 const LogSistemaIndex      = () => import('../views/log-sistema/LogSistemaIndex.vue')
 const UsuariosIndex        = () => import('../views/usuarios/UsuariosIndex.vue')
 const CamposVariablesIndex = () => import('../views/campos-variables/CamposVariablesIndex.vue')
@@ -115,7 +116,7 @@ const router = createRouter({
           path: 'departamentos',
           name: 'departamentos',
           component: DepartamentosIndex,
-          meta: { requiresAuth: true, title: 'Estructura Organizacional' },
+          meta: { requiresAuth: true, title: 'Departamentos' },
         },
         {
           path: 'puestos',
@@ -162,6 +163,14 @@ const router = createRouter({
           meta: { requiresAuth: true, title: 'Detalle de Planilla Especial' },
         },
 
+        // Marcas de los relojes biométricos (CSV)
+        {
+          path: 'cargar-marcas',
+          name: 'cargar-marcas',
+          component: CargarMarcas,
+          meta: { requiresAuth: true, title: 'Cargar Marcas' },
+        },
+
         // Cumpleaños
         {
           path: 'cumpleanos',
@@ -190,12 +199,12 @@ const router = createRouter({
           meta: { requiresAuth: true, title: 'Movimientos de Personal' },
         },
 
-        // Log del sistema
+        // Bitácora
         {
-          path: 'log-sistema',
-          name: 'log-sistema',
+          path: 'bitacora',
+          name: 'bitacora',
           component: LogSistemaIndex,
-          meta: { requiresAuth: true, adminOnly: true, title: 'Log del Sistema' },
+          meta: { requiresAuth: true, adminOnly: true, title: 'Bitácora' },
         },
 
         // Campos Variables (solo admin)

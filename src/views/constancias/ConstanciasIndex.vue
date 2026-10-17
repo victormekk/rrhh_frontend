@@ -9,7 +9,7 @@ const store        = useConstanciasStore()
 const historialStore = useLogSistemaStore()
 const { error } = useToast()
 
-// ── Historial de constancias emitidas (paginado, igual que Log del Sistema) ──
+// ── Historial de constancias emitidas (paginado, igual que la Bitácora) ──
 async function cargarHistorial(page) {
   await historialStore.fetchLogs({ modulo: 'Constancias', page })
 }

@@ -14,7 +14,7 @@ export const useLogSistemaStore = defineStore('logSistema', () => {
   async function fetchLogs(params = {}) {
     loading.value = true
     try {
-      const { data } = await api.get('/log-sistema', { params })
+      const { data } = await api.get('/bitacora', { params })
       logs.value       = data.data
       pagination.value = data
     } finally {
@@ -23,8 +23,8 @@ export const useLogSistemaStore = defineStore('logSistema', () => {
   }
 
   async function downloadPdf(params = {}) {
-    const { data } = await api.get('/log-sistema/pdf', { params, responseType: 'blob' })
-    descargarBlob(data, nombreArchivo('LogSistema', '', 'pdf'))
+    const { data } = await api.get('/bitacora/pdf', { params, responseType: 'blob' })
+    descargarBlob(data, nombreArchivo('Bitacora', '', 'pdf'))
     info('PDF descargado.')
   }
 

@@ -192,7 +192,7 @@ const eliminarLabel = computed(() => confirmEliminarTipo.value === 'dept' ? 'dep
   <div>
     <!-- Header -->
     <div class="mb-6">
-      <h2 class="text-xl font-bold text-slate-800">Estructura Organizacional</h2>
+      <h2 class="text-xl font-bold text-slate-800">Departamentos</h2>
       <p class="text-sm text-slate-500 mt-0.5">Administra los departamentos y cargos de la empresa</p>
     </div>
 

@@ -82,7 +82,7 @@ function formatDateTime(dt) {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h2 class="text-xl font-bold text-slate-800">Log del Sistema</h2>
+        <h2 class="text-xl font-bold text-slate-800">Bitácora</h2>
         <p class="text-sm text-slate-500 mt-0.5">Historial de actividad: acciones registradas por todos los usuarios</p>
       </div>
       <button

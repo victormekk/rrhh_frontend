@@ -1,7 +1,8 @@
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlanillasStore } from '../../stores/planillas'
+import api from '../../services/api'
 
 const router  = useRouter()
 const store   = usePlanillasStore()
@@ -43,6 +44,27 @@ function sugerirPeriodo() {
 
 function onToggleMarcaciones() {
   if (form.usar_marcaciones && !form.periodo_desde) sugerirPeriodo()
+}
+
+// Cuántas marcas hay cargadas en el período elegido, para avisar antes de generar.
+const marcasPeriodo = ref(null)   // { marcas, empleados }
+watch(
+  () => [form.usar_marcaciones, form.periodo_desde, form.periodo_hasta],
+  async ([usar, desde, hasta]) => {
+    marcasPeriodo.value = null
+    if (!usar || !desde || !hasta || hasta < desde) return
+    try {
+      const { data } = await api.get('/asistencias/periodo', { params: { desde, hasta } })
+      if (form.periodo_desde === desde && form.periodo_hasta === hasta) marcasPeriodo.value = data
+    } catch {
+      // sin aviso si no se pudo consultar
+    }
+  },
+)
+
+function fechaCorta(f) {
+  const [y, m, d] = String(f).split('-')
+  return `${d}/${m}/${y}`
 }
 
 function sugerirNombre() {
@@ -160,6 +182,16 @@ async function submit() {
               <label class="label text-xs">Hasta <span class="text-red-500">*</span></label>
               <input v-model="form.periodo_hasta" type="date" :min="form.periodo_desde" :required="form.usar_marcaciones" class="input" />
             </div>
+          </div>
+          <div v-if="form.usar_marcaciones && marcasPeriodo" class="mt-3 ml-6">
+            <p v-if="marcasPeriodo.marcas" class="text-xs rounded-lg px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700">
+              Hay <strong>{{ marcasPeriodo.marcas.toLocaleString('es-HN') }}</strong> marcas cargadas del {{ fechaCorta(form.periodo_desde) }} al {{ fechaCorta(form.periodo_hasta) }},
+              de <strong>{{ marcasPeriodo.empleados }}</strong> empleado(s) con código. Los demás quedarán con 0 días.
+            </p>
+            <p v-else class="text-xs rounded-lg px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800">
+              <strong>No hay marcas cargadas</strong> del {{ fechaCorta(form.periodo_desde) }} al {{ fechaCorta(form.periodo_hasta) }}: todos los empleados quedarán con 0 días.
+              Revise el período o cargue las marcas en <strong>Planillas → Cargar Marcas</strong>.
+            </p>
           </div>
         </div>
 
