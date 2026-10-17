@@ -45,6 +45,12 @@ export const usePlanillasStore = defineStore('planillas', () => {
     return data
   }
 
+  // Recalcula los días trabajados desde las marcas del reloj. Con simular solo devuelve los cambios.
+  async function actualizarMarcas(id, params) {
+    const { data } = await api.post(`/planillas/${id}/actualizar-marcas`, params)
+    return data
+  }
+
   async function cerrarPlanilla(id) {
     const { data } = await api.post(`/planillas/${id}/cerrar`)
     if (planilla.value?.id === id) planilla.value.estado = 'Cerrado'
@@ -65,6 +71,6 @@ export const usePlanillasStore = defineStore('planillas', () => {
   return {
     planillas, planilla, pagination, loading,
     fetchPlanillas, fetchPlanilla, createPlanilla,
-    updateDetalle, cerrarPlanilla, deletePlanilla, eliminarPlanillaCerrada,
+    updateDetalle, actualizarMarcas, cerrarPlanilla, deletePlanilla, eliminarPlanillaCerrada,
   }
 })

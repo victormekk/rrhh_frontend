@@ -8,7 +8,7 @@ import { sanitizarNombreArchivo, descargarBlob } from '../../utils/archivos'
 const route   = useRoute()
 const router  = useRouter()
 const store   = usePlanillasStore()
-const { error } = useToast()
+const { error, success } = useToast()
 
 const state = reactive({
   loading:  true,
@@ -257,6 +257,54 @@ async function guardarModalMonto() {
   }
 }
 
+// ── Actualizar marcas ─────────────────────────────────────────────────────────
+// Recalcula los días desde las marcas del reloj: primero muestra los cambios y luego los aplica.
+const marcas = reactive({ abierto: false, desde: '', hasta: '', revisando: false, aplicando: false, resultado: null, error: '' })
+
+function abrirActualizarMarcas() {
+  // Período sugerido: la quincena de la fecha de la planilla.
+  const [y, m, d] = String(store.planilla.fecha_generada).slice(0, 10).split('-').map(Number)
+  const mm = String(m).padStart(2, '0')
+  marcas.desde = `${y}-${mm}-${d <= 15 ? '01' : '16'}`
+  marcas.hasta = d <= 15 ? `${y}-${mm}-15` : `${y}-${mm}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
+  marcas.resultado = null
+  marcas.error = ''
+  marcas.abierto = true
+  revisarMarcas()
+}
+
+function cerrarActualizarMarcas() {
+  if (!marcas.aplicando) marcas.abierto = false
+}
+
+async function revisarMarcas() {
+  marcas.resultado = null
+  marcas.error = ''
+  if (!marcas.desde || !marcas.hasta || marcas.hasta < marcas.desde) return
+  marcas.revisando = true
+  try {
+    marcas.resultado = await store.actualizarMarcas(route.params.id, { desde: marcas.desde, hasta: marcas.hasta, simular: true })
+  } catch (e) {
+    marcas.error = e.response?.data?.message ?? 'No se pudieron revisar las marcas.'
+  } finally {
+    marcas.revisando = false
+  }
+}
+
+async function aplicarMarcas() {
+  marcas.aplicando = true
+  try {
+    const r = await store.actualizarMarcas(route.params.id, { desde: marcas.desde, hasta: marcas.hasta })
+    await store.fetchPlanilla(route.params.id)
+    marcas.abierto = false
+    success(`Días actualizados en ${r.cambios.length} empleado(s).`)
+  } catch (e) {
+    marcas.error = e.response?.data?.message ?? 'No se pudieron actualizar los días.'
+  } finally {
+    marcas.aplicando = false
+  }
+}
+
 // ── Acciones generales ────────────────────────────────────────────────────────
 const showConfirmCerrar = ref(false)
 
@@ -394,7 +442,7 @@ function fmtDate(d) {
             </p>
           </div>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap justify-end gap-2 *:whitespace-nowrap">
           <button
             @click="exportarPdf"
             class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
@@ -490,15 +538,29 @@ function fmtDate(d) {
           </div>
           <button
             v-if="!esCerrada"
-            @click="abrirConfirmCerrar"
-            :disabled="state.cerrando"
-            class="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+            @click="abrirActualizarMarcas"
+            title="Recalcula los días trabajados desde las marcas del reloj y las marcas incompletas justificadas"
+            class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
-            {{ state.cerrando ? 'Cerrando...' : 'Cerrar Planilla' }}
+            Actualizar marcas
           </button>
+
+          <!-- Cerrar va al final y separado de los demás botones, para no presionarlo por error -->
+          <div v-if="!esCerrada" class="flex items-center pl-4 ml-2 border-l border-slate-200">
+            <button
+              @click="abrirConfirmCerrar"
+              :disabled="state.cerrando"
+              class="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              {{ state.cerrando ? 'Cerrando...' : 'Cerrar Planilla' }}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -850,6 +912,85 @@ function fmtDate(d) {
                 {{ modalMonto.guardando ? 'Guardando...' : 'Guardar' }}
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Modal actualizar marcas -->
+    <Teleport to="body">
+      <div
+        v-if="marcas.abierto"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+        @click.self="cerrarActualizarMarcas"
+      >
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Actualizar días desde las marcas</h3>
+            <p class="text-xs text-slate-500 mt-0.5">
+              Recalcula los días trabajados de los empleados con código biométrico: días con entrada y salida más los días justificados.
+              Reemplaza los días escritos a mano en esas filas.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="field-label">Desde</label>
+              <input v-model="marcas.desde" type="date" class="field-input" @change="revisarMarcas" />
+            </div>
+            <div>
+              <label class="field-label">Hasta</label>
+              <input v-model="marcas.hasta" type="date" :min="marcas.desde" class="field-input" @change="revisarMarcas" />
+            </div>
+          </div>
+
+          <p v-if="marcas.revisando" class="text-sm text-slate-500">Revisando las marcas...</p>
+          <p v-if="marcas.error" class="text-sm rounded-lg bg-red-50 border border-red-200 text-red-700 px-3 py-2">{{ marcas.error }}</p>
+
+          <template v-if="marcas.resultado">
+            <p v-if="!marcas.resultado.cambios.length" class="text-sm rounded-lg bg-slate-50 border border-slate-200 text-slate-600 px-3 py-2">
+              Los días ya coinciden con las marcas del período: no hay nada que cambiar.
+            </p>
+            <div v-else class="rounded-xl border border-slate-200 overflow-hidden">
+              <div class="px-4 py-2 bg-slate-50 text-xs text-slate-600">
+                <strong class="text-slate-800">{{ marcas.resultado.cambios.length }}</strong> empleado(s) cambiarán sus días:
+              </div>
+              <div class="max-h-60 overflow-y-auto">
+                <table class="w-full text-sm">
+                  <tbody>
+                    <tr v-for="c in marcas.resultado.cambios" :key="c.empleado" class="border-t border-slate-100">
+                      <td class="px-4 py-1.5 text-slate-700">{{ c.empleado }}</td>
+                      <td class="px-4 py-1.5 text-right whitespace-nowrap">
+                        <span class="text-slate-400">{{ c.antes }}</span>
+                        <span class="text-slate-400 mx-1">→</span>
+                        <strong :class="c.despues > c.antes ? 'text-emerald-700' : 'text-amber-700'">{{ c.despues }}</strong>
+                        <span class="text-slate-400 text-xs"> días</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p v-if="marcas.resultado.sin_marcas.length" class="text-xs rounded-lg bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2">
+              <strong>Sin ninguna marca en el período</strong> (no se tocan; revíselos a mano):
+              {{ marcas.resultado.sin_marcas.join(', ') }}.
+            </p>
+            <p class="text-xs text-slate-400">
+              {{ marcas.resultado.con_codigo }} empleado(s) con código biométrico.
+              <template v-if="marcas.resultado.sin_codigo">{{ marcas.resultado.sin_codigo }} sin código no se tocan.</template>
+            </p>
+          </template>
+
+          <div class="flex justify-end gap-3 pt-1">
+            <button type="button" @click="cerrarActualizarMarcas" :disabled="marcas.aplicando"
+              class="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60">
+              Cancelar
+            </button>
+            <button type="button" @click="aplicarMarcas"
+              :disabled="marcas.aplicando || marcas.revisando || !marcas.resultado?.cambios.length"
+              class="px-5 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white text-sm font-semibold transition-colors">
+              {{ marcas.aplicando ? 'Actualizando...' : 'Actualizar días' }}
+            </button>
           </div>
         </div>
       </div>
