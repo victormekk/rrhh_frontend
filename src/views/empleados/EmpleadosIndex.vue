@@ -13,7 +13,10 @@ const store         = useEmpleadosStore()
 const search          = ref('')
 const filtroDep       = ref('')
 const filtroModalidad = ref(route.query.tipo_contrato ?? '')
-const filtroEstado    = ref(route.query.estado ?? '')
+// Sin estado en el enlace (p. ej. desde el menú) se muestran solo los activos;
+// la tarjeta «Empleados Total» del Dashboard pide estado=todos.
+const estadoDeRuta    = (estado) => estado === 'todos' ? '' : (estado ?? 'Activo')
+const filtroEstado    = ref(estadoDeRuta(route.query.estado))
 const departamentos   = ref([])
 
 let searchTimer = null
@@ -27,7 +30,7 @@ onMounted(async () => {
 // Las tarjetas del Dashboard llegan con contrato y estado juntos: una sola recarga.
 watch(() => [route.query.tipo_contrato, route.query.estado], ([tipo, estado]) => {
   filtroModalidad.value = tipo ?? ''
-  filtroEstado.value    = estado ?? ''
+  filtroEstado.value    = estadoDeRuta(estado)
   cargarDatos()
 })
 
