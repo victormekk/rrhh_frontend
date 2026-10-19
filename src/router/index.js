@@ -23,6 +23,7 @@ const VacacionesIndex    = () => import('../views/vacaciones/VacacionesIndex.vue
 const AguinaldoCrear   = () => import('../views/aguinaldo/AguinaldoCrear.vue')
 const AguinaldoDetalle = () => import('../views/aguinaldo/AguinaldoDetalle.vue')
 const CargarMarcas     = () => import('../views/planillas/CargarMarcas.vue')
+const IngresosDeduccionesIndex = () => import('../views/planillas/IngresosDeduccionesIndex.vue')
 const LogSistemaIndex      = () => import('../views/log-sistema/LogSistemaIndex.vue')
 const UsuariosIndex        = () => import('../views/usuarios/UsuariosIndex.vue')
 const CamposVariablesIndex = () => import('../views/campos-variables/CamposVariablesIndex.vue')
@@ -161,6 +162,14 @@ const router = createRouter({
           name: 'aguinaldo.detalle',
           component: AguinaldoDetalle,
           meta: { requiresAuth: true, title: 'Detalle de Planilla Especial' },
+        },
+
+        // Ingresos/deducciones recurrentes (préstamos, adelantos, bonos fijos)
+        {
+          path: 'ingresos-deducciones',
+          name: 'ingresos-deducciones',
+          component: IngresosDeduccionesIndex,
+          meta: { requiresAuth: true, title: 'Ingresos/Deducciones' },
         },
 
         // Marcas de los relojes biométricos (CSV)

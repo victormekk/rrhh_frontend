@@ -1064,7 +1064,7 @@ function fmtDate(d) {
           </div>
 
           <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            Las cuotas de deducciones activas serán aplicadas a los empleados de esta planilla y
+            Las cuotas de Ingresos/Deducciones que sigan en sus celdas contarán como pagadas y
             ya no podrás editarla.
           </p>
 

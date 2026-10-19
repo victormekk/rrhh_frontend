@@ -203,7 +203,7 @@ async function submit() {
             <li>IHSS fijo según Campos Variables; RAP, ISR y demás deducciones se editan por empleado</li>
             <li v-if="!form.usar_marcaciones">0 días trabajados — editable manualmente por empleado</li>
             <li v-else>Días trabajados precargados desde las marcaciones del período indicado — editable si hace falta ajustar</li>
-            <li>Cuotas de deducciones activas incluidas automáticamente</li>
+            <li>Los préstamos, adelantos y bonos de <strong>Ingresos/Deducciones</strong> que tocan en esta quincena se cargan solos</li>
           </ul>
         </div>
 

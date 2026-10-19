@@ -44,7 +44,7 @@ onUnmounted(() => {
   quitarError()
 })
 
-const PLANILLAS_PATHS = ['/planillas', '/aguinaldo', '/cargar-marcas']
+const PLANILLAS_PATHS = ['/planillas', '/aguinaldo', '/ingresos-deducciones', '/cargar-marcas']
 
 const navItems = [
   {
@@ -93,6 +93,7 @@ const planillasSubItems = [
   // Fijos/Extras (y Aguinaldo/Catorceavo) se eligen al crear y se filtran dentro de cada lista.
   { name: 'Planillas de Pago',    path: '/planillas' },
   { name: 'Planillas Especiales', path: '/aguinaldo' },
+  { name: 'Ingresos/Deducciones', path: '/ingresos-deducciones' },
   { name: 'Cargar Marcas',        path: '/cargar-marcas' },
 ]
 

@@ -364,8 +364,8 @@ function formatDate(d) {
         </div>
 
         <p class="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-          Esta planilla ya fue cerrada (sus cuotas se aplicaron). Eliminarla no revierte las cuotas
-          y no se puede deshacer.
+          Esta planilla ya fue cerrada. Al eliminarla, las cuotas de Ingresos/Deducciones que se
+          pagaron en ella vuelven a quedar pendientes. No se puede deshacer.
         </p>
 
         <div>
