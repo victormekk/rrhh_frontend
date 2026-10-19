@@ -126,3 +126,11 @@ async function handleLogin() {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Edge agrega su propio botón para ver la contraseña; se oculta para que quede solo el del sistema. */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+</style>
