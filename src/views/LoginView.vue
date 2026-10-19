@@ -41,9 +41,15 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-[#faf6ec] px-4 py-10">
-    <div class="w-full max-w-sm">
-      <div class="bg-white rounded-2xl shadow-sm ring-1 ring-[#3b2b16]/10 p-8">
+  <div class="min-h-screen flex items-center justify-center bg-[#faf6ec] px-4 py-10 overflow-hidden">
+    <div class="relative w-full max-w-sm">
+      <!-- Resplandor tenue con los colores de la mariposa, detrás de la tarjeta -->
+      <div class="absolute -top-16 -left-20 w-64 h-64 rounded-full bg-[#e07a2c]/15 blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-20 -right-16 w-64 h-64 rounded-full bg-[#f5d92a]/20 blur-3xl pointer-events-none"></div>
+
+      <div class="relative overflow-hidden bg-white rounded-2xl shadow-sm ring-1 ring-[#3b2b16]/10 p-8">
+        <!-- Franja con el degradado de la mariposa -->
+        <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#c0101a] via-[#e8892f] to-[#f5d92a]"></div>
         <img :src="logo" alt="Palma Real Hotel y Villas" class="h-20 mx-auto mb-5" />
 
         <h1 class="text-center text-lg font-semibold text-[#3b2b16]">Sistema de Recursos Humanos</h1>
@@ -114,7 +120,7 @@ async function handleLogin() {
         </form>
       </div>
 
-      <p class="text-center text-xs text-stone-500 mt-5">
+      <p class="relative text-center text-xs text-stone-500 mt-5">
         Acceso exclusivo para personal autorizado.
       </p>
     </div>
