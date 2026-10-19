@@ -1,9 +1,12 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip } from 'chart.js'
 import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
 
 const authStore = useAuthStore()
+
+Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip)
 
 // ── Stats ────────────────────────────────────────────────────────────────────
 
@@ -65,69 +68,19 @@ const colorMap = {
 const generoStats = ref({ masculinos: null, femeninos: null })
 
 // ── Chart ────────────────────────────────────────────────────────────────────
+// Chart.js redibuja la gráfica para el ancho real de la pantalla (en lugar de
+// encoger un dibujo fijo), así las letras conservan su tamaño en celular.
 // Paleta categorica validada (azul/naranja): ver skill de dataviz, ambos pasan
 // separacion CVD y de vision normal en el par adyacente (light mode).
 const COLOR_FIJOS  = '#2a78d6'
 const COLOR_EXTRAS = '#eb6834'
+const TINTA_TENUE  = '#898781'
+const LINEA_GRILLA = '#e1e0d9'
 
 const chartData   = ref([])
 const chartLoaded = ref(false)
-const hoveredIdx  = ref(null)
-
-// SVG geometry
-const VW = 900
-const VH = 160
-const PL = 72   // padding left  (Y-axis labels)
-const PR = 16   // padding right
-const PT = 16   // padding top
-const PB = 48   // padding bottom (X-axis labels)
-
-const innerW = VW - PL - PR
-const innerH = VH - PT - PB
-const N      = 12
-const groupW = innerW / N
-const barW   = Math.min(24, groupW * 0.34)
-const barGap = 3 // separador entre las dos barras de un mismo grupo
-
-function niceMax(v) {
-  if (v <= 0) return 100000
-  const mag  = Math.pow(10, Math.floor(Math.log10(v)))
-  const norm = v / mag
-  const nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10
-  return nice * mag
-}
-
-const yMax = computed(() => niceMax(
-  Math.max(...chartData.value.flatMap(d => [d.fijos, d.extras]), 1)
-))
-
-const yTicks = computed(() => {
-  const max  = yMax.value
-  const step = max / 5
-  return [0, 1, 2, 3, 4, 5].map(i => Math.round(i * step))
-})
-
-function yPx(val) {
-  return PT + innerH - (val / yMax.value) * innerH
-}
-
-function barXF(i)  { return PL + i * groupW + (groupW - (barW * 2 + barGap)) / 2 }
-function barXE(i)  { return barXF(i) + barW + barGap }
-function barHeight(val) { return Math.max((val / yMax.value) * innerH, 0) }
-
-// Barra con esquinas redondeadas solo arriba (recta contra la linea base) —
-// nunca "pill" completo, que agregaria peso visual que no es dato.
-function barPath(x, y, w, h) {
-  const r = Math.min(4, h, w / 2)
-  if (h <= 0) return ''
-  if (r <= 0) return `M${x},${y} h${w} v${h} h${-w} Z`
-  return `M${x},${y + r}
-    Q${x},${y} ${x + r},${y}
-    L${x + w - r},${y}
-    Q${x + w},${y} ${x + w},${y + r}
-    L${x + w},${y + h}
-    L${x},${y + h} Z`
-}
+const canvasRef   = ref(null)
+let grafica = null
 
 function formatK(val) {
   if (val >= 1_000_000) return `L. ${(val / 1_000_000).toFixed(1)}M`
@@ -139,17 +92,66 @@ function formatLPS(val) {
   return new Intl.NumberFormat('es-HN', { minimumFractionDigits: 2 }).format(val)
 }
 
-function tooltipX(i) {
-  const cx = PL + i * groupW + groupW / 2
-  const tw = 165
-  return Math.min(Math.max(cx - tw / 2, PL), VW - PR - tw)
+// Barras: 4px redondeadas arriba y rectas contra la línea base.
+const barra = (label, color, campo) => ({
+  label,
+  data: chartData.value.map(d => d[campo]),
+  backgroundColor: color,
+  hoverBackgroundColor: color,
+  borderRadius: { topLeft: 4, topRight: 4 },
+  borderSkipped: 'start',
+  maxBarThickness: 24,
+  barPercentage: 0.9,
+  categoryPercentage: 0.6,
+})
+
+function dibujarGrafica() {
+  if (!canvasRef.value) return
+  grafica?.destroy()
+  grafica = new Chart(canvasRef.value, {
+    type: 'bar',
+    data: {
+      labels: chartData.value.map(d => d.label),
+      datasets: [barra('Fijos', COLOR_FIJOS, 'fijos'), barra('Extras', COLOR_EXTRAS, 'extras')],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      // Al pasar el mouse (o tocar en celular) por un mes se ven sus dos montos.
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false }, // la leyenda va en el encabezado de la tarjeta
+        tooltip: {
+          backgroundColor: 'rgba(11, 11, 11, 0.92)',
+          padding: 10,
+          cornerRadius: 6,
+          boxWidth: 10,
+          boxHeight: 3,
+          titleFont: { size: 12, weight: '600' },
+          bodyFont: { size: 12 },
+          callbacks: {
+            label: (ctx) => ` ${ctx.dataset.label}: L. ${formatLPS(ctx.parsed.y)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          border: { color: LINEA_GRILLA },
+          ticks: { color: TINTA_TENUE, font: { size: 11 }, maxRotation: 0, autoSkip: true, autoSkipPadding: 8 },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: LINEA_GRILLA },
+          border: { display: false },
+          ticks: { color: TINTA_TENUE, font: { size: 11 }, maxTicksLimit: 6, callback: (v) => formatK(v) },
+        },
+      },
+    },
+  })
 }
 
-function tooltipY(i) {
-  const d   = chartData.value[i]
-  const top = yPx(Math.max(d.fijos, d.extras)) - 78
-  return Math.max(top, PT)
-}
+onBeforeUnmount(() => grafica?.destroy())
 
 // ── Quick links ──────────────────────────────────────────────────────────────
 
@@ -179,6 +181,8 @@ onMounted(async () => {
     }
     chartData.value  = chart
     chartLoaded.value = true
+    await nextTick()
+    dibujarGrafica()
   } catch {
     stats.value.forEach(s => { s.value = 0 })
     cumpleanosStat.value.value = 0
@@ -266,8 +270,8 @@ onMounted(async () => {
     </div>
 
     <!-- Bar chart -->
-    <div class="bg-white rounded-xl border border-gray-200 p-6 mb-7">
-      <div class="flex items-center justify-between mb-5">
+    <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-7">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h3 class="font-semibold text-slate-800 text-sm">Costo de Planillas por Mes</h3>
           <p class="text-xs text-slate-400 mt-0.5">Últimos 12 meses — salario neto total</p>
@@ -290,106 +294,11 @@ onMounted(async () => {
         </div>
       </div>
 
-      <svg
-        v-else
-        :viewBox="`0 0 ${VW} ${VH}`"
-        class="w-full"
-        style="overflow: visible;"
-        @mouseleave="hoveredIdx = null"
-      >
-        <!-- Y-axis grid lines & labels -->
-        <g v-for="tick in yTicks" :key="tick">
-          <line
-            :x1="PL" :y1="yPx(tick)"
-            :x2="VW - PR" :y2="yPx(tick)"
-            stroke="#e1e0d9" stroke-width="1"
-          />
-          <text
-            :x="PL - 8" :y="yPx(tick) + 4"
-            text-anchor="end"
-            style="font-size: 10px; fill: #898781; font-family: inherit;"
-          >{{ formatK(tick) }}</text>
-        </g>
-
-        <!-- Bars + hover zones -->
-        <g
-          v-for="(d, i) in chartData"
-          :key="i"
-          @mouseenter="hoveredIdx = i"
-          @focus="hoveredIdx = i"
-          tabindex="0"
-          style="cursor: default; outline: none;"
-        >
-          <!-- Hover background zone (hit target wider than the bars themselves) -->
-          <rect
-            :x="PL + i * groupW" :y="PT"
-            :width="groupW" :height="innerH + 1"
-            :fill="hoveredIdx === i ? '#f4f3f0' : 'transparent'"
-            rx="4"
-          />
-
-          <!-- Fijos bar: 4px rounded top, square baseline -->
-          <path :d="barPath(barXF(i), yPx(d.fijos), barW, barHeight(d.fijos))" :fill="COLOR_FIJOS" />
-
-          <!-- Extras bar -->
-          <path :d="barPath(barXE(i), yPx(d.extras), barW, barHeight(d.extras))" :fill="COLOR_EXTRAS" />
-
-          <!-- X-axis label -->
-          <text
-            :x="PL + i * groupW + groupW / 2"
-            :y="VH - PB + 16"
-            text-anchor="middle"
-            style="font-size: 9px; fill: #898781; font-family: inherit;"
-          >{{ d.label }}</text>
-        </g>
-
-        <!-- Tooltip: value leads (bold), series name follows (muted) -->
-        <g v-if="hoveredIdx !== null" style="pointer-events: none;">
-          <rect
-            :x="tooltipX(hoveredIdx)"
-            :y="tooltipY(hoveredIdx)"
-            width="172" height="68"
-            rx="6" fill="#0b0b0b"
-            opacity="0.92"
-          />
-          <text
-            :x="tooltipX(hoveredIdx) + 10"
-            :y="tooltipY(hoveredIdx) + 18"
-            style="font-size: 11px; font-weight: 600; fill: white; font-family: inherit;"
-          >{{ chartData[hoveredIdx].label }}</text>
-
-          <!-- Fijos: linea-clave + valor (fuerte) + etiqueta (tenue) -->
-          <rect :x="tooltipX(hoveredIdx) + 10" :y="tooltipY(hoveredIdx) + 30" width="10" height="3" rx="1.5" :fill="COLOR_FIJOS" />
-          <text
-            :x="tooltipX(hoveredIdx) + 26"
-            :y="tooltipY(hoveredIdx) + 38"
-            style="font-size: 10.5px; font-weight: 700; fill: white; font-family: inherit;"
-          >L. {{ formatLPS(chartData[hoveredIdx].fijos) }}</text>
-          <text
-            :x="tooltipX(hoveredIdx) + 162"
-            :y="tooltipY(hoveredIdx) + 38"
-            text-anchor="end"
-            style="font-size: 9px; fill: #c3c2b7; font-family: inherit;"
-          >Fijos</text>
-
-          <!-- Extras -->
-          <rect :x="tooltipX(hoveredIdx) + 10" :y="tooltipY(hoveredIdx) + 48" width="10" height="3" rx="1.5" :fill="COLOR_EXTRAS" />
-          <text
-            :x="tooltipX(hoveredIdx) + 26"
-            :y="tooltipY(hoveredIdx) + 56"
-            style="font-size: 10.5px; font-weight: 700; fill: white; font-family: inherit;"
-          >L. {{ formatLPS(chartData[hoveredIdx].extras) }}</text>
-          <text
-            :x="tooltipX(hoveredIdx) + 162"
-            :y="tooltipY(hoveredIdx) + 56"
-            text-anchor="end"
-            style="font-size: 9px; fill: #c3c2b7; font-family: inherit;"
-          >Extras</text>
-        </g>
-
-        <!-- Y-axis line -->
-        <line :x1="PL" :y1="PT" :x2="PL" :y2="PT + innerH + 1" stroke="#e2e8f0" stroke-width="1" />
-      </svg>
+      <div v-else class="relative h-56 sm:h-64">
+        <canvas ref="canvasRef" role="img"
+          :aria-label="`Costo de planillas por mes, Fijos y Extras: ${chartData.map(d => `${d.label} Fijos L. ${formatLPS(d.fijos)}, Extras L. ${formatLPS(d.extras)}`).join('; ')}`">
+        </canvas>
+      </div>
     </div>
 
     <!-- Accesos rápidos -->
