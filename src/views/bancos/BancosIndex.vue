@@ -176,7 +176,7 @@ async function confirmarAccion() {
     </div>
 
     <!-- Tabla -->
-    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 border-b border-slate-200">
           <tr>
@@ -274,7 +274,7 @@ async function confirmarAccion() {
       </div>
     </div>
 
-    <div v-if="store.sinCuenta.length" class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div v-if="store.sinCuenta.length" class="bg-white rounded-xl border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 border-b border-slate-200">
           <tr>

@@ -417,80 +417,82 @@ function formatDate(d) {
           </span>
         </div>
 
-        <table class="w-full text-sm">
-          <thead class="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th class="text-left px-5 py-3 font-semibold text-slate-600">Período</th>
-              <th class="text-center px-5 py-3 font-semibold text-slate-600">Días</th>
-              <th class="text-left px-5 py-3 font-semibold text-slate-600">Observaciones</th>
-              <th class="text-right px-5 py-3 font-semibold text-slate-600">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-if="store.loading">
-              <tr v-for="i in 3" :key="i" class="border-b border-slate-100">
-                <td class="px-5 py-3"><div class="h-4 w-48 bg-slate-200 rounded animate-pulse" /></td>
-                <td class="px-5 py-3"><div class="h-4 w-10 bg-slate-200 rounded animate-pulse mx-auto" /></td>
-                <td class="px-5 py-3"><div class="h-4 w-32 bg-slate-200 rounded animate-pulse" /></td>
-                <td class="px-5 py-3"><div class="h-4 w-24 bg-slate-200 rounded animate-pulse ml-auto" /></td>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th class="text-left px-5 py-3 font-semibold text-slate-600">Período</th>
+                <th class="text-center px-5 py-3 font-semibold text-slate-600">Días</th>
+                <th class="text-left px-5 py-3 font-semibold text-slate-600">Observaciones</th>
+                <th class="text-right px-5 py-3 font-semibold text-slate-600">Acciones</th>
               </tr>
-            </template>
+            </thead>
+            <tbody>
+              <template v-if="store.loading">
+                <tr v-for="i in 3" :key="i" class="border-b border-slate-100">
+                  <td class="px-5 py-3"><div class="h-4 w-48 bg-slate-200 rounded animate-pulse" /></td>
+                  <td class="px-5 py-3"><div class="h-4 w-10 bg-slate-200 rounded animate-pulse mx-auto" /></td>
+                  <td class="px-5 py-3"><div class="h-4 w-32 bg-slate-200 rounded animate-pulse" /></td>
+                  <td class="px-5 py-3"><div class="h-4 w-24 bg-slate-200 rounded animate-pulse ml-auto" /></td>
+                </tr>
+              </template>
 
-            <tr v-else-if="store.solicitudes.length === 0">
-              <td colspan="4" class="text-center py-10 text-slate-400">No hay solicitudes registradas.</td>
-            </tr>
+              <tr v-else-if="store.solicitudes.length === 0">
+                <td colspan="4" class="text-center py-10 text-slate-400">No hay solicitudes registradas.</td>
+              </tr>
 
-            <tr
-              v-else
-              v-for="sol in store.solicitudes"
-              :key="sol.id"
-              class="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-            >
-              <td class="px-5 py-3 text-slate-700">
-                {{ formatDate(sol.fecha_inicio) }}
-                <span class="text-slate-400 mx-1">→</span>
-                {{ formatDate(sol.fecha_fin) }}
-              </td>
-              <td class="px-5 py-3 text-center">
-                <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-sm">
-                  {{ sol.dias_tomados }}
-                </span>
-              </td>
-              <td class="px-5 py-3 text-slate-500 text-xs max-w-xs truncate" :title="sol.observaciones">
-                {{ sol.observaciones || '—' }}
-              </td>
-              <td class="px-5 py-3 text-right whitespace-nowrap">
-                <div class="flex items-center justify-end gap-1">
-                <button
-                  @click="descargarPdf(sol)"
-                  :disabled="descargandoPdf === sol.id"
-                  class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors mr-2"
-                  title="Descargar PDF"
-                >
-                  <svg v-if="descargandoPdf === sol.id" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                  </svg>
-                  <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                  </svg>
-                  {{ descargandoPdf === sol.id ? '...' : 'PDF' }}
-                </button>
-                <button @click="abrirEditar(sol)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-                  </svg>
-                </button>
-                <button v-if="authStore.isAdmin" @click="eliminar(sol)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                  </svg>
-                </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              <tr
+                v-else
+                v-for="sol in store.solicitudes"
+                :key="sol.id"
+                class="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+              >
+                <td class="px-5 py-3 text-slate-700">
+                  {{ formatDate(sol.fecha_inicio) }}
+                  <span class="text-slate-400 mx-1">→</span>
+                  {{ formatDate(sol.fecha_fin) }}
+                </td>
+                <td class="px-5 py-3 text-center">
+                  <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-sm">
+                    {{ sol.dias_tomados }}
+                  </span>
+                </td>
+                <td class="px-5 py-3 text-slate-500 text-xs max-w-xs truncate" :title="sol.observaciones">
+                  {{ sol.observaciones || '—' }}
+                </td>
+                <td class="px-5 py-3 text-right whitespace-nowrap">
+                  <div class="flex items-center justify-end gap-1">
+                  <button
+                    @click="descargarPdf(sol)"
+                    :disabled="descargandoPdf === sol.id"
+                    class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors mr-2"
+                    title="Descargar PDF"
+                  >
+                    <svg v-if="descargandoPdf === sol.id" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    {{ descargandoPdf === sol.id ? '...' : 'PDF' }}
+                  </button>
+                  <button @click="abrirEditar(sol)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                    </svg>
+                  </button>
+                  <button v-if="authStore.isAdmin" @click="eliminar(sol)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                  </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <!-- Paginación numerada -->
         <div v-if="paginationPages.length > 0" class="px-5 py-3 border-t border-slate-200 flex items-center justify-between">

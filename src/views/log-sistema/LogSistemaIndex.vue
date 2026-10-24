@@ -169,69 +169,71 @@ function formatDateTime(dt) {
         </span>
       </div>
 
-      <table class="w-full text-sm">
-        <thead class="bg-slate-50 border-b border-slate-200">
-          <tr>
-            <th class="text-left px-5 py-3 font-semibold text-slate-600 w-40">Fecha / Hora</th>
-            <th class="text-left px-5 py-3 font-semibold text-slate-600 w-28">Módulo</th>
-            <th class="text-left px-5 py-3 font-semibold text-slate-600 w-24">Acción</th>
-            <th class="text-left px-5 py-3 font-semibold text-slate-600">Descripción</th>
-            <th class="text-left px-5 py-3 font-semibold text-slate-600 w-32">Usuario</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Skeleton -->
-          <template v-if="store.loading">
-            <tr v-for="i in 8" :key="i" class="border-b border-slate-100">
-              <td class="px-5 py-3"><div class="h-4 w-32 bg-slate-200 rounded animate-pulse" /></td>
-              <td class="px-5 py-3"><div class="h-4 w-20 bg-slate-200 rounded animate-pulse" /></td>
-              <td class="px-5 py-3"><div class="h-5 w-16 bg-slate-200 rounded-full animate-pulse" /></td>
-              <td class="px-5 py-3"><div class="h-4 w-56 bg-slate-200 rounded animate-pulse" /></td>
-              <td class="px-5 py-3"><div class="h-4 w-24 bg-slate-200 rounded animate-pulse" /></td>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th class="text-left px-5 py-3 font-semibold text-slate-600 w-40">Fecha / Hora</th>
+              <th class="text-left px-5 py-3 font-semibold text-slate-600 w-28">Módulo</th>
+              <th class="text-left px-5 py-3 font-semibold text-slate-600 w-24">Acción</th>
+              <th class="text-left px-5 py-3 font-semibold text-slate-600">Descripción</th>
+              <th class="text-left px-5 py-3 font-semibold text-slate-600 w-32">Usuario</th>
             </tr>
-          </template>
+          </thead>
+          <tbody>
+            <!-- Skeleton -->
+            <template v-if="store.loading">
+              <tr v-for="i in 8" :key="i" class="border-b border-slate-100">
+                <td class="px-5 py-3"><div class="h-4 w-32 bg-slate-200 rounded animate-pulse" /></td>
+                <td class="px-5 py-3"><div class="h-4 w-20 bg-slate-200 rounded animate-pulse" /></td>
+                <td class="px-5 py-3"><div class="h-5 w-16 bg-slate-200 rounded-full animate-pulse" /></td>
+                <td class="px-5 py-3"><div class="h-4 w-56 bg-slate-200 rounded animate-pulse" /></td>
+                <td class="px-5 py-3"><div class="h-4 w-24 bg-slate-200 rounded animate-pulse" /></td>
+              </tr>
+            </template>
 
-          <!-- Sin resultados -->
-          <tr v-else-if="store.logs.length === 0">
-            <td colspan="5" class="text-center py-14 text-slate-400">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"
-                class="w-10 h-10 mx-auto mb-2 text-slate-300">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-              </svg>
-              <p class="text-sm">No hay registros con los filtros aplicados</p>
-            </td>
-          </tr>
-
-          <!-- Datos -->
-          <tr v-else v-for="log in store.logs" :key="log.id"
-            class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-            <td class="px-5 py-3 text-slate-500 text-xs whitespace-nowrap">
-              {{ formatDateTime(log.created_at) }}
-            </td>
-            <td class="px-5 py-3">
-              <span class="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                {{ log.objeto_actualizado ?? '—' }}
-              </span>
-            </td>
-            <td class="px-5 py-3">
-              <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-                :class="badgeClass(log.accion)">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-                  stroke="currentColor" class="w-3 h-3">
-                  <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath(log.accion)" />
+            <!-- Sin resultados -->
+            <tr v-else-if="store.logs.length === 0">
+              <td colspan="5" class="text-center py-14 text-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"
+                  class="w-10 h-10 mx-auto mb-2 text-slate-300">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
                 </svg>
-                {{ log.accion }}
-              </span>
-            </td>
-            <td class="px-5 py-3 text-slate-700 max-w-xs">
-              {{ log.descripcion ?? '—' }}
-            </td>
-            <td class="px-5 py-3 text-slate-500 text-xs">
-              {{ log.usuario?.name ?? '—' }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                <p class="text-sm">No hay registros con los filtros aplicados</p>
+              </td>
+            </tr>
+
+            <!-- Datos -->
+            <tr v-else v-for="log in store.logs" :key="log.id"
+              class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+              <td class="px-5 py-3 text-slate-500 text-xs whitespace-nowrap">
+                {{ formatDateTime(log.created_at) }}
+              </td>
+              <td class="px-5 py-3">
+                <span class="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                  {{ log.objeto_actualizado ?? '—' }}
+                </span>
+              </td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+                  :class="badgeClass(log.accion)">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                    stroke="currentColor" class="w-3 h-3">
+                    <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath(log.accion)" />
+                  </svg>
+                  {{ log.accion }}
+                </span>
+              </td>
+              <td class="px-5 py-3 text-slate-700 max-w-xs">
+                {{ log.descripcion ?? '—' }}
+              </td>
+              <td class="px-5 py-3 text-slate-500 text-xs">
+                {{ log.usuario?.name ?? '—' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <!-- Paginación -->
       <div v-if="store.pagination?.last_page > 1"
