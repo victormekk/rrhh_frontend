@@ -9,7 +9,12 @@ const router = useRouter()
 const route  = useRoute()
 const store  = useAguinaldoStore()
 const authStore = useAuthStore()
-const { error } = useToast()
+const { error, info } = useToast()
+
+// Una planilla especial cerrada no se puede anular: el candado solo avisa.
+function avisoCerrada() {
+  info('Planilla especial cerrada, no se puede anular.')
+}
 
 // Planillas Especiales: aguinaldo y catorceavo, de fijos y extras, en una sola lista
 // con filtros (el concepto y el tipo se eligen al crear cada planilla).
@@ -189,6 +194,18 @@ function formatDate(d) {
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zM9.75 12.75l4.5 4.5m0-4.5l-4.5 4.5" />
+                    </svg>
+                  </button>
+                  <button
+                    v-if="a.estado === 'Cerrado'"
+                    @click="avisoCerrada"
+                    class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition"
+                    title="Planilla especial cerrada, no se puede anular"
+                    aria-label="Planilla especial cerrada, no se puede anular"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 14.25l1.5 1.5 3-3" />
                     </svg>
                   </button>
                 </div>

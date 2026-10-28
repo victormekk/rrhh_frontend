@@ -7,7 +7,7 @@ const store = useLogSistemaStore()
 // ── Filtros ───────────────────────────────────────────────────────────────────
 const filtros = ref({ modulo: '', accion: '', search: '', fecha_desde: '', fecha_hasta: '' })
 
-const MODULOS  = ['Empleados', 'Planillas', 'Planillas Especiales', 'Vacaciones', 'Incidencias', 'Constancias', 'Usuarios', 'Campos Variables', 'Sistema']
+const MODULOS  = ['Empleados', 'Cargos', 'Departamentos', 'Planillas', 'Planillas Especiales', 'Vacaciones', 'Incidencias', 'Constancias', 'Usuarios', 'Campos Variables', 'Sistema']
 const ACCIONES = ['creado', 'editado', 'cerrado', 'anulado', 'eliminado', 'generado', 'login']
 
 const descargandoPdf = ref(false)

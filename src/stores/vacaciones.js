@@ -65,9 +65,14 @@ export const useVacacionesStore = defineStore('vacaciones', () => {
     return data
   }
 
-  async function deleteSolicitud(id) {
-    await api.delete(`/vacaciones/${id}`)
-    success('Solicitud eliminada.')
+  async function anularSolicitud(id, motivo) {
+    await api.delete(`/vacaciones/${id}`, { data: { motivo } })
+    success('Solicitud anulada. Los días volvieron al saldo.')
+  }
+
+  async function restaurarSolicitud(id) {
+    await api.post(`/vacaciones/${id}/restaurar`)
+    success('Solicitud restaurada.')
   }
 
   async function downloadPdf(id, nombres = '', apellidos = '') {
@@ -86,6 +91,6 @@ export const useVacacionesStore = defineStore('vacaciones', () => {
   return {
     solicitudes, pagination, saldo, empleado, loading, loadingSaldo,
     fetchSolicitudes, fetchSaldo, buscarEmpleados,
-    createSolicitud, updateSolicitud, deleteSolicitud, downloadPdf, limpiar,
+    createSolicitud, updateSolicitud, anularSolicitud, restaurarSolicitud, downloadPdf, limpiar,
   }
 })

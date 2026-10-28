@@ -14,8 +14,18 @@ const filtroGrado       = ref('')
 const filtroFechaInicio = ref('')
 const filtroFechaFin    = ref('')
 
+// 'vigentes' | 'anuladas'
+const vista = ref('vigentes')
+
+function cambiarVista(v) {
+  if (vista.value === v) return
+  vista.value = v
+  cargarDatos()
+}
+
 async function cargarDatos(page) {
   await store.fetchIncidencias({
+    anuladas:     vista.value === 'anuladas' ? 1 : undefined,
     search:       filtroSearch.value      || undefined,
     grado:        filtroGrado.value       || undefined,
     fecha_inicio: filtroFechaInicio.value || undefined,
@@ -149,33 +159,51 @@ async function guardar() {
   }
 }
 
-// ── modal confirmación de eliminar ────────────────────────────────────────────
-const showConfirmEliminar = ref(false)
-const confirmEliminarItem = ref(null)
-const eliminando          = ref(false)
+// ── modal anular (pide motivo) ────────────────────────────────────────────────
+const showAnular   = ref(false)
+const anularItem   = ref(null)
+const motivoAnular = ref('')
+const errorAnular  = ref('')
+const anulando     = ref(false)
 
-function eliminar(inc) {
-  confirmEliminarItem.value = inc
-  showConfirmEliminar.value = true
+function anular(inc) {
+  anularItem.value   = inc
+  motivoAnular.value = ''
+  errorAnular.value  = ''
+  showAnular.value   = true
 }
 
-function cancelarEliminar() {
-  showConfirmEliminar.value = false
-  confirmEliminarItem.value = null
+function cancelarAnular() {
+  showAnular.value = false
+  anularItem.value = null
 }
 
-async function confirmarEliminar() {
-  const inc = confirmEliminarItem.value
-  eliminando.value = true
+async function confirmarAnular() {
+  if (!motivoAnular.value.trim()) { errorAnular.value = 'Escribe el motivo de la anulación.'; return }
+  anulando.value = true
   try {
-    await store.deleteIncidencia(inc.id)
-    cancelarEliminar()
+    await store.anularIncidencia(anularItem.value.id, motivoAnular.value.trim())
+    cancelarAnular()
+    cargarDatos()
+  } catch (e) {
+    errorAnular.value = e.response?.data?.message ?? 'No se pudo anular la incidencia.'
+  } finally {
+    anulando.value = false
+  }
+}
+
+// ── restaurar (desde la pestaña Anuladas) ─────────────────────────────────────
+const restaurando = ref(null)
+
+async function restaurar(inc) {
+  restaurando.value = inc.id
+  try {
+    await store.restaurarIncidencia(inc.id)
     cargarDatos()
   } catch {
-    error('No se pudo eliminar la incidencia.')
-    cancelarEliminar()
+    error('No se pudo restaurar la incidencia.')
   } finally {
-    eliminando.value = false
+    restaurando.value = null
   }
 }
 
@@ -239,6 +267,19 @@ function gradoClass(grado) {
       </button>
     </div>
 
+    <!-- Pestañas -->
+    <div class="flex gap-1 mb-4 border-b border-slate-200">
+      <button
+        v-for="t in [{ v: 'vigentes', l: 'Vigentes' }, { v: 'anuladas', l: 'Anuladas' }]"
+        :key="t.v"
+        @click="cambiarVista(t.v)"
+        class="px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors"
+        :class="vista === t.v ? 'border-blue-700 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'"
+      >
+        {{ t.l }}
+      </button>
+    </div>
+
     <!-- Filtros -->
     <div class="bg-white rounded-xl border border-slate-200 p-4 mb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <input
@@ -291,6 +332,7 @@ function gradoClass(grado) {
               <th class="text-left px-5 py-3 font-semibold text-slate-600">Título</th>
               <th class="text-left px-5 py-3 font-semibold text-slate-600">Fecha</th>
               <th class="text-left px-5 py-3 font-semibold text-slate-600">Grado</th>
+              <th v-if="vista === 'anuladas'" class="text-left px-5 py-3 font-semibold text-slate-600">Anulada</th>
               <th class="text-right px-5 py-3 font-semibold text-slate-600">Acciones</th>
             </tr>
           </thead>
@@ -302,13 +344,16 @@ function gradoClass(grado) {
                 <td class="px-5 py-3"><div class="h-4 w-32 bg-slate-200 rounded animate-pulse" /></td>
                 <td class="px-5 py-3"><div class="h-4 w-24 bg-slate-200 rounded animate-pulse" /></td>
                 <td class="px-5 py-3"><div class="h-5 w-16 bg-slate-200 rounded-full animate-pulse" /></td>
+                <td v-if="vista === 'anuladas'" class="px-5 py-3"><div class="h-4 w-28 bg-slate-200 rounded animate-pulse" /></td>
                 <td class="px-5 py-3 text-right"><div class="h-4 w-20 bg-slate-200 rounded animate-pulse ml-auto" /></td>
               </tr>
             </template>
 
             <!-- Vacío -->
             <tr v-else-if="store.incidencias.length === 0">
-              <td colspan="5" class="text-center py-12 text-slate-400">No hay incidencias registradas.</td>
+              <td :colspan="vista === 'anuladas' ? 6 : 5" class="text-center py-12 text-slate-400">
+                {{ vista === 'anuladas' ? 'No hay incidencias anuladas.' : 'No hay incidencias registradas.' }}
+              </td>
             </tr>
 
             <!-- Datos -->
@@ -330,8 +375,33 @@ function gradoClass(grado) {
                   {{ inc.grado }}
                 </span>
               </td>
+              <td v-if="vista === 'anuladas'" class="px-5 py-3 text-slate-600 whitespace-nowrap">
+                <div>{{ formatDate(inc.anulada_at) }}</div>
+                <div class="text-xs text-slate-400">{{ inc.usuario_anula?.name ?? '—' }}</div>
+              </td>
               <td class="px-5 py-3 text-right whitespace-nowrap">
-                <div class="flex items-center justify-end gap-1">
+                <!-- Acciones en Anuladas: ver y restaurar -->
+                <div v-if="vista === 'anuladas'" class="flex items-center justify-end gap-1">
+                  <button @click="verDetalle(inc)" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" title="Ver detalle">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                    </svg>
+                  </button>
+                  <button
+                    v-if="authStore.isAdmin"
+                    @click="restaurar(inc)"
+                    :disabled="restaurando === inc.id"
+                    class="inline-flex items-center gap-1.5 border border-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                    title="Restaurar"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                    </svg>
+                    {{ restaurando === inc.id ? '...' : 'Restaurar' }}
+                  </button>
+                </div>
+                <div v-else class="flex items-center justify-end gap-1">
                   <button
                     @click="descargarPdf(inc)"
                     :disabled="descargandoPdf === inc.id"
@@ -358,9 +428,9 @@ function gradoClass(grado) {
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                     </svg>
                   </button>
-                  <button v-if="authStore.isAdmin" @click="eliminar(inc)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar">
+                  <button v-if="authStore.isAdmin" @click="anular(inc)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Anular">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                     </svg>
                   </button>
                 </div>
@@ -446,11 +516,20 @@ function gradoClass(grado) {
             </div>
           </div>
 
+          <!-- Datos de anulación -->
+          <div v-if="incDetalle.anulada_at" class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm space-y-1">
+            <p class="font-semibold text-red-700">
+              Anulada el {{ formatDate(incDetalle.anulada_at) }} por {{ incDetalle.usuario_anula?.name ?? '—' }}
+            </p>
+            <p class="text-red-700 whitespace-pre-wrap"><span class="font-medium">Motivo:</span> {{ incDetalle.motivo_anulacion || '—' }}</p>
+          </div>
+
         </div>
 
         <!-- Footer -->
         <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
           <button
+            v-if="!incDetalle.anulada_at"
             @click="showDetalle = false; abrirEditar(incDetalle)"
             class="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
           >
@@ -615,12 +694,12 @@ function gradoClass(grado) {
     </div>
   </Teleport>
 
-  <!-- Modal confirmación eliminar -->
+  <!-- Modal anular -->
   <Teleport to="body">
     <div
-      v-if="showConfirmEliminar"
+      v-if="showAnular"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-      @click.self="cancelarEliminar"
+      @click.self="cancelarAnular"
     >
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
 
@@ -628,37 +707,51 @@ function gradoClass(grado) {
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
             <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
           </div>
           <div>
-            <h3 class="text-base font-bold text-slate-800">Eliminar incidencia</h3>
-            <p class="text-xs text-slate-500 mt-0.5">Esta acción no se puede deshacer</p>
+            <h3 class="text-base font-bold text-slate-800">Anular incidencia</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Pasará a la pestaña Anuladas y se puede restaurar</p>
           </div>
         </div>
 
         <!-- Detalle -->
-        <div v-if="confirmEliminarItem" class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm space-y-1">
+        <div v-if="anularItem" class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm space-y-1">
           <div class="flex justify-between items-center">
             <span class="text-slate-500">Empleado</span>
             <span class="font-semibold text-slate-800">
-              {{ confirmEliminarItem.empleado.nombres }} {{ confirmEliminarItem.empleado.apellidos }}
+              {{ anularItem.empleado.nombres }} {{ anularItem.empleado.apellidos }}
             </span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-slate-500">Título</span>
-            <span class="font-semibold text-slate-800 truncate max-w-[220px]" :title="confirmEliminarItem.titulo">
-              {{ confirmEliminarItem.titulo }}
+            <span class="font-semibold text-slate-800 truncate max-w-[220px]" :title="anularItem.titulo">
+              {{ anularItem.titulo }}
             </span>
           </div>
+        </div>
+
+        <!-- Motivo -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">Motivo de la anulación <span class="text-red-500">*</span></label>
+          <textarea
+            v-model="motivoAnular"
+            maxlength="300"
+            rows="3"
+            placeholder="Ej. Registrada por error, se asignó al empleado equivocado..."
+            class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
+          />
+          <p class="text-xs text-slate-400 mt-1 text-right">{{ motivoAnular.length }}/300</p>
+          <p v-if="errorAnular" class="text-xs text-red-600 mt-1">{{ errorAnular }}</p>
         </div>
 
         <!-- Acciones -->
         <div class="flex justify-end gap-3 pt-1">
           <button
             type="button"
-            @click="cancelarEliminar"
-            :disabled="eliminando"
+            @click="cancelarAnular"
+            :disabled="anulando"
             class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -668,18 +761,18 @@ function gradoClass(grado) {
           </button>
           <button
             type="button"
-            @click="confirmarEliminar"
-            :disabled="eliminando"
+            @click="confirmarAnular"
+            :disabled="anulando"
             class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
           >
-            <svg v-if="eliminando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <svg v-if="anulando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
             </svg>
             <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
-            {{ eliminando ? 'Eliminando...' : 'Sí, eliminar' }}
+            {{ anulando ? 'Anulando...' : 'Sí, anular' }}
           </button>
         </div>
 

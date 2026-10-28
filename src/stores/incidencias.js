@@ -39,9 +39,14 @@ export const useIncidenciasStore = defineStore('incidencias', () => {
     return data
   }
 
-  async function deleteIncidencia(id) {
-    await api.delete(`/incidencias/${id}`)
-    success('Incidencia eliminada.')
+  async function anularIncidencia(id, motivo) {
+    await api.delete(`/incidencias/${id}`, { data: { motivo } })
+    success('Incidencia anulada.')
+  }
+
+  async function restaurarIncidencia(id) {
+    await api.post(`/incidencias/${id}/restaurar`)
+    success('Incidencia restaurada.')
   }
 
   async function downloadPdf(id, nombres = '', apellidos = '') {
@@ -53,6 +58,6 @@ export const useIncidenciasStore = defineStore('incidencias', () => {
   return {
     incidencias, pagination, loading,
     fetchIncidencias, buscarEmpleados,
-    createIncidencia, updateIncidencia, deleteIncidencia, downloadPdf,
+    createIncidencia, updateIncidencia, anularIncidencia, restaurarIncidencia, downloadPdf,
   }
 })

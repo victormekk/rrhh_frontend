@@ -9,7 +9,7 @@ const router    = useRouter()
 const route     = useRoute()
 const store     = usePlanillasStore()
 const authStore = useAuthStore()
-const { error } = useToast()
+const { error, info } = useToast()
 
 const filtroTipo   = ref(route.query.tipo ?? '')
 const filtroEstado = ref('')
@@ -56,43 +56,9 @@ async function confirmarEliminar() {
   }
 }
 
-// ── modal confirmación eliminar planilla cerrada (solo admin, con clave) ─────
-const showConfirmCerrada = ref(false)
-const confirmCerradaItem = ref(null)
-const passwordCerrada    = ref('')
-const errorCerrada       = ref('')
-const eliminandoCerrada  = ref(false)
-
-function eliminarCerrada(p) {
-  confirmCerradaItem.value = p
-  passwordCerrada.value    = ''
-  errorCerrada.value       = ''
-  showConfirmCerrada.value = true
-}
-
-function cancelarEliminarCerrada() {
-  showConfirmCerrada.value = false
-  confirmCerradaItem.value = null
-  passwordCerrada.value    = ''
-  errorCerrada.value       = ''
-}
-
-async function confirmarEliminarCerrada() {
-  if (!passwordCerrada.value) {
-    errorCerrada.value = 'Ingresa tu contraseña para confirmar.'
-    return
-  }
-  errorCerrada.value      = ''
-  eliminandoCerrada.value = true
-  try {
-    await store.eliminarPlanillaCerrada(confirmCerradaItem.value.id, passwordCerrada.value)
-    await cargarDatos()
-    cancelarEliminarCerrada()
-  } catch (e) {
-    errorCerrada.value = e.response?.data?.message ?? 'Ocurrió un error. Intenta de nuevo.'
-  } finally {
-    eliminandoCerrada.value = false
-  }
+// Una planilla cerrada no se puede borrar: el candado solo avisa.
+function avisoCerrada() {
+  info('Planilla cerrada, no puede borrarse.')
 }
 
 async function cambiarPagina(url) {
@@ -225,10 +191,11 @@ function formatDate(d) {
                     </svg>
                   </button>
                   <button
-                    v-if="authStore.isAdmin && p.estado === 'Cerrado'"
-                    @click="eliminarCerrada(p)"
-                    class="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded transition"
-                    title="Eliminar planilla cerrada (requiere contraseña)"
+                    v-if="p.estado === 'Cerrado'"
+                    @click="avisoCerrada"
+                    class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition"
+                    title="Planilla cerrada, no puede borrarse"
+                    aria-label="Planilla cerrada, no puede borrarse"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -323,89 +290,6 @@ function formatDate(d) {
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zM9.75 12.75l4.5 4.5m0-4.5l-4.5 4.5" />
             </svg>
             {{ anulando ? 'Anulando...' : 'Anular' }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
-
-  <!-- Modal confirmación eliminar planilla cerrada (con contraseña) -->
-  <Teleport to="body">
-    <div
-      v-if="showConfirmCerrada"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-      @click.self="cancelarEliminarCerrada"
-    >
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-
-        <!-- Encabezado -->
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-base font-bold text-slate-800">Eliminar planilla cerrada</h3>
-            <p class="text-xs text-slate-500 mt-0.5">Acción permanente. Ingresa tu contraseña para confirmar.</p>
-          </div>
-        </div>
-
-        <!-- Detalle -->
-        <div class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm space-y-1">
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500">Planilla</span>
-            <span class="font-semibold text-slate-800">{{ confirmCerradaItem?.nombre_planilla }}</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500">Estado</span>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Cerrado</span>
-          </div>
-        </div>
-
-        <p class="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-          Esta planilla ya fue cerrada. Al eliminarla, las cuotas de Ingresos/Deducciones que se
-          pagaron en ella vuelven a quedar pendientes. No se puede deshacer.
-        </p>
-
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1.5">Tu contraseña</label>
-          <input
-            v-model="passwordCerrada"
-            type="password"
-            autocomplete="current-password"
-            @keyup.enter="confirmarEliminarCerrada"
-            class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
-            placeholder="••••••••"
-            autofocus
-          />
-          <p v-if="errorCerrada" class="text-xs text-red-600 mt-1.5">{{ errorCerrada }}</p>
-        </div>
-
-        <!-- Acciones -->
-        <div class="flex justify-end gap-3 pt-1">
-          <button
-            type="button"
-            @click="cancelarEliminarCerrada"
-            :disabled="eliminandoCerrada"
-            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
-          >
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            @click="confirmarEliminarCerrada"
-            :disabled="eliminandoCerrada"
-            class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
-          >
-            <svg v-if="eliminandoCerrada" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-            </svg>
-            {{ eliminandoCerrada ? 'Eliminando...' : 'Eliminar' }}
           </button>
         </div>
       </div>

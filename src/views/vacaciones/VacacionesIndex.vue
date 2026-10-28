@@ -32,9 +32,35 @@ async function onEmpleadoInput() {
 async function seleccionarEmpleado(emp) {
   empleadoQuery.value = `${emp.nombres} ${emp.apellidos}`
   sugerencias.value   = []
+  vista.value         = 'vigentes'
   await Promise.all([
     store.fetchSaldo(emp.id),
     store.fetchSolicitudes({ id_empleado: emp.id }),
+  ])
+}
+
+// ── Pestañas del historial: 'vigentes' | 'anuladas' ──────────────────────────
+const vista = ref('vigentes')
+
+function cargarSolicitudes(page) {
+  return store.fetchSolicitudes({
+    id_empleado: store.empleado.id,
+    anuladas:    vista.value === 'anuladas' ? 1 : undefined,
+    page,
+  })
+}
+
+function cambiarVista(v) {
+  if (vista.value === v) return
+  vista.value = v
+  cargarSolicitudes()
+}
+
+// Recarga saldo y lista después de crear/editar/anular/restaurar
+function refrescar() {
+  return Promise.all([
+    store.fetchSaldo(store.empleado.id, { silent: true }),
+    cargarSolicitudes(),
   ])
 }
 
@@ -158,10 +184,7 @@ async function guardar() {
       })
     }
     cerrarModal()
-    await Promise.all([
-      store.fetchSaldo(store.empleado.id, { silent: true }),
-      store.fetchSolicitudes({ id_empleado: store.empleado.id }),
-    ])
+    await refrescar()
   } catch (e) {
     errorModal.value = e.response?.data?.message ?? 'Error al guardar.'
   } finally {
@@ -169,41 +192,56 @@ async function guardar() {
   }
 }
 
-// ── modal confirmación de eliminar ────────────────────────────────────────────
-const showConfirmEliminar = ref(false)
-const confirmEliminarItem = ref(null)
-const eliminando          = ref(false)
+// ── modal anular (pide motivo) ────────────────────────────────────────────────
+const showAnular   = ref(false)
+const anularItem   = ref(null)
+const motivoAnular = ref('')
+const errorAnular  = ref('')
+const anulando     = ref(false)
 
-function eliminar(sol) {
-  confirmEliminarItem.value = sol
-  showConfirmEliminar.value = true
+function anular(sol) {
+  anularItem.value   = sol
+  motivoAnular.value = ''
+  errorAnular.value  = ''
+  showAnular.value   = true
 }
 
-function cancelarEliminar() {
-  showConfirmEliminar.value = false
-  confirmEliminarItem.value = null
+function cancelarAnular() {
+  showAnular.value = false
+  anularItem.value = null
 }
 
-async function confirmarEliminar() {
-  const sol = confirmEliminarItem.value
-  eliminando.value = true
+async function confirmarAnular() {
+  if (!motivoAnular.value.trim()) { errorAnular.value = 'Escribe el motivo de la anulación.'; return }
+  anulando.value = true
   try {
-    await store.deleteSolicitud(sol.id)
-    cancelarEliminar()
-    await Promise.all([
-      store.fetchSaldo(store.empleado.id, { silent: true }),
-      store.fetchSolicitudes({ id_empleado: store.empleado.id }),
-    ])
-  } catch {
-    error('No se pudo eliminar la solicitud.')
-    cancelarEliminar()
+    await store.anularSolicitud(anularItem.value.id, motivoAnular.value.trim())
+    cancelarAnular()
+    await refrescar()
+  } catch (e) {
+    errorAnular.value = e.response?.data?.message ?? 'No se pudo anular la solicitud.'
   } finally {
-    eliminando.value = false
+    anulando.value = false
+  }
+}
+
+// ── restaurar (desde la pestaña Anuladas) ─────────────────────────────────────
+const restaurando = ref(null)
+
+async function restaurar(sol) {
+  restaurando.value = sol.id
+  try {
+    await store.restaurarSolicitud(sol.id)
+    await refrescar()
+  } catch (e) {
+    error(e.response?.data?.message ?? 'No se pudo restaurar la solicitud.')
+  } finally {
+    restaurando.value = null
   }
 }
 
 async function irPagina(page) {
-  await store.fetchSolicitudes({ id_empleado: store.empleado.id, page })
+  await cargarSolicitudes(page)
 }
 
 // Páginas numeradas con ellipsis
@@ -410,9 +448,22 @@ function formatDate(d) {
 
       <!-- Historial de solicitudes -->
       <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 class="font-semibold text-slate-700">Historial de solicitudes</h3>
-          <span class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
+        <div class="px-5 pt-4 border-b border-slate-100 flex items-end justify-between gap-3">
+          <div>
+            <h3 class="font-semibold text-slate-700">Historial de solicitudes</h3>
+            <div class="flex gap-1 mt-2">
+              <button
+                v-for="t in [{ v: 'vigentes', l: 'Vigentes' }, { v: 'anuladas', l: 'Anuladas' }]"
+                :key="t.v"
+                @click="cambiarVista(t.v)"
+                class="px-3 py-2 text-sm font-medium -mb-px border-b-2 transition-colors"
+                :class="vista === t.v ? 'border-blue-700 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'"
+              >
+                {{ t.l }}
+              </button>
+            </div>
+          </div>
+          <span class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full mb-3">
             {{ store.pagination?.total ?? store.solicitudes.length }} registros
           </span>
         </div>
@@ -423,7 +474,8 @@ function formatDate(d) {
               <tr>
                 <th class="text-left px-5 py-3 font-semibold text-slate-600">Período</th>
                 <th class="text-center px-5 py-3 font-semibold text-slate-600">Días</th>
-                <th class="text-left px-5 py-3 font-semibold text-slate-600">Observaciones</th>
+                <th v-if="vista === 'anuladas'" class="text-left px-5 py-3 font-semibold text-slate-600">Anulada</th>
+                <th class="text-left px-5 py-3 font-semibold text-slate-600">{{ vista === 'anuladas' ? 'Motivo' : 'Observaciones' }}</th>
                 <th class="text-right px-5 py-3 font-semibold text-slate-600">Acciones</th>
               </tr>
             </thead>
@@ -432,13 +484,16 @@ function formatDate(d) {
                 <tr v-for="i in 3" :key="i" class="border-b border-slate-100">
                   <td class="px-5 py-3"><div class="h-4 w-48 bg-slate-200 rounded animate-pulse" /></td>
                   <td class="px-5 py-3"><div class="h-4 w-10 bg-slate-200 rounded animate-pulse mx-auto" /></td>
+                  <td v-if="vista === 'anuladas'" class="px-5 py-3"><div class="h-4 w-24 bg-slate-200 rounded animate-pulse" /></td>
                   <td class="px-5 py-3"><div class="h-4 w-32 bg-slate-200 rounded animate-pulse" /></td>
                   <td class="px-5 py-3"><div class="h-4 w-24 bg-slate-200 rounded animate-pulse ml-auto" /></td>
                 </tr>
               </template>
 
               <tr v-else-if="store.solicitudes.length === 0">
-                <td colspan="4" class="text-center py-10 text-slate-400">No hay solicitudes registradas.</td>
+                <td :colspan="vista === 'anuladas' ? 5 : 4" class="text-center py-10 text-slate-400">
+                  {{ vista === 'anuladas' ? 'No hay solicitudes anuladas.' : 'No hay solicitudes registradas.' }}
+                </td>
               </tr>
 
               <tr
@@ -457,11 +512,34 @@ function formatDate(d) {
                     {{ sol.dias_tomados }}
                   </span>
                 </td>
-                <td class="px-5 py-3 text-slate-500 text-xs max-w-xs truncate" :title="sol.observaciones">
+                <td v-if="vista === 'anuladas'" class="px-5 py-3 text-slate-600 whitespace-nowrap">
+                  <div>{{ formatDate(sol.anulada_at) }}</div>
+                  <div class="text-xs text-slate-400">{{ sol.usuario_anula?.name ?? '—' }}</div>
+                </td>
+                <td v-if="vista === 'anuladas'" class="px-5 py-3 text-slate-500 text-xs max-w-xs truncate" :title="sol.motivo_anulacion">
+                  {{ sol.motivo_anulacion || '—' }}
+                </td>
+                <td v-else class="px-5 py-3 text-slate-500 text-xs max-w-xs truncate" :title="sol.observaciones">
                   {{ sol.observaciones || '—' }}
                 </td>
                 <td class="px-5 py-3 text-right whitespace-nowrap">
-                  <div class="flex items-center justify-end gap-1">
+                  <!-- Acciones en Anuladas: solo restaurar -->
+                  <div v-if="vista === 'anuladas'" class="flex items-center justify-end gap-1">
+                    <button
+                      v-if="authStore.isAdmin"
+                      @click="restaurar(sol)"
+                      :disabled="restaurando === sol.id"
+                      class="inline-flex items-center gap-1.5 border border-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                      title="Restaurar"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                      </svg>
+                      {{ restaurando === sol.id ? '...' : 'Restaurar' }}
+                    </button>
+                    <span v-else class="text-xs text-slate-400">—</span>
+                  </div>
+                  <div v-else class="flex items-center justify-end gap-1">
                   <button
                     @click="descargarPdf(sol)"
                     :disabled="descargandoPdf === sol.id"
@@ -482,9 +560,9 @@ function formatDate(d) {
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                     </svg>
                   </button>
-                  <button v-if="authStore.isAdmin" @click="eliminar(sol)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar">
+                  <button v-if="authStore.isAdmin" @click="anular(sol)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Anular">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                     </svg>
                   </button>
                   </div>
@@ -659,12 +737,12 @@ function formatDate(d) {
     </div>
   </Teleport>
 
-  <!-- Modal confirmación eliminar -->
+  <!-- Modal anular -->
   <Teleport to="body">
     <div
-      v-if="showConfirmEliminar"
+      v-if="showAnular"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-      @click.self="cancelarEliminar"
+      @click.self="cancelarAnular"
     >
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
 
@@ -672,35 +750,49 @@ function formatDate(d) {
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
             <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
           </div>
           <div>
-            <h3 class="text-base font-bold text-slate-800">Eliminar solicitud de vacaciones</h3>
-            <p class="text-xs text-slate-500 mt-0.5">Los días se reintegrarán al saldo disponible</p>
+            <h3 class="text-base font-bold text-slate-800">Anular solicitud de vacaciones</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Los días vuelven al saldo. Pasará a la pestaña Anuladas y se puede restaurar.</p>
           </div>
         </div>
 
         <!-- Detalle -->
-        <div v-if="confirmEliminarItem" class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm space-y-1">
+        <div v-if="anularItem" class="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 text-sm space-y-1">
           <div class="flex justify-between items-center">
             <span class="text-slate-500">Período</span>
             <span class="font-semibold text-slate-800">
-              {{ formatDate(confirmEliminarItem.fecha_inicio) }} — {{ formatDate(confirmEliminarItem.fecha_fin) }}
+              {{ formatDate(anularItem.fecha_inicio) }} — {{ formatDate(anularItem.fecha_fin) }}
             </span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-slate-500">Días</span>
-            <span class="font-semibold text-slate-800">{{ confirmEliminarItem.dias_tomados }}</span>
+            <span class="font-semibold text-slate-800">{{ anularItem.dias_tomados }}</span>
           </div>
+        </div>
+
+        <!-- Motivo -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">Motivo de la anulación <span class="text-red-500">*</span></label>
+          <textarea
+            v-model="motivoAnular"
+            maxlength="300"
+            rows="3"
+            placeholder="Ej. El empleado no tomó las vacaciones, fechas registradas por error..."
+            class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
+          />
+          <p class="text-xs text-slate-400 mt-1 text-right">{{ motivoAnular.length }}/300</p>
+          <p v-if="errorAnular" class="text-xs text-red-600 mt-1">{{ errorAnular }}</p>
         </div>
 
         <!-- Acciones -->
         <div class="flex justify-end gap-3 pt-1">
           <button
             type="button"
-            @click="cancelarEliminar"
-            :disabled="eliminando"
+            @click="cancelarAnular"
+            :disabled="anulando"
             class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -710,18 +802,18 @@ function formatDate(d) {
           </button>
           <button
             type="button"
-            @click="confirmarEliminar"
-            :disabled="eliminando"
+            @click="confirmarAnular"
+            :disabled="anulando"
             class="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
           >
-            <svg v-if="eliminando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <svg v-if="anulando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
             </svg>
             <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
-            {{ eliminando ? 'Eliminando...' : 'Sí, eliminar' }}
+            {{ anulando ? 'Anulando...' : 'Sí, anular' }}
           </button>
         </div>
 

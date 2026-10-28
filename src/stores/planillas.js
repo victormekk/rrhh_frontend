@@ -63,14 +63,9 @@ export const usePlanillasStore = defineStore('planillas', () => {
     success('Planilla anulada.')
   }
 
-  async function eliminarPlanillaCerrada(id, password) {
-    await api.delete(`/planillas/${id}/eliminar-cerrada`, { data: { password } })
-    success('Planilla eliminada.')
-  }
-
   return {
     planillas, planilla, pagination, loading,
     fetchPlanillas, fetchPlanilla, createPlanilla,
-    updateDetalle, actualizarMarcas, cerrarPlanilla, deletePlanilla, eliminarPlanillaCerrada,
+    updateDetalle, actualizarMarcas, cerrarPlanilla, deletePlanilla,
   }
 })
