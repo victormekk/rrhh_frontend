@@ -3,12 +3,13 @@ import { reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlanillasStore } from '../../stores/planillas'
 import api from '../../services/api'
+import { useToast } from '../../composables/useToast'
 
 const router  = useRouter()
 const store   = usePlanillasStore()
+const toast   = useToast()
 
 const loading = ref(false)
-const error   = ref('')
 
 function hoyLocal() {
   const d = new Date()
@@ -84,16 +85,15 @@ function sugerirNombre() {
 }
 
 async function submit() {
-  error.value   = ''
   loading.value = true
   try {
     const planilla = await store.createPlanilla({ ...form })
     router.push(`/planillas/${planilla.id}`)
   } catch (e) {
     const errs = e.response?.data?.errors
-    error.value = errs
+    toast.error(errs
       ? Object.values(errs).flat().join(' | ')
-      : e.response?.data?.message ?? 'Error al generar la planilla.'
+      : e.response?.data?.message ?? 'Error al generar la planilla.')
   } finally {
     loading.value = false
   }
@@ -110,11 +110,6 @@ async function submit() {
         </svg>
       </button>
       <h2 class="text-xl font-bold text-slate-800">Nueva Planilla</h2>
-    </div>
-
-    <!-- Error -->
-    <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-5 text-sm">
-      {{ error }}
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 p-6">
