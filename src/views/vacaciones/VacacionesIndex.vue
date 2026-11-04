@@ -101,11 +101,42 @@ const errorModal = ref('')
 
 const form = ref({ fecha_inicio: '', fecha_fin: '', observaciones: '' })
 
+// Al escribir el año en el campo de fecha, el navegador manda valores a medias
+// (0002, 0020, 0202...) y contar día por día desde el año 2 trababa la pantalla.
+// Solo se cuenta con fechas desde 1990 hasta 10 años después del actual (igual que el
+// backend); el límite de arriba avanza solo cada año. El rango puede pasar de un año:
+// se usa para ajustar saldos acumulados de varios años.
+const ANIO_MIN = 1990
+const ANIO_MAX = new Date().getFullYear() + 10
+const AVISO_ANIOS = `debe estar entre los años ${ANIO_MIN} y ${ANIO_MAX}.`
+
+function fechaValida(iso) {
+  if (!iso) return null
+  const d = new Date(iso + 'T00:00:00')
+  if (isNaN(d)) return null
+  const y = d.getFullYear()
+  return y >= ANIO_MIN && y <= ANIO_MAX ? d : null
+}
+
+const rangoFechas = computed(() => {
+  const a = fechaValida(form.value.fecha_inicio)
+  const b = fechaValida(form.value.fecha_fin)
+  if (!a || !b || b < a) return null
+  return { a, b }
+})
+
+// Hay una fecha completa pero fuera de los años permitidos.
+const rangoInvalido = computed(() => {
+  const a = fechaValida(form.value.fecha_inicio)
+  const b = fechaValida(form.value.fecha_fin)
+  if (form.value.fecha_inicio && !a) return `La fecha de inicio ${AVISO_ANIOS}`
+  if (form.value.fecha_fin && !b) return `La fecha de fin ${AVISO_ANIOS}`
+  return ''
+})
+
 const diasCalculados = computed(() => {
-  if (!form.value.fecha_inicio || !form.value.fecha_fin) return 0
-  const a = new Date(form.value.fecha_inicio + 'T00:00:00')
-  const b = new Date(form.value.fecha_fin    + 'T00:00:00')
-  if (b < a) return 0
+  if (!rangoFechas.value) return 0
+  const { a, b } = rangoFechas.value
   let dias = 0
   const cur = new Date(a)
   while (cur <= b) {
@@ -118,10 +149,8 @@ const diasCalculados = computed(() => {
 // Feriados que caen entre semana (lunes-sábado) dentro del rango seleccionado,
 // para avisarle al usuario que esos días no se le están descontando del saldo.
 const feriadosEnRango = computed(() => {
-  if (!form.value.fecha_inicio || !form.value.fecha_fin) return []
-  const a = new Date(form.value.fecha_inicio + 'T00:00:00')
-  const b = new Date(form.value.fecha_fin    + 'T00:00:00')
-  if (b < a) return []
+  if (!rangoFechas.value) return []
+  const { a, b } = rangoFechas.value
   const encontrados = []
   const cur = new Date(a)
   while (cur <= b) {
@@ -160,12 +189,15 @@ const maximoSolicitable = computed(() => modoAdelanto.value ? adelantoDisponible
 
 // Fecha máxima de fin que agota exactamente lo máximo solicitable (excluye domingos y feriados)
 const fechaMaxFin = computed(() => {
-  if (!form.value.fecha_inicio || maximoSolicitable.value <= 0) return ''
-  const cur = new Date(form.value.fecha_inicio + 'T00:00:00')
+  const inicio = fechaValida(form.value.fecha_inicio)
+  if (!inicio || maximoSolicitable.value <= 0) return ''
+  const cur = new Date(inicio)
+  const meta = maximoSolicitable.value
   let count = 0
-  while (count < maximoSolicitable.value) {
+  // Tope de seguridad: nunca pasar del año límite.
+  while (count < meta && cur.getFullYear() <= ANIO_MAX) {
     if (cur.getDay() !== 0 && !nombreFeriado(cur)) count++
-    if (count < maximoSolicitable.value) cur.setDate(cur.getDate() + 1)
+    if (count < meta) cur.setDate(cur.getDate() + 1)
   }
   return cur.toISOString().slice(0, 10)
 })
@@ -214,6 +246,7 @@ function cerrarModal() { showModal.value = false }
 async function guardar() {
   if (!form.value.fecha_inicio) { errorModal.value = 'La fecha de inicio es requerida.'; return }
   if (!form.value.fecha_fin)    { errorModal.value = 'La fecha de fin es requerida.'; return }
+  if (rangoInvalido.value)      { errorModal.value = rangoInvalido.value; return }
   if (diasCalculados.value <= 0) { errorModal.value = 'La fecha de fin debe ser igual o posterior al inicio.'; return }
   if (excedeSaldo.value) {
     errorModal.value = modoAdelanto.value
@@ -756,7 +789,7 @@ function formatDate(d) {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Fecha inicio <span class="text-red-500">*</span></label>
-              <input v-model="form.fecha_inicio" type="date"
+              <input v-model="form.fecha_inicio" type="date" :min="`${ANIO_MIN}-01-01`" :max="`${ANIO_MAX}-12-31`"
                 class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
             </div>
             <div>
@@ -768,6 +801,8 @@ function formatDate(d) {
               </p>
             </div>
           </div>
+
+          <p v-if="rangoInvalido" class="text-xs text-red-600 -mt-2">{{ rangoInvalido }}</p>
 
           <!-- Días calculados + advertencia de saldo -->
           <div

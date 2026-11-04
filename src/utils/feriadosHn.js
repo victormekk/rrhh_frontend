@@ -52,9 +52,19 @@ export function feriadosDelAnio(anio) {
   ]
 }
 
+// Feriados de cada año ya calculados, por fecha ("aaaa-m-d"): al contar días de un rango
+// se consulta muchas veces el mismo año y recalcularlo cada vez trababa la pantalla.
+const cachePorAnio = new Map()
+const clave = (f) => `${f.getFullYear()}-${f.getMonth()}-${f.getDate()}`
+
 // Nombre del feriado si la fecha cae en uno, o null si es un día normal.
 export function nombreFeriado(fecha) {
-  const feriados = feriadosDelAnio(fecha.getFullYear())
-  const match = feriados.find(f => f.fecha.toDateString() === fecha.toDateString())
-  return match ? match.nombre : null
+  const anio = fecha.getFullYear()
+  if (!Number.isFinite(anio)) return null
+  let delAnio = cachePorAnio.get(anio)
+  if (!delAnio) {
+    delAnio = new Map(feriadosDelAnio(anio).map(f => [clave(f.fecha), f.nombre]))
+    cachePorAnio.set(anio, delAnio)
+  }
+  return delAnio.get(clave(fecha)) ?? null
 }
