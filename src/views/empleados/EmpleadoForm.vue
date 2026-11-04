@@ -32,6 +32,12 @@ function soloLetras(field, e) {
   form[field] = val
   e.target.value = val
 }
+// Nombres y apellidos: letras, espacios y guion (hay nombres compuestos con guion, ej. ANA-MARÍA).
+function soloLetrasYGuion(field, e) {
+  const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚàèìòùÀÈÌÒÙñÑüÜ\s-]/g, '').toUpperCase()
+  form[field] = val
+  e.target.value = val
+}
 function soloDigitos(field, e) {
   const val = e.target.value.replace(/\D/g, '')
   form[field] = val
@@ -339,11 +345,11 @@ function salariosCalculados() {
           <!-- Nombres | Apellidos | Fecha de Nacimiento -->
           <div>
             <label class="label">Nombres <span class="text-red-500">*</span></label>
-            <input :value="form.nombres" @input="soloLetras('nombres', $event)" required maxlength="30" class="input" placeholder="Ej. JUAN CARLOS" autocomplete="off" />
+            <input :value="form.nombres" @input="soloLetrasYGuion('nombres', $event)" required maxlength="30" class="input" placeholder="Ej. JUAN CARLOS" autocomplete="off" />
           </div>
           <div>
             <label class="label">Apellidos <span class="text-red-500">*</span></label>
-            <input :value="form.apellidos" @input="soloLetras('apellidos', $event)" required maxlength="30" class="input" placeholder="Ej. GARCÍA LÓPEZ" autocomplete="off" />
+            <input :value="form.apellidos" @input="soloLetrasYGuion('apellidos', $event)" required maxlength="30" class="input" placeholder="Ej. GARCÍA LÓPEZ" autocomplete="off" />
           </div>
           <div>
             <label class="label">Fecha de Nacimiento <span class="text-red-500">*</span></label>
