@@ -11,13 +11,13 @@ const store = useCumpleanosStore()
 const { error: toastError, info } = useToast()
 const authStore = useAuthStore()
 
-// ── Exportar a Excel la lista del mes seleccionado ──────────────────────────
+// ── Exportar a PDF la lista del mes seleccionado ────────────────────────────
 const exportando = ref(false)
-async function exportarExcel() {
+async function exportarPdf() {
   exportando.value = true
   try {
-    await store.exportarExcel(store.mesActivo, MESES[store.mesActivo - 1])
-    info('Excel descargado.')
+    await store.exportarPdf(store.mesActivo, MESES[store.mesActivo - 1])
+    info('PDF descargado.')
   } catch {
     toastError('No se pudo exportar la lista de cumpleaños.')
   } finally {
@@ -104,9 +104,9 @@ function colorAvatar(id) {
         </div>
         <button
           v-if="authStore.puede('cumpleanos.exportar')"
-          @click="exportarExcel"
+          @click="exportarPdf"
           :disabled="exportando || store.loading || store.empleados.length === 0"
-          title="Excel con los cumpleañeros del mes seleccionado"
+          title="PDF con los cumpleañeros del mes seleccionado"
           class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
         >
           <svg v-if="exportando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -116,7 +116,7 @@ function colorAvatar(id) {
           <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
           </svg>
-          {{ exportando ? 'Exportando...' : 'Exportar Excel' }}
+          {{ exportando ? 'Exportando...' : 'Exportar PDF' }}
         </button>
       </div>
     </div>

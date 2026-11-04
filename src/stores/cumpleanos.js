@@ -20,13 +20,13 @@ export const useCumpleanosStore = defineStore('cumpleanos', () => {
     }
   }
 
-  // Excel con los cumpleañeros del mes (mismo orden que la pantalla).
-  async function exportarExcel(mes, nombreMes) {
-    const { data } = await api.get('/cumpleanos/excel', { params: { mes }, responseType: 'blob' })
+  // PDF con los cumpleañeros del mes, con el mismo aspecto que la pantalla.
+  async function exportarPdf(mes, nombreMes) {
+    const { data } = await api.get('/cumpleanos/pdf', { params: { mes }, responseType: 'blob' })
     const d = new Date()
     const fecha = `${String(d.getDate()).padStart(2, '0')}${String(d.getMonth() + 1).padStart(2, '0')}${d.getFullYear()}`
-    descargarBlob(data, `Cumpleanos_${nombreMes}_${fecha}.xlsx`)
+    descargarBlob(data, `Cumpleanos_${nombreMes}_${fecha}.pdf`)
   }
 
-  return { empleados, loading, mesActivo, fetchCumpleanos, exportarExcel }
+  return { empleados, loading, mesActivo, fetchCumpleanos, exportarPdf }
 })
