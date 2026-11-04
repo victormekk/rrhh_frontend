@@ -1,10 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useCamposVariablesStore } from '../../stores/camposVariables'
+import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 import LoadingSpinner from '../../components/LoadingSpinner.vue'
 
 const store = useCamposVariablesStore()
+const authStore = useAuthStore()
 const { error: toastError } = useToast()
 
 const form = ref({ ihss: 297.58, salario_minimo: 16317.60 })
@@ -128,6 +130,7 @@ function cancelarConfirmar() {
               v-model="form.ihss"
               type="text"
               inputmode="decimal"
+              :readonly="!authStore.puede('campos_variables.editar')"
               placeholder="297.58"
               class="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -159,6 +162,7 @@ function cancelarConfirmar() {
               v-model="form.salario_minimo"
               type="text"
               inputmode="decimal"
+              :readonly="!authStore.puede('campos_variables.editar')"
               placeholder="16317.60"
               class="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             />
@@ -190,7 +194,7 @@ function cancelarConfirmar() {
       </div>
 
       <!-- Botón guardar -->
-      <div class="flex justify-end">
+      <div v-if="authStore.puede('campos_variables.editar')" class="flex justify-end">
         <button
           @click="solicitarGuardar"
           :disabled="store.saving"

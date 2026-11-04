@@ -1,13 +1,16 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useLogSistemaStore } from '../../stores/logSistema'
+import { useAuthStore } from '../../stores/auth'
+import { formatFechaHora } from '../../utils/fechas'
 
 const store = useLogSistemaStore()
+const authStore = useAuthStore()
 
 // ── Filtros ───────────────────────────────────────────────────────────────────
 const filtros = ref({ modulo: '', accion: '', search: '', fecha_desde: '', fecha_hasta: '' })
 
-const MODULOS  = ['Empleados', 'Cargos', 'Departamentos', 'Planillas', 'Planillas Especiales', 'Vacaciones', 'Incidencias', 'Constancias', 'Usuarios', 'Campos Variables', 'Sistema']
+const MODULOS  = ['Empleados', 'Cargos', 'Departamentos', 'Planillas', 'Planillas Especiales', 'Vacaciones', 'Incidencias', 'Constancias', 'Usuarios', 'Roles', 'Campos Variables', 'Sistema']
 const ACCIONES = ['creado', 'editado', 'cerrado', 'anulado', 'eliminado', 'generado', 'login']
 
 const descargandoPdf = ref(false)
@@ -69,12 +72,7 @@ function iconPath(accion) {
   return accionIconos[accion] ?? accionIconos.editado
 }
 
-function formatDateTime(dt) {
-  if (!dt) return '—'
-  const d = new Date(String(dt).slice(0, 19).replace('T', ' '))
-  if (isNaN(d)) return dt
-  return d.toLocaleString('es-HN', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
+const formatDateTime = formatFechaHora
 </script>
 
 <template>
@@ -86,6 +84,7 @@ function formatDateTime(dt) {
         <p class="text-sm text-slate-500 mt-0.5">Historial de actividad: acciones registradas por todos los usuarios</p>
       </div>
       <button
+        v-if="authStore.puede('bitacora.exportar')"
         @click="descargarPdf"
         :disabled="descargandoPdf"
         class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"

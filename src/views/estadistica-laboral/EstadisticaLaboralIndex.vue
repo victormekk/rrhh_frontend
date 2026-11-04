@@ -1,8 +1,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useEstadisticaLaboralStore } from '../../stores/estadisticaLaboral'
+import { useAuthStore } from '../../stores/auth'
 
 const store = useEstadisticaLaboralStore()
+const authStore = useAuthStore()
 
 // ── filtros ───────────────────────────────────────────────────────────────────
 
@@ -149,7 +151,7 @@ function tipoBadge(tipo) {
         <p class="text-sm text-slate-500 mt-0.5">Días trabajados y salario neto devengado por empleado en el período seleccionado.</p>
       </div>
       <button
-        v-if="buscado && store.rows.length > 0"
+        v-if="authStore.puede('estadistica.exportar') && buscado && store.rows.length > 0"
         @click="exportarPdf"
         :disabled="store.exportando"
         class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors flex-shrink-0"

@@ -9,6 +9,13 @@ export const useUsuariosStore = defineStore('usuarios', () => {
   const usuarios   = ref([])
   const pagination = ref(null)
   const loading    = ref(false)
+  const roles      = ref([])
+
+  // Roles para el selector del formulario (Gestión de Roles los administra).
+  async function fetchRoles() {
+    const { data } = await api.get('/usuarios/roles')
+    roles.value = data
+  }
 
   async function fetchUsuarios(params = {}) {
     loading.value = true
@@ -44,5 +51,5 @@ export const useUsuariosStore = defineStore('usuarios', () => {
     success('Usuario eliminado.')
   }
 
-  return { usuarios, pagination, loading, fetchUsuarios, createUsuario, updateUsuario, cambiarEstadoUsuario, deleteUsuario }
+  return { usuarios, pagination, loading, roles, fetchRoles, fetchUsuarios, createUsuario, updateUsuario, cambiarEstadoUsuario, deleteUsuario }
 })

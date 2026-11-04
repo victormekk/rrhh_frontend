@@ -1,9 +1,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useBancosStore } from '../../stores/bancos'
+import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 
 const store = useBancosStore()
+const authStore = useAuthStore()
 const { error } = useToast()
 
 const mostrarInactivos = ref(false)
@@ -164,6 +166,7 @@ async function confirmarAccion() {
           {{ mostrarInactivos ? 'Ocultar inactivos' : 'Ver inactivos' }}
         </button>
         <button
+          v-if="authStore.puede('bancos.crear')"
           @click="abrirCrear"
           class="inline-flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
@@ -224,17 +227,17 @@ async function confirmarAccion() {
             </td>
             <td class="px-5 py-3 text-right">
               <div class="flex items-center justify-end gap-1">
-                <button @click="abrirEditar(banco)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
+                <button v-if="authStore.puede('bancos.editar')" @click="abrirEditar(banco)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                   </svg>
                 </button>
-                <button v-if="banco.estado === 'Activo'" @click="pedirDesactivar(banco)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Desactivar banco" aria-label="Desactivar banco">
+                <button v-if="banco.estado === 'Activo' && authStore.puede('bancos.eliminar')" @click="pedirDesactivar(banco)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Desactivar banco" aria-label="Desactivar banco">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                   </svg>
                 </button>
-                <button v-else @click="pedirReactivar(banco)" class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition" title="Reactivar banco" aria-label="Reactivar banco">
+                <button v-else-if="banco.estado !== 'Activo' && authStore.puede('bancos.editar')" @click="pedirReactivar(banco)" class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition" title="Reactivar banco" aria-label="Reactivar banco">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -305,7 +308,7 @@ async function confirmarAccion() {
             </td>
             <td class="px-5 py-3 text-slate-500 text-xs">{{ formatDate(e.fecha_inicio) }}</td>
             <td class="px-5 py-3 text-right">
-              <button @click="abrirCuenta(e)"
+              <button v-if="authStore.puede('bancos.asignar_cuentas')" @click="abrirCuenta(e)"
                 class="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

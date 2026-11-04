@@ -3,7 +3,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useConstanciasStore } from '../../stores/constancias'
 import { useLogSistemaStore } from '../../stores/logSistema'
 import { useToast } from '../../composables/useToast'
+import { useAuthStore } from '../../stores/auth'
 import LoadingSpinner from '../../components/LoadingSpinner.vue'
+import { formatFechaHora } from '../../utils/fechas'
 
 const store        = useConstanciasStore()
 const historialStore = useLogSistemaStore()
@@ -22,12 +24,7 @@ function cambiarPaginaHistorial(url) {
 
 onMounted(() => cargarHistorial())
 
-function formatFecha(d) {
-  if (!d) return '—'
-  return new Date(d).toLocaleString('es-HN', {
-    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-}
+const formatFecha = formatFechaHora
 
 const TIPOS = [
   {
@@ -51,6 +48,10 @@ const TIPOS = [
 ]
 
 const tipoSel = ref(null)
+
+// Cada tipo de constancia tiene su propio permiso (constancias.laboral, .bancaria, .voucher).
+const authStore = useAuthStore()
+const tiposPermitidos = computed(() => TIPOS.filter((t) => authStore.puede(`constancias.${t.id}`)))
 
 async function seleccionarTipo(tipo) {
   tipoSel.value       = tipo
@@ -188,7 +189,7 @@ async function generar() {
       <!-- Panel izquierdo: opciones -->
       <div class="w-full md:w-72 flex-shrink-0 space-y-3">
         <button
-          v-for="tipo in TIPOS"
+          v-for="tipo in tiposPermitidos"
           :key="tipo.id"
           @click="seleccionarTipo(tipo)"
           class="w-full text-left bg-white rounded-xl border p-4 flex items-start gap-3 transition-colors"

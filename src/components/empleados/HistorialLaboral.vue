@@ -2,6 +2,7 @@
 // Línea de tiempo del historial laboral de un empleado (ficha del empleado).
 import { ref, watch } from 'vue'
 import { useEmpleadosStore } from '../../stores/empleados'
+import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 import LoadingSpinner from '../LoadingSpinner.vue'
 import { ESTILO_EVENTO, ESTILO_LIQUIDACION, ESTILO_GRADO_INCIDENCIA, OPCIONES_LIQUIDACION, detallePuesto, formatFecha, mensajeError } from '../../constants/historialLaboral'
@@ -13,6 +14,7 @@ const props = defineProps({
 })
 
 const store = useEmpleadosStore()
+const authStore = useAuthStore()
 const { error: toastError } = useToast()
 const movimientos = ref([])
 const cargando = ref(true)
@@ -101,7 +103,7 @@ function contrato(m) {
             <select
               :value="m.liquidacion"
               @change="cambiarLiquidacion(m, $event.target.value)"
-              :disabled="guardandoId === m.id"
+              :disabled="guardandoId === m.id || !authStore.puede('movimientos.editar', 'empleados.baja')"
               :class="[ESTILO_LIQUIDACION[m.liquidacion], 'text-xs font-semibold rounded-full pl-2 pr-6 py-0.5 border-0 cursor-pointer focus:ring-2 focus:ring-blue-500 disabled:opacity-60']"
             >
               <option v-for="o in OPCIONES_LIQUIDACION" :key="o">{{ o }}</option>

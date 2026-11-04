@@ -26,6 +26,7 @@ const CargarMarcas     = () => import('../views/planillas/CargarMarcas.vue')
 const IngresosDeduccionesIndex = () => import('../views/planillas/IngresosDeduccionesIndex.vue')
 const LogSistemaIndex      = () => import('../views/log-sistema/LogSistemaIndex.vue')
 const UsuariosIndex        = () => import('../views/usuarios/UsuariosIndex.vue')
+const RolesIndex           = () => import('../views/roles/RolesIndex.vue')
 const CamposVariablesIndex = () => import('../views/campos-variables/CamposVariablesIndex.vue')
 const CumpleanosIndex          = () => import('../views/cumpleanos/CumpleanosIndex.vue')
 const EstadisticaLaboralIndex  = () => import('../views/estadistica-laboral/EstadisticaLaboralIndex.vue')
@@ -59,25 +60,25 @@ const router = createRouter({
           path: 'empleados',
           name: 'empleados',
           component: EmpleadosIndex,
-          meta: { requiresAuth: true, title: 'Empleados' },
+          meta: { requiresAuth: true, permiso: 'empleados.ver', title: 'Empleados' },
         },
         {
           path: 'empleados/crear',
           name: 'empleados.crear',
           component: EmpleadoForm,
-          meta: { requiresAuth: true, title: 'Nuevo Empleado' },
+          meta: { requiresAuth: true, permiso: 'empleados.crear', title: 'Nuevo Empleado' },
         },
         {
           path: 'empleados/:id',
           name: 'empleados.detalle',
           component: EmpleadoDetalle,
-          meta: { requiresAuth: true, title: 'Ficha de Empleado' },
+          meta: { requiresAuth: true, permiso: 'empleados.ver', title: 'Ficha de Empleado' },
         },
         {
           path: 'empleados/:id/editar',
           name: 'empleados.editar',
           component: EmpleadoForm,
-          meta: { requiresAuth: true, title: 'Editar Empleado' },
+          meta: { requiresAuth: true, permiso: 'empleados.editar', title: 'Editar Empleado' },
         },
 
         // Vacaciones
@@ -85,7 +86,7 @@ const router = createRouter({
           path: 'vacaciones',
           name: 'vacaciones',
           component: VacacionesIndex,
-          meta: { requiresAuth: true, title: 'Vacaciones' },
+          meta: { requiresAuth: true, permiso: 'vacaciones.ver', title: 'Vacaciones' },
         },
 
         // Incidencias
@@ -93,7 +94,7 @@ const router = createRouter({
           path: 'incidencias',
           name: 'incidencias',
           component: IncidenciasIndex,
-          meta: { requiresAuth: true, title: 'Incidencias' },
+          meta: { requiresAuth: true, permiso: 'incidencias.ver', title: 'Incidencias' },
         },
 
         // Constancias
@@ -101,7 +102,7 @@ const router = createRouter({
           path: 'constancias',
           name: 'constancias',
           component: ConstanciasIndex,
-          meta: { requiresAuth: true, title: 'Constancias' },
+          meta: { requiresAuth: true, permiso: ['constancias.laboral', 'constancias.bancaria', 'constancias.voucher'], title: 'Constancias' },
         },
 
         // Bancos
@@ -109,7 +110,7 @@ const router = createRouter({
           path: 'bancos',
           name: 'bancos',
           component: BancosIndex,
-          meta: { requiresAuth: true, title: 'Bancos' },
+          meta: { requiresAuth: true, permiso: 'bancos.ver', title: 'Bancos' },
         },
 
         // Estructura organizacional
@@ -117,7 +118,7 @@ const router = createRouter({
           path: 'departamentos',
           name: 'departamentos',
           component: DepartamentosIndex,
-          meta: { requiresAuth: true, title: 'Departamentos' },
+          meta: { requiresAuth: true, permiso: 'departamentos.ver', title: 'Departamentos' },
         },
         {
           path: 'puestos',
@@ -129,19 +130,19 @@ const router = createRouter({
           path: 'planillas',
           name: 'planillas',
           component: PlanillasIndex,
-          meta: { requiresAuth: true, title: 'Planillas de Pago' },
+          meta: { requiresAuth: true, permiso: 'planillas.ver', title: 'Planillas de Pago' },
         },
         {
           path: 'planillas/crear',
           name: 'planillas.crear',
           component: PlanillaCrear,
-          meta: { requiresAuth: true, title: 'Nueva Planilla' },
+          meta: { requiresAuth: true, permiso: 'planillas.crear', title: 'Nueva Planilla' },
         },
         {
           path: 'planillas/:id',
           name: 'planillas.detalle',
           component: PlanillaDetalle,
-          meta: { requiresAuth: true, title: 'Detalle de Planilla' },
+          meta: { requiresAuth: true, permiso: 'planillas.ver', title: 'Detalle de Planilla' },
         },
 
         // Aguinaldo
@@ -149,19 +150,19 @@ const router = createRouter({
           path: 'aguinaldo',
           name: 'aguinaldo',
           component: AguinaldoIndex,
-          meta: { requiresAuth: true, title: 'Planillas Especiales' },
+          meta: { requiresAuth: true, permiso: 'aguinaldo.ver', title: 'Planillas Especiales' },
         },
         {
           path: 'aguinaldo/crear',
           name: 'aguinaldo.crear',
           component: AguinaldoCrear,
-          meta: { requiresAuth: true, title: 'Nueva Planilla Especial' },
+          meta: { requiresAuth: true, permiso: 'aguinaldo.crear', title: 'Nueva Planilla Especial' },
         },
         {
           path: 'aguinaldo/:nombre',
           name: 'aguinaldo.detalle',
           component: AguinaldoDetalle,
-          meta: { requiresAuth: true, title: 'Detalle de Planilla Especial' },
+          meta: { requiresAuth: true, permiso: 'aguinaldo.ver', title: 'Detalle de Planilla Especial' },
         },
 
         // Ingresos/deducciones recurrentes (préstamos, adelantos, bonos fijos)
@@ -169,7 +170,7 @@ const router = createRouter({
           path: 'ingresos-deducciones',
           name: 'ingresos-deducciones',
           component: IngresosDeduccionesIndex,
-          meta: { requiresAuth: true, title: 'Ingresos/Deducciones' },
+          meta: { requiresAuth: true, permiso: 'ingresos_deducciones.ver', title: 'Ingresos/Deducciones' },
         },
 
         // Marcas de los relojes biométricos (CSV)
@@ -177,7 +178,7 @@ const router = createRouter({
           path: 'cargar-marcas',
           name: 'cargar-marcas',
           component: CargarMarcas,
-          meta: { requiresAuth: true, title: 'Cargar Marcas' },
+          meta: { requiresAuth: true, permiso: 'marcas.ver', title: 'Cargar Marcas' },
         },
 
         // Cumpleaños
@@ -185,7 +186,7 @@ const router = createRouter({
           path: 'cumpleanos',
           name: 'cumpleanos',
           component: CumpleanosIndex,
-          meta: { requiresAuth: true, title: 'Cumpleaños' },
+          meta: { requiresAuth: true, permiso: 'cumpleanos.ver', title: 'Cumpleaños' },
         },
 
         // Estadística laboral
@@ -193,19 +194,19 @@ const router = createRouter({
           path: 'estadistica-laboral',
           name: 'estadistica-laboral',
           component: EstadisticaLaboralIndex,
-          meta: { requiresAuth: true, title: 'Estadística Laboral' },
+          meta: { requiresAuth: true, permiso: 'estadistica.ver', title: 'Estadística Laboral' },
         },
         {
           path: 'informacion-laboral',
           name: 'informacion-laboral',
           component: InformacionLaboralIndex,
-          meta: { requiresAuth: true, title: 'Información Laboral' },
+          meta: { requiresAuth: true, permiso: 'informacion_laboral.ver', title: 'Información Laboral' },
         },
         {
           path: 'movimientos-personal',
           name: 'movimientos-personal',
           component: MovimientosPersonalIndex,
-          meta: { requiresAuth: true, title: 'Movimientos de Personal' },
+          meta: { requiresAuth: true, permiso: 'movimientos.ver', title: 'Movimientos de Personal' },
         },
 
         // Bitácora
@@ -213,23 +214,31 @@ const router = createRouter({
           path: 'bitacora',
           name: 'bitacora',
           component: LogSistemaIndex,
-          meta: { requiresAuth: true, adminOnly: true, title: 'Bitácora' },
+          meta: { requiresAuth: true, permiso: 'bitacora.ver', title: 'Bitácora' },
         },
 
-        // Campos Variables (solo admin)
+        // Campos Variables
         {
           path: 'campos-variables',
           name: 'campos-variables',
           component: CamposVariablesIndex,
-          meta: { requiresAuth: true, adminOnly: true, title: 'Campos Variables' },
+          meta: { requiresAuth: true, permiso: 'campos_variables.ver', title: 'Campos Variables' },
         },
 
-        // Gestión de usuarios (solo admin)
+        // Gestión de usuarios
         {
           path: 'usuarios',
           name: 'usuarios',
           component: UsuariosIndex,
-          meta: { requiresAuth: true, adminOnly: true, title: 'Gestión de Usuarios' },
+          meta: { requiresAuth: true, permiso: 'usuarios.ver', title: 'Gestión de Usuarios' },
+        },
+
+        // Gestión de roles y sus permisos
+        {
+          path: 'roles',
+          name: 'roles',
+          component: RolesIndex,
+          meta: { requiresAuth: true, permiso: 'roles.ver', title: 'Gestión de Roles' },
         },
       ],
     },
@@ -250,8 +259,8 @@ router.beforeEach(async (to, from, next) => {
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'login' })
-  } else if (to.meta.adminOnly && !authStore.isAdmin) {
-    // El backend también lo rechaza (403); esto solo evita mostrar la pantalla.
+  } else if (to.meta.permiso && authStore.isAuthenticated && !authStore.puede(to.meta.permiso)) {
+    // Sin permiso para la pantalla (se asigna en Gestión de Roles). El backend también lo rechaza (403).
     next({ name: 'dashboard' })
   } else if (to.meta.guest && authStore.isAuthenticated) {
     next({ name: 'dashboard' })

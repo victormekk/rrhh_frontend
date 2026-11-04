@@ -3,12 +3,22 @@ import { ref, onMounted, computed } from 'vue'
 import { useUsuariosStore } from '../../stores/usuarios'
 import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
+import { formatSoloFecha } from '../../utils/fechas'
 
 const store     = useUsuariosStore()
 const authStore = useAuthStore()
 const { error } = useToast()
 
-onMounted(() => store.fetchUsuarios())
+onMounted(() => {
+  store.fetchUsuarios()
+  store.fetchRoles()
+})
+
+// Solo un Administrador gestiona usuarios con rol Administrador o da ese rol (el backend también lo exige).
+function puedeGestionar(u) {
+  return !u.rol?.es_admin || authStore.isAdmin
+}
+const rolesAsignables = computed(() => store.roles.filter((r) => !r.es_admin || authStore.isAdmin))
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 const showModal  = ref(false)
@@ -16,18 +26,18 @@ const editando   = ref(null)
 const saving     = ref(false)
 const errorModal = ref('')
 
-const form = ref({ name: '', email: '', rol: 'rrhh', password: '' })
+const form = ref({ name: '', email: '', id_rol: '', password: '' })
 
 function abrirCrear() {
   editando.value   = null
-  form.value       = { name: '', email: '', rol: 'rrhh', password: '' }
+  form.value       = { name: '', email: '', id_rol: '', password: '' }
   errorModal.value = ''
   showModal.value  = true
 }
 
 function abrirEditar(u) {
   editando.value   = u
-  form.value       = { name: u.name, email: u.email, rol: u.rol, password: '' }
+  form.value       = { name: u.name, email: u.email, id_rol: u.id_rol, password: '' }
   errorModal.value = ''
   showModal.value  = true
 }
@@ -37,6 +47,7 @@ function cerrarModal() { showModal.value = false }
 async function guardar() {
   if (!form.value.name)  { errorModal.value = 'El nombre es requerido.'; return }
   if (!form.value.email) { errorModal.value = 'El correo es requerido.'; return }
+  if (!form.value.id_rol) { errorModal.value = 'Seleccione un rol.'; return }
   if (!editando.value && !form.value.password) { errorModal.value = 'La contraseña es requerida.'; return }
 
   errorModal.value = ''
@@ -143,18 +154,12 @@ async function cambiarPagina(url) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const rolClases = {
-  admin: 'bg-blue-100 text-blue-700',
-  rrhh:  'bg-emerald-100 text-emerald-700',
+function rolBadge(rol) {
+  if (!rol) return 'bg-slate-100 text-slate-500'
+  return rol.es_admin ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
 }
 
-function rolBadge(rol) { return rolClases[rol] ?? 'bg-slate-100 text-slate-600' }
-
-function formatDate(d) {
-  if (!d) return '—'
-  const date = new Date(String(d).slice(0, 10) + 'T00:00:00')
-  return isNaN(date) ? '—' : date.toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })
-}
+const formatDate = formatSoloFecha
 
 const passwordPlaceholder = computed(() =>
   editando.value ? 'Dejar vacío para no cambiar' : 'Mínimo 8 caracteres'
@@ -169,7 +174,7 @@ const passwordPlaceholder = computed(() =>
         <h2 class="text-xl font-bold text-slate-800">Gestión de Usuarios</h2>
         <p class="text-sm text-slate-500 mt-0.5">Administra los accesos al sistema RRHH</p>
       </div>
-      <button @click="abrirCrear"
+      <button v-if="authStore.puede('usuarios.crear')" @click="abrirCrear"
         class="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -178,35 +183,6 @@ const passwordPlaceholder = computed(() =>
       </button>
     </div>
 
-    <!-- Info roles -->
-    <div class="grid grid-cols-2 gap-4 mb-6">
-      <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-blue-700">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-            </svg>
-          </div>
-          <div>
-            <p class="text-sm font-semibold text-blue-800">Administrador</p>
-            <p class="text-xs text-blue-600 mt-0.5">Acceso total: CRUD usuarios, ver logs, todos los módulos</p>
-          </div>
-        </div>
-      </div>
-      <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-emerald-700">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-          </div>
-          <div>
-            <p class="text-sm font-semibold text-emerald-800">RRHH</p>
-            <p class="text-xs text-emerald-600 mt-0.5">Acceso operativo: empleados, planillas, vacaciones, incidencias</p>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- Tabla -->
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -261,7 +237,7 @@ const passwordPlaceholder = computed(() =>
               <td class="px-5 py-3 text-slate-500">{{ u.email }}</td>
               <td class="px-5 py-3 text-center">
                 <span class="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full" :class="rolBadge(u.rol)">
-                  {{ u.rol === 'admin' ? 'Administrador' : 'RRHH' }}
+                  {{ u.rol?.nombre ?? 'Sin rol' }}
                 </span>
               </td>
               <td class="px-5 py-3 text-center">
@@ -273,12 +249,12 @@ const passwordPlaceholder = computed(() =>
               <td class="px-5 py-3 text-slate-500 text-xs">{{ formatDate(u.created_at) }}</td>
               <td class="px-5 py-3 text-right whitespace-nowrap">
                 <div class="flex items-center justify-end gap-1">
-                  <button @click="abrirEditar(u)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
+                  <button v-if="authStore.puede('usuarios.editar') && puedeGestionar(u)" @click="abrirEditar(u)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                     </svg>
                   </button>
-                  <button v-if="u.id !== authStore.user?.id" @click="pedirCambioEstado(u)"
+                  <button v-if="u.id !== authStore.user?.id && authStore.puede('usuarios.editar') && puedeGestionar(u)" @click="pedirCambioEstado(u)"
                     :class="['p-1.5 text-slate-400 rounded transition', u.activo ? 'hover:text-orange-600 hover:bg-orange-50' : 'hover:text-emerald-600 hover:bg-emerald-50']"
                     :title="u.activo ? 'Deshabilitar usuario' : 'Habilitar usuario'"
                     :aria-label="u.activo ? 'Deshabilitar usuario' : 'Habilitar usuario'">
@@ -290,7 +266,7 @@ const passwordPlaceholder = computed(() =>
                     </svg>
                   </button>
                   <!-- Solo se puede eliminar un usuario previamente deshabilitado -->
-                  <button v-if="!u.activo && u.id !== authStore.user?.id" @click="pedirEliminar(u)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar usuario" aria-label="Eliminar usuario">
+                  <button v-if="!u.activo && u.id !== authStore.user?.id && authStore.puede('usuarios.eliminar') && puedeGestionar(u)" @click="pedirEliminar(u)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Eliminar usuario" aria-label="Eliminar usuario">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                     </svg>
@@ -361,11 +337,17 @@ const passwordPlaceholder = computed(() =>
 
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1.5">Rol <span class="text-red-500">*</span></label>
-            <select v-model="form.rol"
-              class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-              <option value="rrhh">RRHH — acceso operativo</option>
-              <option value="admin">Administrador — acceso total</option>
+            <select v-model="form.id_rol" :disabled="editando?.id === authStore.user?.id"
+              class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100">
+              <option value="" disabled>Seleccione un rol</option>
+              <option v-for="r in rolesAsignables" :key="r.id" :value="r.id">
+                {{ r.nombre }}{{ r.descripcion ? ` — ${r.descripcion}` : '' }}
+              </option>
             </select>
+            <p v-if="editando?.id === authStore.user?.id" class="text-xs text-slate-400 mt-1">No puedes cambiar tu propio rol.</p>
+            <p v-else class="text-xs text-slate-400 mt-1">
+              Los permisos de cada rol se configuran en Configuración → Gestión de Roles.
+            </p>
           </div>
 
           <div>
@@ -438,7 +420,7 @@ const passwordPlaceholder = computed(() =>
           </div>
           <div class="flex justify-between items-center gap-4">
             <span class="text-slate-500">Rol</span>
-            <span class="font-semibold text-slate-800">{{ confirmacion.usuario.rol === 'admin' ? 'Administrador' : 'RRHH' }}</span>
+            <span class="font-semibold text-slate-800">{{ confirmacion.usuario.rol?.nombre ?? 'Sin rol' }}</span>
           </div>
         </div>
 

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEmpleadosStore } from '../../stores/empleados'
+import { useAuthStore } from '../../stores/auth'
 import HistorialLaboral from '../../components/empleados/HistorialLaboral.vue'
 import CeseModal from '../../components/empleados/CeseModal.vue'
 import ReintegroModal from '../../components/empleados/ReintegroModal.vue'
@@ -9,6 +10,7 @@ import ReintegroModal from '../../components/empleados/ReintegroModal.vue'
 const route  = useRoute()
 const router = useRouter()
 const store  = useEmpleadosStore()
+const authStore = useAuthStore()
 
 const loading       = ref(true)
 const fotoInput     = ref(null)
@@ -174,6 +176,7 @@ function estadoClass(estado) {
               {{ store.empleado.nombres?.charAt(0) }}{{ store.empleado.apellidos?.charAt(0) }}
             </div>
             <button
+              v-if="authStore.puede('empleados.editar')"
               @click="showFotoMenu = !showFotoMenu"
               :disabled="uploadingFoto"
               class="absolute bottom-0 right-0 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white shadow hover:bg-blue-700 transition disabled:opacity-60"
@@ -239,6 +242,7 @@ function estadoClass(estado) {
           <!-- Acciones -->
           <div class="flex flex-wrap gap-2 flex-shrink-0">
             <button
+              v-if="authStore.puede('empleados.editar')"
               @click="router.push(`/empleados/${store.empleado.id}/editar`)"
               class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
             >
@@ -248,7 +252,7 @@ function estadoClass(estado) {
               Editar
             </button>
             <button
-              v-if="store.empleado.informacion_laboral?.estado === 'Inactivo'"
+              v-if="authStore.puede('empleados.baja') && store.empleado.informacion_laboral?.estado === 'Inactivo'"
               @click="empleadoReintegro = store.empleado"
               class="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
             >
@@ -258,7 +262,7 @@ function estadoClass(estado) {
               Reintegrar
             </button>
             <button
-              v-else
+              v-else-if="authStore.puede('empleados.baja')"
               @click="empleadoCese = store.empleado"
               class="flex items-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold px-4 py-2 rounded-lg transition"
             >
@@ -339,6 +343,7 @@ function estadoClass(estado) {
                 {{ tiempoLaborando(store.empleado.informacion_laboral.fecha_inicio, fechaCeseVigente) }}
               </dd>
             </div>
+            <template v-if="authStore.puede('salarios.ver')">
             <div class="grid grid-cols-2 gap-2 text-sm">
               <dt class="text-slate-400">Salario Base</dt>
               <dd class="text-slate-700 font-bold text-base">{{ formatCurrency(store.empleado.informacion_laboral.salario_base, store.empleado.informacion_laboral.moneda) }}</dd>
@@ -351,6 +356,7 @@ function estadoClass(estado) {
               <dt class="text-slate-400">Diario</dt>
               <dd class="text-slate-700 font-medium">{{ formatCurrency(store.empleado.informacion_laboral.salario_diario, store.empleado.informacion_laboral.moneda) }}</dd>
             </div>
+            </template>
             <div class="grid grid-cols-2 gap-2 text-sm">
               <dt class="text-slate-400">Forma de Pago</dt>
               <dd class="text-slate-700 font-medium">
@@ -384,7 +390,7 @@ function estadoClass(estado) {
         </div>
       </div>
 
-      <HistorialLaboral class="mt-6" :id-empleado="store.empleado.id" :version="versionHistorial" />
+      <HistorialLaboral v-if="authStore.puede('empleados.ver_historial')" class="mt-6" :id-empleado="store.empleado.id" :version="versionHistorial" />
     </template>
 
     <CeseModal :empleado="empleadoCese" @cerrar="empleadoCese = null" @guardado="despuesDeMovimiento" />

@@ -2,6 +2,7 @@
 import { computed, reactive, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAguinaldoStore } from '../../stores/aguinaldo'
+import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 import { sanitizarNombreArchivo, descargarBlob } from '../../utils/archivos'
 import LoadingSpinner from '../../components/LoadingSpinner.vue'
@@ -28,6 +29,9 @@ const modalLoading = ref(false)
 const nombre = computed(() => decodeURIComponent(route.params.nombre))
 const detalle = computed(() => store.detalle)
 const esCerrada = computed(() => detalle.value?.estado === 'Cerrado')
+// Se puede modificar si está abierta y el rol tiene permiso de editar planillas especiales.
+const authStore = useAuthStore()
+const editable  = computed(() => !esCerrada.value && authStore.puede('aguinaldo.editar'))
 
 // ── Agrupación por departamento, igual que en las planillas de pago ─────────
 const CAMPOS_SUMABLES_FIJOS  = ['dias_trabajados', 'salario_base', 'anticipo', 'total_aguinaldo']
@@ -231,6 +235,7 @@ function fmt(val) {
         </div>
       </div>
       <div class="flex flex-wrap justify-end gap-2">
+        <template v-if="authStore.puede('aguinaldo.exportar')">
         <button
           @click="exportar('pdf')"
           class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
@@ -287,8 +292,9 @@ function fmt(val) {
             </svg>
           </button>
         </div>
+        </template>
         <button
-          v-if="!esCerrada"
+          v-if="!esCerrada && authStore.puede('aguinaldo.cerrar')"
           @click="abrirConfirmCerrar"
           :disabled="cerrando"
           class="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
@@ -317,12 +323,12 @@ function fmt(val) {
                 <th class="px-4 py-3 text-center">Días Año</th>
                 <th class="px-4 py-3 text-center">Anticipo</th>
                 <th class="px-4 py-3 text-center">A Pagar</th>
-                <th v-if="!esCerrada" class="px-4 py-3 text-center">Editar</th>
+                <th v-if="editable" class="px-4 py-3 text-center">Editar</th>
               </tr>
             </thead>
             <tbody v-for="grupo in gruposFijos" :key="grupo.departamento">
               <tr>
-                <td :colspan="esCerrada ? 8 : 9" class="px-4 py-1.5 bg-amber-50 text-amber-800 font-bold uppercase tracking-wide text-xs">
+                <td :colspan="editable ? 9 : 8" class="px-4 py-1.5 bg-amber-50 text-amber-800 font-bold uppercase tracking-wide text-xs">
                   {{ grupo.departamento }}
                 </td>
               </tr>
@@ -335,7 +341,7 @@ function fmt(val) {
                 <td class="px-4 py-2.5 text-center text-slate-700">{{ f.dias_trabajados }}</td>
                 <td class="px-4 py-2.5 text-center text-amber-600 whitespace-nowrap">{{ fmt(f.anticipo) }}</td>
                 <td class="px-4 py-2.5 text-center font-semibold text-slate-800 whitespace-nowrap">{{ fmt(f.total_aguinaldo) }}</td>
-                <td v-if="!esCerrada" class="px-4 py-2.5 text-center">
+                <td v-if="editable" class="px-4 py-2.5 text-center">
                   <button @click="abrirModalFijo(f)" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" title="Editar">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
@@ -350,7 +356,7 @@ function fmt(val) {
                 <td class="px-4 py-1.5 text-center">{{ grupo.subtotal.dias_trabajados }}</td>
                 <td class="px-4 py-1.5 text-center whitespace-nowrap">{{ fmt(grupo.subtotal.anticipo) }}</td>
                 <td class="px-4 py-1.5 text-center whitespace-nowrap">{{ fmt(grupo.subtotal.total_aguinaldo) }}</td>
-                <td v-if="!esCerrada"></td>
+                <td v-if="editable"></td>
               </tr>
             </tbody>
             <tfoot>
@@ -361,7 +367,7 @@ function fmt(val) {
                 <td class="px-4 py-2.5 text-center">{{ detalle.totales_fijos?.dias_trabajados }}</td>
                 <td class="px-4 py-2.5 text-center whitespace-nowrap">{{ fmt(detalle.totales_fijos?.anticipo) }}</td>
                 <td class="px-4 py-2.5 text-center whitespace-nowrap">{{ fmt(detalle.totales_fijos?.total_aguinaldo) }}</td>
-                <td v-if="!esCerrada"></td>
+                <td v-if="editable"></td>
               </tr>
             </tfoot>
           </table>
@@ -391,12 +397,12 @@ function fmt(val) {
                 <th class="px-4 py-3 text-center" title="Promedio mensual de días trabajados (clic para ver las quincenas)">Días Prom.</th>
                 <th class="px-4 py-3 text-center">Anticipos</th>
                 <th class="px-4 py-3 text-center">Total</th>
-                <th v-if="!esCerrada" class="px-4 py-3 text-center">Editar</th>
+                <th v-if="editable" class="px-4 py-3 text-center">Editar</th>
               </tr>
             </thead>
             <tbody v-for="grupo in gruposExtras" :key="grupo.departamento">
               <tr>
-                <td :colspan="esCerrada ? 8 : 9" class="px-4 py-1.5 bg-amber-50 text-amber-800 font-bold uppercase tracking-wide text-xs">
+                <td :colspan="editable ? 9 : 8" class="px-4 py-1.5 bg-amber-50 text-amber-800 font-bold uppercase tracking-wide text-xs">
                   {{ grupo.departamento }}
                 </td>
               </tr>
@@ -416,7 +422,7 @@ function fmt(val) {
                 </td>
                 <td class="px-4 py-2.5 text-center text-amber-600 whitespace-nowrap">{{ fmt(e.anticipos) }}</td>
                 <td class="px-4 py-2.5 text-center font-semibold text-slate-800 whitespace-nowrap">{{ fmt(e.total_aguinaldo) }}</td>
-                <td v-if="!esCerrada" class="px-4 py-2.5 text-center">
+                <td v-if="editable" class="px-4 py-2.5 text-center">
                   <button @click="abrirModalExtra(e)" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" title="Editar">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
@@ -431,7 +437,7 @@ function fmt(val) {
                 <td></td>
                 <td class="px-4 py-1.5 text-center whitespace-nowrap">{{ fmt(grupo.subtotal.anticipos) }}</td>
                 <td class="px-4 py-1.5 text-center whitespace-nowrap">{{ fmt(grupo.subtotal.total_aguinaldo) }}</td>
-                <td v-if="!esCerrada"></td>
+                <td v-if="editable"></td>
               </tr>
             </tbody>
             <tfoot>
@@ -442,7 +448,7 @@ function fmt(val) {
                 <td></td>
                 <td class="px-4 py-2.5 text-center whitespace-nowrap">{{ fmt(detalle.totales_extras?.anticipos) }}</td>
                 <td class="px-4 py-2.5 text-center whitespace-nowrap">{{ fmt(detalle.totales_extras?.total_aguinaldo) }}</td>
-                <td v-if="!esCerrada"></td>
+                <td v-if="editable"></td>
               </tr>
             </tfoot>
           </table>

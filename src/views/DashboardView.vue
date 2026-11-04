@@ -157,13 +157,17 @@ onBeforeUnmount(() => grafica?.destroy())
 
 // Solo atajos a pantallas que en el menú están dentro de un submenú o requieren
 // varios clics; los menús principales (y lo que ya tiene card arriba) no se repiten.
-const quickLinks = [
-  { name: 'Nuevo Empleado',        path: '/empleados/crear',     color: 'bg-blue-600' },
-  { name: 'Ver Planillas',         path: '/planillas',           color: 'bg-emerald-600' },
-  { name: 'Ver Planilla Especial', path: '/aguinaldo',           color: 'bg-purple-600' },
-  { name: 'Estadística Laboral',   path: '/estadistica-laboral', color: 'bg-indigo-600' },
-  { name: 'Generar Constancia',    path: '/constancias',         color: 'bg-amber-600' },
+const todosLosAccesos = [
+  { name: 'Nuevo Empleado',        path: '/empleados/crear',     color: 'bg-blue-600',    permiso: 'empleados.crear' },
+  { name: 'Ver Planillas',         path: '/planillas',           color: 'bg-emerald-600', permiso: 'planillas.ver' },
+  { name: 'Ver Planilla Especial', path: '/aguinaldo',           color: 'bg-purple-600',  permiso: 'aguinaldo.ver' },
+  { name: 'Estadística Laboral',   path: '/estadistica-laboral', color: 'bg-indigo-600',  permiso: 'estadistica.ver' },
+  { name: 'Generar Constancia',    path: '/constancias',         color: 'bg-amber-600',   permiso: ['constancias.laboral', 'constancias.bancaria', 'constancias.voucher'] },
 ]
+// Solo los atajos a pantallas que el rol del usuario puede abrir.
+const quickLinks = todosLosAccesos.filter((l) => authStore.puede(l.permiso))
+// El gráfico muestra montos pagados: requiere su permiso.
+const verGrafica = authStore.puede('dashboard.ver_montos')
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
@@ -171,7 +175,7 @@ onMounted(async () => {
   try {
     const [{ data: statsData }, { data: chart }] = await Promise.all([
       api.get('/dashboard/stats'),
-      api.get('/dashboard/planillas-chart'),
+      verGrafica ? api.get('/dashboard/planillas-chart') : Promise.resolve({ data: [] }),
     ])
     stats.value.forEach(s => { s.value = statsData[s.key] ?? 0 })
     cumpleanosStat.value.value = statsData.cumpleanos_mes ?? 0
@@ -181,8 +185,10 @@ onMounted(async () => {
     }
     chartData.value  = chart
     chartLoaded.value = true
-    await nextTick()
-    dibujarGrafica()
+    if (verGrafica) {
+      await nextTick()
+      dibujarGrafica()
+    }
   } catch {
     stats.value.forEach(s => { s.value = 0 })
     cumpleanosStat.value.value = 0
@@ -270,7 +276,7 @@ onMounted(async () => {
     </div>
 
     <!-- Bar chart -->
-    <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-7">
+    <div v-if="verGrafica" class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-7">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h3 class="font-semibold text-slate-800 text-sm">Costo de Planillas por Mes</h3>
@@ -302,7 +308,7 @@ onMounted(async () => {
     </div>
 
     <!-- Accesos rápidos -->
-    <div class="bg-white rounded-xl border border-gray-200 p-6">
+    <div v-if="quickLinks.length" class="bg-white rounded-xl border border-gray-200 p-6">
       <h3 class="font-semibold text-slate-700 mb-4 text-sm">Accesos Rápidos</h3>
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <RouterLink

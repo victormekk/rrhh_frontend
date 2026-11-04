@@ -34,7 +34,14 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token')
   }
 
-  const isAdmin = computed(() => user.value?.rol === 'admin')
+  const isAdmin = computed(() => !!user.value?.rol?.es_admin)
 
-  return { user, token, isAuthenticated, isAdmin, login, logout, fetchUser, clearAuth }
+  // Permisos del rol (ver config/permisos.php en el backend), ej. 'empleados.editar'.
+  // puede('a', 'b') es true si tiene cualquiera de los dos.
+  const permisos = computed(() => new Set(user.value?.permisos ?? []))
+  function puede(...lista) {
+    return isAdmin.value || lista.flat().some((p) => permisos.value.has(p))
+  }
+
+  return { user, token, isAuthenticated, isAdmin, puede, login, logout, fetchUser, clearAuth }
 })

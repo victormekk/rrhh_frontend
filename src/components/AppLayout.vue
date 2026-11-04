@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import AppToast from './AppToast.vue'
@@ -55,64 +55,81 @@ const navItems = [
   {
     name: 'Empleados',
     path: '/empleados',
+    permiso: 'empleados.ver',
     icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z',
   },
   {
     name: 'Departamentos',
     path: '/departamentos',
+    permiso: 'departamentos.ver',
     icon: 'M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21',
   },
   {
     name: 'Bancos',
     path: '/bancos',
+    permiso: 'bancos.ver',
     icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z',
   },
   {
     name: 'Incidencias',
     path: '/incidencias',
+    permiso: 'incidencias.ver',
     icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z',
   },
   {
     name: 'Constancias',
     path: '/constancias',
+    permiso: ['constancias.laboral', 'constancias.bancaria', 'constancias.voucher'],
     icon: 'M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z',
   },
   {
     name: 'Vacaciones',
     path: '/vacaciones',
+    permiso: 'vacaciones.ver',
     icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z',
   },
   {
     name: 'Cumpleaños',
     path: '/cumpleanos',
+    permiso: 'cumpleanos.ver',
     icon: 'M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.51 18 9.473 18 10.608v2.513M15 8.25v-1.5m-6 1.5v-1.5m12 9.75-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-1.5-.75M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5',
   },
 ]
 
 const planillasSubItems = [
   // Fijos/Extras (y Aguinaldo/Catorceavo) se eligen al crear y se filtran dentro de cada lista.
-  { name: 'Planillas de Pago',    path: '/planillas' },
-  { name: 'Planillas Especiales', path: '/aguinaldo' },
-  { name: 'Ingresos/Deducciones', path: '/ingresos-deducciones' },
-  { name: 'Cargar Marcas',        path: '/cargar-marcas' },
+  { name: 'Planillas de Pago',    path: '/planillas',            permiso: 'planillas.ver' },
+  { name: 'Planillas Especiales', path: '/aguinaldo',            permiso: 'aguinaldo.ver' },
+  { name: 'Ingresos/Deducciones', path: '/ingresos-deducciones', permiso: 'ingresos_deducciones.ver' },
+  { name: 'Cargar Marcas',        path: '/cargar-marcas',        permiso: 'marcas.ver' },
 ]
 
-// Configuración: solo administradores (el router y el backend también lo restringen).
-const CONFIG_PATHS = ['/usuarios', '/campos-variables', '/bitacora']
+// Configuración (el router y el backend también exigen los permisos).
+const CONFIG_PATHS = ['/usuarios', '/roles', '/campos-variables', '/bitacora']
 
 const configSubItems = [
-  { name: 'Usuarios',         path: '/usuarios' },
-  { name: 'Campos Variables', path: '/campos-variables' },
-  { name: 'Bitácora',  path: '/bitacora' },
+  { name: 'Usuarios',          path: '/usuarios',         permiso: 'usuarios.ver' },
+  { name: 'Gestión de Roles',  path: '/roles',            permiso: 'roles.ver' },
+  { name: 'Campos Variables',  path: '/campos-variables', permiso: 'campos_variables.ver' },
+  { name: 'Bitácora',          path: '/bitacora',         permiso: 'bitacora.ver' },
 ]
 
 const ESTADISTICA_PATHS = ['/estadistica-laboral', '/informacion-laboral', '/movimientos-personal']
 
 const estadisticaSubItems = [
-  { name: 'Estadística Laboral', path: '/estadistica-laboral' },
-  { name: 'Información Laboral', path: '/informacion-laboral' },
-  { name: 'Movimientos de Personal', path: '/movimientos-personal' },
+  { name: 'Estadística Laboral', path: '/estadistica-laboral', permiso: 'estadistica.ver' },
+  { name: 'Información Laboral', path: '/informacion-laboral', permiso: 'informacion_laboral.ver' },
+  { name: 'Movimientos de Personal', path: '/movimientos-personal', permiso: 'movimientos.ver' },
 ]
+
+// Cada opción del menú se muestra solo si el rol del usuario tiene su permiso
+// (Configuración → Gestión de Roles). Un grupo sin opciones visibles no se muestra.
+function visible(item) {
+  return !item.permiso || authStore.puede(item.permiso)
+}
+const planillasVisibles   = computed(() => planillasSubItems.filter(visible))
+const estadisticaVisibles = computed(() => estadisticaSubItems.filter(visible))
+const configVisibles      = computed(() => configSubItems.filter(visible))
 
 // Menús desplegables como acordeón: solo uno abierto a la vez.
 const SUBMENUS = {
@@ -199,6 +216,7 @@ function currentDate() {
         <!-- Ítems normales (antes de Planillas) -->
         <template v-for="item in navItems.slice(0, 4)" :key="item.path">
           <RouterLink
+            v-if="visible(item)"
             :to="item.path"
             class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150"
             :class="isActive(item.path) ? 'bg-blue-600 text-white' : 'text-stone-400 hover:text-white hover:bg-stone-800'"
@@ -211,7 +229,7 @@ function currentDate() {
         </template>
 
         <!-- Grupo Planillas (expandible) -->
-        <div>
+        <div v-if="planillasVisibles.length">
           <button
             @click="toggleSubmenu('planillas')"
             class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150"
@@ -241,7 +259,7 @@ function currentDate() {
             <div class="min-h-0 overflow-hidden">
               <div class="mt-0.5 ml-3 pl-3 border-l border-stone-700 space-y-0.5">
                 <RouterLink
-                  v-for="sub in planillasSubItems"
+                  v-for="sub in planillasVisibles"
                   :key="sub.name"
                   :to="{ path: sub.path, query: sub.query }"
                   class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
@@ -260,7 +278,7 @@ function currentDate() {
         <!-- Ítems normales (entre Planillas y Estadística Laboral) -->
         <template v-for="item in navItems.slice(4, 8)" :key="item.path">
           <RouterLink
-            v-if="!item.adminOnly || authStore.isAdmin"
+            v-if="visible(item)"
             :to="item.path"
             class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150"
             :class="isActive(item.path) ? 'bg-blue-600 text-white' : 'text-stone-400 hover:text-white hover:bg-stone-800'"
@@ -273,7 +291,7 @@ function currentDate() {
         </template>
 
         <!-- Grupo Estadística Laboral (expandible) -->
-        <div>
+        <div v-if="estadisticaVisibles.length">
           <button
             @click="toggleSubmenu('estadistica')"
             class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150"
@@ -303,7 +321,7 @@ function currentDate() {
             <div class="min-h-0 overflow-hidden">
               <div class="mt-0.5 ml-3 pl-3 border-l border-stone-700 space-y-0.5">
                 <RouterLink
-                  v-for="sub in estadisticaSubItems"
+                  v-for="sub in estadisticaVisibles"
                   :key="sub.name"
                   :to="sub.path"
                   class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
@@ -319,8 +337,8 @@ function currentDate() {
           </div>
         </div>
 
-        <!-- Grupo Configuración (expandible, solo administradores) -->
-        <div v-if="authStore.isAdmin">
+        <!-- Grupo Configuración (expandible) -->
+        <div v-if="configVisibles.length">
           <button
             @click="toggleSubmenu('config')"
             class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150"
@@ -350,7 +368,7 @@ function currentDate() {
             <div class="min-h-0 overflow-hidden">
               <div class="mt-0.5 ml-3 pl-3 border-l border-stone-700 space-y-0.5">
                 <RouterLink
-                  v-for="sub in configSubItems"
+                  v-for="sub in configVisibles"
                   :key="sub.name"
                   :to="sub.path"
                   class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"

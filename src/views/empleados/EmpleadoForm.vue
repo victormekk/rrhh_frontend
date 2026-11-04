@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEmpleadosStore } from '../../stores/empleados'
+import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import CambioContratoModal from '../../components/empleados/CambioContratoModal.vue'
 import CambioFechaModal from '../../components/empleados/CambioFechaModal.vue'
@@ -14,6 +15,10 @@ const router  = useRouter()
 const store   = useEmpleadosStore()
 
 const isEdit        = computed(() => !!route.params.id)
+// Sin el permiso "Ver salarios" no se muestran los salarios al editar; el backend
+// conserva el salario que ya tenía. Al crear un empleado sí se escribe su salario.
+const authStore     = useAuthStore()
+const muestraSalario = computed(() => !isEdit.value || authStore.puede('salarios.ver'))
 const loading       = ref(false)   // spinner del botón Guardar
 const formLoading   = ref(true)    // spinner mientras carga datos iniciales
 const error         = ref('')
@@ -498,6 +503,7 @@ function salariosCalculados() {
               <option>Cheque</option>
             </select>
           </div>
+          <template v-if="muestraSalario">
           <div>
             <label class="label">
               Salario Base <span class="text-red-500">*</span>
@@ -522,6 +528,7 @@ function salariosCalculados() {
               </span>
             </label>
           </div>
+          </template>
 
           <!-- Solo extras: los que trabajan todos los días (ej. Animación) no llevan promedio de días -->
           <div v-if="form.tipo_contrato === 'Extra'" class="sm:col-span-2 lg:col-span-3">
@@ -535,7 +542,7 @@ function salariosCalculados() {
           </div>
 
           <!-- Salarios calculados -->
-          <div v-if="salariosCalculados()" class="sm:col-span-2 lg:col-span-3">
+          <div v-if="muestraSalario && salariosCalculados()" class="sm:col-span-2 lg:col-span-3">
             <div class="bg-slate-50 rounded-lg p-4 grid grid-cols-3 gap-4 text-center">
               <div>
                 <p class="text-xs text-slate-500">Quincenal</p>

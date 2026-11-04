@@ -318,6 +318,7 @@ function estadoClass(estado) {
         <p class="text-sm text-slate-500 mt-0.5">Préstamos, adelantos y bonos que se cargan solos en cada planilla</p>
       </div>
       <button
+        v-if="authStore.puede('ingresos_deducciones.crear')"
         @click="abrirCrear"
         class="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
       >
@@ -429,7 +430,7 @@ function estadoClass(estado) {
                   <button @click="verHistorial(r)" class="accion hover:text-blue-600 hover:bg-blue-50" title="Ver planillas donde se cargó">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   </button>
-                  <template v-if="r.estado === 'Activo' || r.estado === 'Pausado'">
+                  <template v-if="authStore.puede('ingresos_deducciones.editar') && (r.estado === 'Activo' || r.estado === 'Pausado')">
                     <button @click="abrirEditar(r)" class="accion hover:text-amber-600 hover:bg-amber-50" title="Editar">
                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
                     </button>
@@ -444,7 +445,7 @@ function estadoClass(estado) {
                     </button>
                   </template>
                   <button
-                    v-if="authStore.isAdmin && r.aplicaciones_count === 0"
+                    v-if="authStore.puede('ingresos_deducciones.eliminar') && r.aplicaciones_count === 0"
                     @click="pedirConfirmacion('eliminar', r)"
                     class="accion hover:text-red-600 hover:bg-red-50" title="Eliminar"
                   >

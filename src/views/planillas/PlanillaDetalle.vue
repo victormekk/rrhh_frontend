@@ -2,6 +2,7 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlanillasStore } from '../../stores/planillas'
+import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 import { sanitizarNombreArchivo, descargarBlob } from '../../utils/archivos'
 
@@ -21,6 +22,9 @@ onMounted(async () => {
 })
 
 const esCerrada = computed(() => store.planilla?.estado === 'Cerrado')
+// Se puede modificar si está abierta y el rol tiene permiso de editar planillas.
+const authStore = useAuthStore()
+const editable  = computed(() => !esCerrada.value && authStore.puede('planillas.editar'))
 
 // Las columnas IHSS/ISR/Crefisa no aplican a planillas "Extras" (personal temporal sin esas
 // retenciones fijas) — se ocultan para no dejar la grilla llena de columnas siempre en cero.
@@ -479,6 +483,7 @@ function fmtDate(d) {
           </div>
         </div>
         <div class="flex flex-wrap justify-end gap-2 *:whitespace-nowrap">
+          <template v-if="authStore.puede('planillas.exportar')">
           <button
             @click="exportarPdf"
             class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
@@ -572,8 +577,9 @@ function fmtDate(d) {
               </svg>
             </button>
           </div>
+          </template>
           <button
-            v-if="!esCerrada"
+            v-if="editable"
             @click="abrirActualizarMarcas"
             title="Recalcula los días trabajados desde las marcas del reloj y las marcas incompletas justificadas"
             class="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition"
@@ -585,7 +591,7 @@ function fmtDate(d) {
           </button>
 
           <!-- Cerrar va al final y separado de los demás botones, para no presionarlo por error -->
-          <div v-if="!esCerrada" class="flex items-center pl-4 ml-2 border-l border-slate-200">
+          <div v-if="!esCerrada && authStore.puede('planillas.cerrar')" class="flex items-center pl-4 ml-2 border-l border-slate-200">
             <button
               @click="abrirConfirmCerrar"
               :disabled="state.cerrando"
@@ -600,7 +606,7 @@ function fmtDate(d) {
         </div>
       </div>
 
-      <p v-if="!esCerrada" class="text-xs text-slate-400 mb-2">
+      <p v-if="editable" class="text-xs text-slate-400 mb-2">
         Los campos numéricos se guardan al salir de la celda. Los campos con
         <svg class="w-3 h-3 inline -mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108" /></svg>
         se editan con un clic (abren un formulario corto).
@@ -675,7 +681,7 @@ function fmtDate(d) {
                   </td>
                   <td class="px-1 py-1">
                     <input
-                      v-if="!esCerrada" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
+                      v-if="editable" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
                       :value="valorCelda(d, 'dias_trabajados', d.dias_trabajados || '')" placeholder="0"
                       @input="escribirCelda(d, 'dias_trabajados', $event)"
                       :data-dias-id="d.id"
@@ -688,7 +694,7 @@ function fmtDate(d) {
 
                   <td class="px-1 py-1 text-right">
                     <button
-                      v-if="!esCerrada" @click="abrirModalHoras(d)"
+                      v-if="editable" @click="abrirModalHoras(d)"
                       class="celda-btn"
                       :title="d.horas_extras ? `${d.horas_extras} hora(s) extra${d.recargo_horas_extras ? ` +${d.recargo_horas_extras}%` : ''}` : 'Registrar horas extra'"
                     >
@@ -699,7 +705,7 @@ function fmtDate(d) {
 
                   <td class="px-1 py-1 text-right">
                     <button
-                      v-if="!esCerrada" @click="abrirModalIngreso(d)"
+                      v-if="editable" @click="abrirModalIngreso(d)"
                       class="celda-btn text-emerald-700" :title="d.desc_ingresos || 'Registrar otro ingreso'"
                     >
                       {{ fmt(d.otros_ingresos) }}
@@ -708,45 +714,45 @@ function fmtDate(d) {
                   </td>
 
                   <td v-if="mostrarColumnasFijos" class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'ihss')" @input="escribirCelda(d, 'ihss', $event)" @blur="onBlurCampo(d, 'ihss', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="editable" type="text" inputmode="decimal" :value="valorCelda(d, 'ihss')" @input="escribirCelda(d, 'ihss', $event)" @blur="onBlurCampo(d, 'ihss', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.ihss) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'retencion_ahorro')" @input="escribirCelda(d, 'retencion_ahorro', $event)" @blur="onBlurCampo(d, 'retencion_ahorro', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="editable" type="text" inputmode="decimal" :value="valorCelda(d, 'retencion_ahorro')" @input="escribirCelda(d, 'retencion_ahorro', $event)" @blur="onBlurCampo(d, 'retencion_ahorro', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.retencion_ahorro) }}</span>
                   </td>
                   <td v-if="mostrarColumnasFijos" class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'isr')" @input="escribirCelda(d, 'isr', $event)" @blur="onBlurCampo(d, 'isr', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="editable" type="text" inputmode="decimal" :value="valorCelda(d, 'isr')" @input="escribirCelda(d, 'isr', $event)" @blur="onBlurCampo(d, 'isr', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.isr) }}</span>
                   </td>
                   <td v-if="mostrarColumnasFijos" class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'crefisa')" @input="escribirCelda(d, 'crefisa', $event)" @blur="onBlurCampo(d, 'crefisa', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="editable" type="text" inputmode="decimal" :value="valorCelda(d, 'crefisa')" @input="escribirCelda(d, 'crefisa', $event)" @blur="onBlurCampo(d, 'crefisa', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.crefisa) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'transporte')" @input="escribirCelda(d, 'transporte', $event)" @blur="onBlurCampo(d, 'transporte', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="editable" type="text" inputmode="decimal" :value="valorCelda(d, 'transporte')" @input="escribirCelda(d, 'transporte', $event)" @blur="onBlurCampo(d, 'transporte', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.transporte) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'radios')" @input="escribirCelda(d, 'radios', $event)" @blur="onBlurCampo(d, 'radios', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="editable" type="text" inputmode="decimal" :value="valorCelda(d, 'radios')" @input="escribirCelda(d, 'radios', $event)" @blur="onBlurCampo(d, 'radios', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.radios) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'i_vecinal')" @input="escribirCelda(d, 'i_vecinal', $event)" @blur="onBlurCampo(d, 'i_vecinal', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="editable" type="text" inputmode="decimal" :value="valorCelda(d, 'i_vecinal')" @input="escribirCelda(d, 'i_vecinal', $event)" @blur="onBlurCampo(d, 'i_vecinal', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.i_vecinal) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'uniforme')" @input="escribirCelda(d, 'uniforme', $event)" @blur="onBlurCampo(d, 'uniforme', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="editable" type="text" inputmode="decimal" :value="valorCelda(d, 'uniforme')" @input="escribirCelda(d, 'uniforme', $event)" @blur="onBlurCampo(d, 'uniforme', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.uniforme) }}</span>
                   </td>
                   <td class="px-1 py-1">
-                    <input v-if="!esCerrada" type="text" inputmode="decimal" :value="valorCelda(d, 'garden')" @input="escribirCelda(d, 'garden', $event)" @blur="onBlurCampo(d, 'garden', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
+                    <input v-if="editable" type="text" inputmode="decimal" :value="valorCelda(d, 'garden')" @input="escribirCelda(d, 'garden', $event)" @blur="onBlurCampo(d, 'garden', $event)" @keyup.enter="$event.target.blur()" class="celda-input" />
                     <span v-else class="celda-texto">{{ fmt(d.garden) }}</span>
                   </td>
 
                   <td class="px-1 py-1 text-right">
                     <button
-                      v-if="!esCerrada" @click="abrirModalDeduccion(d)"
+                      v-if="editable" @click="abrirModalDeduccion(d)"
                       class="celda-btn text-red-600" :title="d.desc_otras_deducciones || 'Registrar otra deducción'"
                     >
                       {{ fmt(d.otras_deducciones) }}

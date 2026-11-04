@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useEmpleadosStore } from '../../stores/empleados'
+import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import CeseModal from '../../components/empleados/CeseModal.vue'
 import ReintegroModal from '../../components/empleados/ReintegroModal.vue'
@@ -9,6 +10,7 @@ import ReintegroModal from '../../components/empleados/ReintegroModal.vue'
 const router        = useRouter()
 const route         = useRoute()
 const store         = useEmpleadosStore()
+const authStore     = useAuthStore()
 
 const search          = ref('')
 const filtroDep       = ref('')
@@ -121,6 +123,7 @@ function formatCurrency(val) {
       </select>
 
       <button
+        v-if="authStore.puede('empleados.crear')"
         @click="router.push('/empleados/crear')"
         class="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap"
       >
@@ -141,7 +144,7 @@ function formatCurrency(val) {
               <th class="px-4 py-3">DNI</th>
               <th class="px-4 py-3">Departamento</th>
               <th class="px-4 py-3">Cargo</th>
-              <th class="px-4 py-3">Salario Base</th>
+              <th v-if="authStore.puede('salarios.ver')" class="px-4 py-3">Salario Base</th>
               <th class="px-4 py-3">Estado</th>
               <th class="px-4 py-3 text-right">Acciones</th>
             </tr>
@@ -165,7 +168,7 @@ function formatCurrency(val) {
 
             <!-- Empty -->
             <tr v-else-if="store.empleados.length === 0">
-              <td colspan="7" class="px-4 py-12 text-center text-slate-400">
+              <td :colspan="authStore.puede('salarios.ver') ? 7 : 6" class="px-4 py-12 text-center text-slate-400">
                 No se encontraron empleados.
               </td>
             </tr>
@@ -196,7 +199,7 @@ function formatCurrency(val) {
               <td class="px-4 py-3 text-slate-600 font-mono text-xs">{{ emp.cedula }}</td>
               <td class="px-4 py-3 text-slate-600">{{ emp.departamento?.nombre ?? '—' }}</td>
               <td class="px-4 py-3 text-slate-600">{{ emp.cargo?.nombre ?? '—' }}</td>
-              <td class="px-4 py-3 text-slate-600">{{ formatCurrency(emp.informacion_laboral?.salario_base) }}</td>
+              <td v-if="authStore.puede('salarios.ver')" class="px-4 py-3 text-slate-600">{{ formatCurrency(emp.informacion_laboral?.salario_base) }}</td>
               <td class="px-4 py-3">
                 <span :class="[estadoClass(emp.informacion_laboral?.estado), 'text-xs font-medium px-2.5 py-1 rounded-full']">
                   {{ emp.informacion_laboral?.estado ?? '—' }}
@@ -214,6 +217,7 @@ function formatCurrency(val) {
                     </svg>
                   </button>
                   <button
+                    v-if="authStore.puede('empleados.editar')"
                     @click="router.push(`/empleados/${emp.id}/editar`)"
                     class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition"
                     title="Editar"
@@ -223,7 +227,7 @@ function formatCurrency(val) {
                     </svg>
                   </button>
                   <button
-                    v-if="emp.informacion_laboral?.estado === 'Inactivo'"
+                    v-if="authStore.puede('empleados.baja') && emp.informacion_laboral?.estado === 'Inactivo'"
                     @click="empleadoReintegro = emp"
                     class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition"
                     title="Reintegrar"
@@ -233,7 +237,7 @@ function formatCurrency(val) {
                     </svg>
                   </button>
                   <button
-                    v-else
+                    v-else-if="authStore.puede('empleados.baja')"
                     @click="empleadoCese = emp"
                     class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
                     title="Dar de baja"

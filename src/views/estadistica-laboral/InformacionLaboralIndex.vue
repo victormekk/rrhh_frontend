@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useInformacionLaboralStore } from '../../stores/informacionLaboral'
+import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 
 const store = useInformacionLaboralStore()
+const authStore = useAuthStore()
 const { error } = useToast()
 
 // ── filtro por estado (afecta el buscador por nombre y el filtro por depto) ──
@@ -137,6 +139,7 @@ function formatDate(d) {
         <p class="text-sm text-slate-500 mt-0.5">Busca uno o varios empleados y exporta su información laboral básica.</p>
       </div>
       <button
+        v-if="authStore.puede('informacion_laboral.exportar')"
         @click="exportar"
         :disabled="seleccionados.length === 0 || exportando"
         title="Excel con la información laboral de los empleados seleccionados"
@@ -302,13 +305,13 @@ function formatDate(d) {
               <th class="px-4 py-3">Fecha de inicio</th>
               <th class="px-4 py-3">Departamento</th>
               <th class="px-4 py-3">Cargo</th>
-              <th class="px-4 py-3 text-right">Salario mensual</th>
+              <th v-if="authStore.puede('salarios.ver')" class="px-4 py-3 text-right">Salario mensual</th>
               <th class="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="seleccionados.length === 0">
-              <td colspan="7" class="text-center py-12 text-slate-400 text-sm">
+              <td :colspan="authStore.puede('salarios.ver') ? 7 : 6" class="text-center py-12 text-slate-400 text-sm">
                 Busca empleados arriba y agrégalos para ver su información laboral aquí.
               </td>
             </tr>
@@ -323,7 +326,7 @@ function formatDate(d) {
               <td class="px-4 py-3 text-slate-600">{{ formatDate(emp.informacion_laboral?.fecha_inicio) }}</td>
               <td class="px-4 py-3 text-slate-600">{{ emp.departamento?.nombre ?? '—' }}</td>
               <td class="px-4 py-3 text-slate-600">{{ emp.cargo?.nombre ?? '—' }}</td>
-              <td class="px-4 py-3 text-right text-slate-700 font-medium">{{ formatCurrency(emp.informacion_laboral?.salario_base) }}</td>
+              <td v-if="authStore.puede('salarios.ver')" class="px-4 py-3 text-right text-slate-700 font-medium">{{ formatCurrency(emp.informacion_laboral?.salario_base) }}</td>
               <td class="px-4 py-3 text-right">
                 <button @click="quitar(emp)" class="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Quitar">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">

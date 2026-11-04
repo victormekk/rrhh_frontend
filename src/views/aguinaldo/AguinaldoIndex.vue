@@ -112,6 +112,7 @@ function formatDate(d) {
         </select>
       </div>
       <button
+        v-if="authStore.puede('aguinaldo.crear')"
         @click="generar"
         class="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
       >
@@ -186,7 +187,7 @@ function formatDate(d) {
                     </svg>
                   </button>
                   <button
-                    v-if="authStore.isAdmin && a.estado === 'Activo'"
+                    v-if="authStore.puede('aguinaldo.eliminar') && a.estado === 'Activo'"
                     @click="eliminar(a.nombre_aguinaldo)"
                     class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
                     title="Anular planilla especial"

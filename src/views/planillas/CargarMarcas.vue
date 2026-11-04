@@ -268,7 +268,7 @@ async function confirmarEliminar() {
     </div>
 
     <!-- Subir archivo -->
-    <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+    <div v-if="authStore.puede('marcas.cargar')" class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
       <div
         class="border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer"
         :class="arrastrando ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'"
@@ -363,11 +363,11 @@ async function confirmarEliminar() {
           <p class="text-xs text-slate-500 mt-0.5">Días con una sola marca (solo entrada o solo salida). Verifique con el jefe y justifique los que correspondan: un día justificado cuenta como trabajado.</p>
         </div>
         <div class="flex gap-2 flex-shrink-0">
-          <button @click="descargar('excel')" :disabled="!listado?.total || !!descargando"
+          <button v-if="authStore.puede('marcas.exportar')" @click="descargar('excel')" :disabled="!listado?.total || !!descargando"
             class="px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg text-emerald-700 hover:bg-slate-50 disabled:opacity-50 transition">
             {{ descargando === 'excel' ? 'Descargando...' : 'Excel' }}
           </button>
-          <button @click="descargar('pdf')" :disabled="!listado?.total || !!descargando"
+          <button v-if="authStore.puede('marcas.exportar')" @click="descargar('pdf')" :disabled="!listado?.total || !!descargando"
             class="px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg text-red-600 hover:bg-slate-50 disabled:opacity-50 transition">
             {{ descargando === 'pdf' ? 'Descargando...' : 'PDF' }}
           </button>
@@ -444,14 +444,14 @@ async function confirmarEliminar() {
                       <p class="text-xs font-medium text-emerald-700">{{ f.justificacion.motivo }}</p>
                       <p class="text-[11px] text-slate-400">{{ f.justificacion.usuario }}</p>
                     </div>
-                    <button @click="quitarJustificacion(f)" title="Quitar justificación"
+                    <button v-if="authStore.puede('marcas.justificar')" @click="quitarJustificacion(f)" title="Quitar justificación"
                       class="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition flex-shrink-0">
                       <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                       </svg>
                     </button>
                   </div>
-                  <button v-else @click="abrirJustificar(f)"
+                  <button v-else-if="authStore.puede('marcas.justificar')" @click="abrirJustificar(f)"
                     class="px-3 py-1 text-xs font-semibold rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 transition">
                     Justificar
                   </button>
@@ -474,7 +474,7 @@ async function confirmarEliminar() {
     </div>
 
     <!-- Eliminar marcas (solo administradores) -->
-    <div v-if="authStore.isAdmin" class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+    <div v-if="authStore.puede('marcas.eliminar')" class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
       <div>
         <p class="text-sm font-semibold text-slate-800">Eliminar marcas</p>
         <p class="text-xs text-slate-500 mt-0.5">Para quitar un archivo cargado por error o limpiar historial antiguo. Las planillas ya generadas no cambian.</p>

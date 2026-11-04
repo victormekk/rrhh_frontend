@@ -257,6 +257,7 @@ function gradoClass(grado) {
         <p class="text-sm text-slate-500 mt-0.5">Registro de sanciones y medidas disciplinarias</p>
       </div>
       <button
+        v-if="authStore.puede('incidencias.crear')"
         @click="abrirCrear"
         class="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
       >
@@ -389,7 +390,7 @@ function gradoClass(grado) {
                     </svg>
                   </button>
                   <button
-                    v-if="authStore.isAdmin"
+                    v-if="authStore.puede('incidencias.anular')"
                     @click="restaurar(inc)"
                     :disabled="restaurando === inc.id"
                     class="inline-flex items-center gap-1.5 border border-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
@@ -423,12 +424,12 @@ function gradoClass(grado) {
                       <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
                     </svg>
                   </button>
-                  <button @click="abrirEditar(inc)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
+                  <button v-if="authStore.puede('incidencias.editar')" @click="abrirEditar(inc)" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition" title="Editar">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                     </svg>
                   </button>
-                  <button v-if="authStore.isAdmin" @click="anular(inc)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Anular">
+                  <button v-if="authStore.puede('incidencias.anular')" @click="anular(inc)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Anular">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                     </svg>
@@ -529,7 +530,7 @@ function gradoClass(grado) {
         <!-- Footer -->
         <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
           <button
-            v-if="!incDetalle.anulada_at"
+            v-if="!incDetalle.anulada_at && authStore.puede('incidencias.editar')"
             @click="showDetalle = false; abrirEditar(incDetalle)"
             class="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
           >

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useMovimientosPersonalStore } from '../../stores/movimientosPersonal'
+import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 import LoadingSpinner from '../../components/LoadingSpinner.vue'
 import {
@@ -9,6 +10,7 @@ import {
 } from '../../constants/historialLaboral'
 
 const store = useMovimientosPersonalStore()
+const authStore = useAuthStore()
 const { error: toastError } = useToast()
 
 // ── Filtros ───────────────────────────────────────────────────────────────────
@@ -103,7 +105,7 @@ function detalle(m) {
           class="px-4 py-2 border border-amber-300 text-amber-700 hover:bg-amber-50 text-sm font-medium rounded-lg transition-colors">
           Liquidaciones pendientes
         </button>
-        <button @click="exportar" :disabled="exportando"
+        <button v-if="authStore.puede('movimientos.exportar')" @click="exportar" :disabled="exportando"
           class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
           <svg v-if="exportando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -206,7 +208,7 @@ function detalle(m) {
                   <select
                     :value="m.liquidacion"
                     @change="cambiarLiquidacion(m, $event.target.value)"
-                    :disabled="guardandoId === m.id"
+                    :disabled="guardandoId === m.id || !authStore.puede('movimientos.editar')"
                     :class="[ESTILO_LIQUIDACION[m.liquidacion], 'text-xs font-semibold rounded-full pl-2 pr-6 py-0.5 border-0 cursor-pointer focus:ring-2 focus:ring-blue-500 disabled:opacity-60']"
                   >
                     <option v-for="o in OPCIONES_LIQUIDACION" :key="o">{{ o }}</option>
