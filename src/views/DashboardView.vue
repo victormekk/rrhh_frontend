@@ -169,9 +169,44 @@ const quickLinks = todosLosAccesos.filter((l) => authStore.puede(l.permiso))
 // El gráfico muestra montos pagados: requiere su permiso.
 const verGrafica = authStore.puede('dashboard.ver_montos')
 
+// ── Control de jubilaciones (60 y 65 años) ──────────────────────────────────
+// Empleados activos desde los 59 años. Si no hay ninguno, la lista no se muestra.
+const jubilaciones = ref([])
+const MESES_LARGO  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+async function cargarJubilaciones() {
+  if (!authStore.puede('dashboard.ver_jubilaciones')) return
+  try {
+    const { data } = await api.get('/dashboard/jubilaciones')
+    jubilaciones.value = data
+  } catch {
+    jubilaciones.value = []
+  }
+}
+
+function fechaLarga(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return `${d} de ${MESES_LARGO[m - 1]} de ${y}`
+}
+
+function enTiempo(dias) {
+  if (dias === 0) return 'hoy'
+  if (dias === 1) return 'mañana'
+  if (dias < 60) return `en ${dias} días`
+  const meses = Math.round(dias / 30.4)
+  return meses < 12 ? `en ${meses} meses` : `en ${(dias / 365.25).toFixed(1).replace('.0', '')} años`
+}
+
+function etapa(emp) {
+  if (emp.proximo === 60) return { texto: `Cumple 60 ${enTiempo(emp.dias_proximo)}`, clase: 'bg-amber-100 text-amber-800' }
+  if (emp.proximo === 65) return { texto: `Cumple 65 ${enTiempo(emp.dias_proximo)}`, clase: 'bg-orange-100 text-orange-800' }
+  return { texto: 'Ya tiene 65 o más', clase: 'bg-red-100 text-red-700' }
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
+  cargarJubilaciones()
   try {
     const [{ data: statsData }, { data: chart }] = await Promise.all([
       api.get('/dashboard/stats'),
@@ -304,6 +339,47 @@ onMounted(async () => {
         <canvas ref="canvasRef" role="img"
           :aria-label="`Costo de planillas por mes, Fijos y Extras: ${chartData.map(d => `${d.label} Fijos L. ${formatLPS(d.fijos)}, Extras L. ${formatLPS(d.extras)}`).join('; ')}`">
         </canvas>
+      </div>
+    </div>
+
+    <!-- Próximos a jubilarse: desde los 59 años (la jubilación es a los 60 y 65) -->
+    <div v-if="jubilaciones.length" class="bg-white rounded-xl border border-gray-200 mb-7 overflow-hidden">
+      <div class="px-4 sm:px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 class="font-semibold text-slate-800 text-sm">Próximos a jubilarse</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Empleados activos desde los 59 años · jubilación a los 60 y 65 años</p>
+        </div>
+        <span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+          {{ jubilaciones.length }} empleado{{ jubilaciones.length !== 1 ? 's' : '' }}
+        </span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-left text-xs text-slate-500 uppercase tracking-wide">
+            <tr>
+              <th class="px-4 sm:px-6 py-2.5 font-semibold">Empleado</th>
+              <th class="px-4 py-2.5 font-semibold text-center">Edad</th>
+              <th class="px-4 py-2.5 font-semibold">Cumple 60</th>
+              <th class="px-4 py-2.5 font-semibold">Cumple 65</th>
+              <th class="px-4 sm:px-6 py-2.5 font-semibold">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="emp in jubilaciones" :key="emp.id" class="border-t border-slate-100">
+              <td class="px-4 sm:px-6 py-3">
+                <RouterLink v-if="authStore.puede('empleados.ver')" :to="`/empleados/${emp.id}`" class="font-medium text-slate-800 hover:text-blue-700 hover:underline">{{ emp.nombre }}</RouterLink>
+                <p v-else class="font-medium text-slate-800">{{ emp.nombre }}</p>
+                <p class="text-xs text-slate-400">{{ emp.departamento }} · {{ emp.cargo }}</p>
+              </td>
+              <td class="px-4 py-3 text-center font-semibold text-slate-700">{{ emp.edad }}</td>
+              <td class="px-4 py-3 whitespace-nowrap" :class="emp.proximo === 60 ? 'text-slate-800 font-medium' : 'text-slate-400'">{{ fechaLarga(emp.fecha_60) }}</td>
+              <td class="px-4 py-3 whitespace-nowrap" :class="emp.proximo === 65 ? 'text-slate-800 font-medium' : 'text-slate-400'">{{ fechaLarga(emp.fecha_65) }}</td>
+              <td class="px-4 sm:px-6 py-3 whitespace-nowrap">
+                <span :class="[etapa(emp).clase, 'text-xs font-semibold px-2.5 py-1 rounded-full']">{{ etapa(emp).texto }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 

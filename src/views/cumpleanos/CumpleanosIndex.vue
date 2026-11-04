@@ -2,12 +2,28 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCumpleanosStore } from '../../stores/cumpleanos'
 import { useToast } from '../../composables/useToast'
+import { useAuthStore } from '../../stores/auth'
 import { generarTarjetaCumpleanos } from '../../utils/tarjetaCumpleanos'
 import { nombreArchivo, descargarBlob } from '../../utils/archivos'
 import LoadingSpinner from '../../components/LoadingSpinner.vue'
 
 const store = useCumpleanosStore()
-const { error: toastError } = useToast()
+const { error: toastError, info } = useToast()
+const authStore = useAuthStore()
+
+// ── Exportar a Excel la lista del mes seleccionado ──────────────────────────
+const exportando = ref(false)
+async function exportarExcel() {
+  exportando.value = true
+  try {
+    await store.exportarExcel(store.mesActivo, MESES[store.mesActivo - 1])
+    info('Excel descargado.')
+  } catch {
+    toastError('No se pudo exportar la lista de cumpleaños.')
+  } finally {
+    exportando.value = false
+  }
+}
 
 const MESES = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -77,13 +93,31 @@ function colorAvatar(id) {
   <div class="space-y-6">
 
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 class="text-xl font-bold text-slate-800">Cumpleaños</h2>
         <p class="text-sm text-slate-500 mt-0.5">Empleados activos por mes de cumpleaños.</p>
       </div>
-      <div class="text-sm text-slate-500 font-medium">
-        {{ store.empleados.length }} empleado{{ store.empleados.length !== 1 ? 's' : '' }} en {{ MESES[store.mesActivo - 1] }}
+      <div class="flex items-center gap-4">
+        <div class="text-sm text-slate-500 font-medium">
+          {{ store.empleados.length }} empleado{{ store.empleados.length !== 1 ? 's' : '' }} en {{ MESES[store.mesActivo - 1] }}
+        </div>
+        <button
+          v-if="authStore.puede('cumpleanos.exportar')"
+          @click="exportarExcel"
+          :disabled="exportando || store.loading || store.empleados.length === 0"
+          title="Excel con los cumpleañeros del mes seleccionado"
+          class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+        >
+          <svg v-if="exportando" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+          </svg>
+          <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          {{ exportando ? 'Exportando...' : 'Exportar Excel' }}
+        </button>
       </div>
     </div>
 
