@@ -79,6 +79,15 @@ const saldoColor = computed(() => {
   return 'text-emerald-600'
 })
 
+// Años que cubre un período vacacional (de aniversario a aniversario), ej. "2026–2027".
+function aniosPeriodo(inicioIso) {
+  if (!inicioIso) return ''
+  const y = Number(String(inicioIso).slice(0, 4))
+  return `${y}–${y + 1}`
+}
+const periodoActualAnios  = computed(() => aniosPeriodo(store.saldo?.periodo_inicio))
+const periodoProximoAnios = computed(() => aniosPeriodo(store.saldo?.proximo_periodo_inicio))
+
 function aniosLabel(n) {
   if (n === 0) return 'Menos de 1 año'
   return `${n} ${n === 1 ? 'año' : 'años'}`
@@ -125,29 +134,60 @@ const feriadosEnRango = computed(() => {
   return encontrados
 })
 
-// Saldo real disponible: cuando se edita, devolver los días originales al conteo
-const saldoEfectivo = computed(() => {
-  const base = store.saldo?.saldo ?? 0
-  return editando.value ? base + (editando.value.dias_tomados ?? 0) : base
+// Saldo "real" (puede ser negativo si ya adelantó días). Al editar, los días de esa
+// misma solicitud vuelven al conteo antes de comparar (igual que el backend).
+const saldoReal = computed(() => {
+  const s = store.saldo
+  if (!s) return 0
+  const real = (s.saldo ?? 0) - (s.dias_adelantados ?? 0)
+  return editando.value ? real + Number(editando.value.dias_tomados ?? 0) : real
 })
 
-// Fecha máxima de fin que agota exactamente el saldo disponible (excluye domingos y feriados)
+// Días disponibles sin adelantar.
+const saldoEfectivo = computed(() => Math.max(0, saldoReal.value))
+
+// Días del próximo período que todavía se pueden adelantar (como máximo, lo que le toca ese año).
+const adelantoDisponible = computed(() =>
+  Math.max(0, (store.saldo?.dias_proximo_periodo ?? 0) - Math.max(0, -saldoReal.value))
+)
+
+// Modo adelanto: solo se usa con el saldo en cero (botón "Adelantar vacaciones").
+// Mientras tenga días disponibles, la solicitud funciona como siempre: hasta su saldo.
+const modoAdelanto = ref(false)
+
+// Lo máximo que se puede pedir: el saldo, o en modo adelanto lo que se puede adelantar.
+const maximoSolicitable = computed(() => modoAdelanto.value ? adelantoDisponible.value : saldoEfectivo.value)
+
+// Fecha máxima de fin que agota exactamente lo máximo solicitable (excluye domingos y feriados)
 const fechaMaxFin = computed(() => {
-  if (!form.value.fecha_inicio || saldoEfectivo.value <= 0) return ''
+  if (!form.value.fecha_inicio || maximoSolicitable.value <= 0) return ''
   const cur = new Date(form.value.fecha_inicio + 'T00:00:00')
   let count = 0
-  while (count < saldoEfectivo.value) {
+  while (count < maximoSolicitable.value) {
     if (cur.getDay() !== 0 && !nombreFeriado(cur)) count++
-    if (count < saldoEfectivo.value) cur.setDate(cur.getDate() + 1)
+    if (count < maximoSolicitable.value) cur.setDate(cur.getDate() + 1)
   }
   return cur.toISOString().slice(0, 10)
 })
 
+// Pide más que lo máximo permitido.
 const excedeSaldo = computed(() =>
-  diasCalculados.value > 0 && diasCalculados.value > saldoEfectivo.value
+  diasCalculados.value > 0 && diasCalculados.value > maximoSolicitable.value
 )
 
-function abrirCrear() {
+// En modo adelanto, todos los días de la solicitud son del próximo período.
+const diasAdelantar = computed(() =>
+  modoAdelanto.value && !excedeSaldo.value ? diasCalculados.value : 0
+)
+const confirmaAdelanto = ref(false)
+
+// La lista de feriados del rango se muestra plegada: en rangos largos ocupaba media pantalla.
+const verFeriados = ref(false)
+
+function abrirCrear(adelanto = false) {
+  modoAdelanto.value = adelanto === true
+  verFeriados.value = false
+  confirmaAdelanto.value = false
   editando.value   = null
   form.value       = { fecha_inicio: '', fecha_fin: '', observaciones: '' }
   errorModal.value = ''
@@ -155,7 +195,11 @@ function abrirCrear() {
 }
 
 function abrirEditar(sol) {
+  verFeriados.value = false
   editando.value = sol
+  // Sin contar esta solicitud, ¿le quedan días? Si no, se edita como adelanto (igual que el backend).
+  modoAdelanto.value = saldoEfectivo.value <= 0
+  confirmaAdelanto.value = modoAdelanto.value && Number(sol.dias_adelantados ?? 0) > 0
   form.value = {
     fecha_inicio:   String(sol.fecha_inicio).slice(0, 10),
     fecha_fin:      String(sol.fecha_fin).slice(0, 10),
@@ -171,15 +215,26 @@ async function guardar() {
   if (!form.value.fecha_inicio) { errorModal.value = 'La fecha de inicio es requerida.'; return }
   if (!form.value.fecha_fin)    { errorModal.value = 'La fecha de fin es requerida.'; return }
   if (diasCalculados.value <= 0) { errorModal.value = 'La fecha de fin debe ser igual o posterior al inicio.'; return }
+  if (excedeSaldo.value) {
+    errorModal.value = modoAdelanto.value
+      ? `Se pueden adelantar como máximo ${maximoSolicitable.value} día(s).`
+      : `No hay suficientes días: solo ${saldoEfectivo.value} disponible(s).`
+    return
+  }
+  if (diasAdelantar.value > 0 && !confirmaAdelanto.value) {
+    errorModal.value = 'Confirme el adelanto de vacaciones para continuar.'
+    return
+  }
 
   errorModal.value = ''
   saving.value     = true
   try {
+    const payload = { ...form.value, adelantar: diasAdelantar.value > 0 && confirmaAdelanto.value }
     if (editando.value) {
-      await store.updateSolicitud(editando.value.id, form.value)
+      await store.updateSolicitud(editando.value.id, payload)
     } else {
       await store.createSolicitud({
-        ...form.value,
+        ...payload,
         id_empleado: store.empleado.id,
       })
     }
@@ -400,18 +455,27 @@ function formatDate(d) {
                 {{ store.saldo?.dias_anio_actual ?? 0 }}
               </p>
               <p class="text-xs text-slate-500">Del período</p>
+              <p v-if="periodoActualAnios" class="text-[11px] font-medium text-slate-400">{{ periodoActualAnios }}</p>
             </div>
             <div class="w-px bg-slate-200"></div>
             <div>
               <p class="text-2xl font-bold" :class="saldoColor">{{ store.saldo?.saldo ?? 0 }}</p>
               <p class="text-xs text-slate-500">Disponibles</p>
             </div>
+            <template v-if="(store.saldo?.dias_adelantados ?? 0) > 0">
+              <div class="w-px bg-slate-200"></div>
+              <div>
+                <p class="text-2xl font-bold text-orange-600">{{ store.saldo.dias_adelantados }}</p>
+                <p class="text-xs text-slate-500">Adelantados</p>
+                <p class="text-[11px] font-medium text-orange-500">del {{ periodoProximoAnios }}</p>
+              </div>
+            </template>
           </div>
 
           <!-- Botón nueva solicitud -->
           <button
             v-if="authStore.puede('vacaciones.crear') && (store.saldo?.saldo ?? 0) > 0"
-            @click="abrirCrear"
+            @click="abrirCrear()"
             class="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
@@ -419,8 +483,21 @@ function formatDate(d) {
             </svg>
             Solicitud de vacaciones
           </button>
-          <p v-else-if="(store.saldo?.dias_por_ley ?? 0) === 0" class="text-xs text-amber-600 font-medium text-center">
-            Sin días disponibles aún<br/><span class="text-slate-400">(requiere 1 año laborado)</span>
+          <!-- Sin días disponibles: se pueden adelantar los del próximo período -->
+          <div v-else-if="authStore.puede('vacaciones.crear') && (store.saldo?.adelanto_disponible ?? 0) > 0" class="text-center">
+            <button
+              @click="abrirCrear(true)"
+              class="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061A1.125 1.125 0 0 1 3 16.811V8.69ZM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061a1.125 1.125 0 0 1-1.683-.977V8.69Z" />
+              </svg>
+              Adelantar vacaciones
+            </button>
+            <p class="text-xs text-red-600 font-medium mt-1">Sin días disponibles</p>
+          </div>
+          <p v-else-if="(store.saldo?.dias_adelantados ?? 0) > 0" class="text-xs text-orange-600 font-medium text-center">
+            Ya adelantó los días<br/><span class="text-slate-400">del próximo período</span>
           </p>
           <p v-else class="text-xs text-red-600 font-medium">Sin días disponibles</p>
         </div>
@@ -443,6 +520,13 @@ function formatDate(d) {
             Tomados histórico:
             <span class="font-medium text-slate-600">{{ store.saldo.dias_tomados ?? 0 }}</span>
           </span>
+          <template v-if="(store.saldo.dias_adelantados ?? 0) > 0">
+            <span class="text-slate-300">·</span>
+            <span class="text-orange-700">
+              Adelantó <span class="font-semibold">{{ store.saldo.dias_adelantados }}</span> día(s) del período
+              <span class="font-semibold">{{ periodoProximoAnios }}</span> (inicia el {{ formatDate(store.saldo.proximo_periodo_inicio) }})
+            </span>
+          </template>
         </div>
       </div>
 
@@ -510,6 +594,11 @@ function formatDate(d) {
                 <td class="px-5 py-3 text-center">
                   <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-sm">
                     {{ sol.dias_tomados }}
+                  </span>
+                  <span v-if="Number(sol.dias_adelantados) > 0"
+                    class="block mt-1 text-[11px] font-semibold text-orange-700"
+                    :title="`${Number(sol.dias_adelantados)} día(s) adelantados del próximo período`">
+                    {{ Number(sol.dias_adelantados) }} adelantado{{ Number(sol.dias_adelantados) === 1 ? '' : 's' }}
                   </span>
                 </td>
                 <td v-if="vista === 'anuladas'" class="px-5 py-3 text-slate-600 whitespace-nowrap">
@@ -634,10 +723,11 @@ function formatDate(d) {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       @click.self="cerrarModal"
     >
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <!-- Alto máximo de la pantalla: el título y los botones quedan fijos y solo el contenido se desplaza. -->
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[92vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
           <h3 class="text-base font-bold text-slate-800">
-            {{ editando ? 'Editar solicitud' : 'Nueva solicitud de vacaciones' }}
+            {{ editando ? 'Editar solicitud' : (modoAdelanto ? 'Adelantar vacaciones' : 'Nueva solicitud de vacaciones') }}
           </h3>
           <button @click="cerrarModal" class="text-slate-400 hover:text-slate-600 transition">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
@@ -646,10 +736,8 @@ function formatDate(d) {
           </button>
         </div>
 
-        <form @submit.prevent="guardar" class="px-6 py-5 space-y-4">
-          <div v-if="errorModal" class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
-            {{ errorModal }}
-          </div>
+        <form @submit.prevent="guardar" class="flex flex-col min-h-0 flex-1">
+          <div class="px-6 py-5 space-y-4 overflow-y-auto min-h-0">
 
           <!-- Empleado (solo lectura en crear) -->
           <div class="bg-slate-50 rounded-lg px-4 py-3">
@@ -657,7 +745,10 @@ function formatDate(d) {
             <p class="font-semibold text-slate-800">{{ store.empleado?.nombres }} {{ store.empleado?.apellidos }}</p>
             <p class="text-xs text-slate-500 mt-0.5">
               Saldo disponible:
-              <span class="font-bold" :class="saldoColor">{{ store.saldo?.saldo ?? 0 }} días</span>
+              <span class="font-bold" :class="saldoColor">{{ saldoEfectivo }} días</span>
+              <template v-if="modoAdelanto">
+                · se pueden adelantar hasta <span class="font-semibold text-orange-700">{{ adelantoDisponible }}</span> del próximo período
+              </template>
             </p>
           </div>
 
@@ -673,7 +764,7 @@ function formatDate(d) {
               <input v-model="form.fecha_fin" type="date" :min="form.fecha_inicio" :max="fechaMaxFin || undefined"
                 class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
               <p v-if="fechaMaxFin && form.fecha_inicio" class="text-xs mt-1" :class="excedeSaldo ? 'text-red-500' : 'text-slate-400'">
-                Máx. con saldo disponible: <span class="font-medium">{{ formatDate(fechaMaxFin) }}</span>
+                Máx. {{ modoAdelanto ? 'a adelantar' : 'con saldo disponible' }}: <span class="font-medium">{{ formatDate(fechaMaxFin) }}</span>
               </p>
             </div>
           </div>
@@ -690,17 +781,39 @@ function formatDate(d) {
                   Días a tomar
                 </span>
                 <p v-if="excedeSaldo" class="text-xs text-red-600 mt-0.5">
-                  Excede el saldo: solo {{ saldoEfectivo }} día{{ saldoEfectivo === 1 ? '' : 's' }} disponible{{ saldoEfectivo === 1 ? '' : 's' }}
+                  <template v-if="modoAdelanto">Se pueden adelantar como máximo {{ maximoSolicitable }} día{{ maximoSolicitable === 1 ? '' : 's' }}</template>
+                  <template v-else>Excede el saldo: solo {{ saldoEfectivo }} día{{ saldoEfectivo === 1 ? '' : 's' }} disponible{{ saldoEfectivo === 1 ? '' : 's' }}</template>
                 </p>
               </div>
               <span class="text-xl font-bold" :class="excedeSaldo ? 'text-red-700' : 'text-blue-700'">
                 {{ diasCalculados }}
               </span>
             </div>
-            <p v-if="feriadosEnRango.length" class="text-xs text-blue-600 mt-1.5 pt-1.5 border-t border-blue-100">
-              No cuenta{{ feriadosEnRango.length === 1 ? '' : 'n' }} en el conteo — feriado{{ feriadosEnRango.length === 1 ? '' : 's' }}:
-              {{ feriadosEnRango.map(f => `${formatDate(f.fecha)} (${f.nombre})`).join(', ') }}
+            <div v-if="feriadosEnRango.length" class="text-xs text-blue-600 mt-1.5 pt-1.5 border-t border-blue-100">
+              <button type="button" @click="verFeriados = !verFeriados" class="inline-flex items-center gap-1 hover:underline">
+                No cuenta{{ feriadosEnRango.length === 1 ? '' : 'n' }}
+                {{ feriadosEnRango.length }} feriado{{ feriadosEnRango.length === 1 ? '' : 's' }}
+                · <span class="font-semibold">{{ verFeriados ? 'Ocultar' : 'Ver cuáles' }}</span>
+              </button>
+              <ul v-if="verFeriados" class="mt-1.5 max-h-28 overflow-y-auto space-y-0.5 pr-1">
+                <li v-for="f in feriadosEnRango" :key="f.fecha">{{ formatDate(f.fecha) }} — {{ f.nombre }}</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Adelanto de vacaciones: se toman días del próximo período -->
+          <div v-if="diasAdelantar > 0" class="border border-orange-300 bg-orange-50 rounded-lg px-4 py-3 space-y-2">
+            <p class="text-sm font-semibold text-orange-800">Adelanto de vacaciones</p>
+            <p class="text-xs text-orange-800 leading-relaxed">
+              No tiene días disponibles. Se adelantarán <span class="font-bold">{{ diasAdelantar }} día(s)</span> que corresponden a sus vacaciones del
+              período <span class="font-bold">{{ periodoProximoAnios }}</span>, que inicia el <span class="font-bold">{{ formatDate(store.saldo?.proximo_periodo_inicio) }}</span>.
+              Cuando llegue esa fecha, esos días ya estarán descontados y su saldo de ese período quedará
+              {{ diasAdelantar >= (store.saldo?.dias_proximo_periodo ?? 0) ? 'en cero' : 'con menos días' }}.
             </p>
+            <label class="flex items-start gap-2 text-sm text-orange-900 cursor-pointer select-none">
+              <input v-model="confirmaAdelanto" type="checkbox" class="w-4 h-4 mt-0.5 rounded border-orange-300 text-orange-600 focus:ring-orange-500" />
+              Confirmo que se adelantan {{ diasAdelantar }} día(s) de vacaciones del próximo período.
+            </label>
           </div>
 
           <!-- Observaciones -->
@@ -715,8 +828,14 @@ function formatDate(d) {
             />
             <p class="text-xs text-slate-400 mt-1 text-right">{{ form.observaciones.length }}/500</p>
           </div>
+          </div>
 
-          <div class="flex justify-end gap-3 pt-1">
+          <!-- Pie fijo: el error y los botones siempre a la vista -->
+          <div class="px-6 py-4 border-t border-slate-100 flex-shrink-0 space-y-3">
+          <div v-if="errorModal" class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2.5 text-sm">
+            {{ errorModal }}
+          </div>
+          <div class="flex justify-end gap-3">
             <button type="button" @click="cerrarModal"
               class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -724,13 +843,14 @@ function formatDate(d) {
               </svg>
               Cancelar
             </button>
-            <button type="submit" :disabled="saving"
+            <button type="submit" :disabled="saving || (diasAdelantar > 0 && !confirmaAdelanto)"
               class="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
               {{ saving ? 'Guardando...' : 'Guardar solicitud' }}
             </button>
+          </div>
           </div>
         </form>
       </div>
