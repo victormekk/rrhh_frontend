@@ -253,7 +253,7 @@ function dibujar(ctx, { logo }, nombreCompleto, nombreSaludo, genero) {
   linea(ctx, 'Con cariño y gratitud,', cx, yFirma, altoDespedida)
   yFirma += altoDespedida + 6 + 4
   fuente(ctx, `600 18px ${F.cormorant}`)
-  linea(ctx, 'Gerencia General · Hotel y Villas Palma Real', cx, yFirma, altoFirma)
+  linea(ctx, 'Gerencia, Administrativos y Operativos · Hotel y Villas Palma Real', cx, yFirma, altoFirma)
 }
 
 // Devuelve un Blob PNG con la tarjeta del empleado.
