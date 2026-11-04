@@ -7,3 +7,6 @@ src/assets/recursos/
 
 # Capturas de pantalla para reportar problemas, no son parte del codigo
 src/assets/problemas/
+
+# Versión compilada (npm run build). Railway compila la suya al desplegar.
+dist/
