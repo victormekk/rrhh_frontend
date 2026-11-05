@@ -194,7 +194,13 @@ function enTiempo(dias) {
   if (dias === 1) return 'mañana'
   if (dias < 60) return `en ${dias} días`
   const meses = Math.round(dias / 30.4)
-  return meses < 12 ? `en ${meses} meses` : `en ${(dias / 365.25).toFixed(1).replace('.0', '')} años`
+  if (meses < 12) return `en ${meses} meses`
+  // "en 2 años y 3 meses" en vez de "en 2.3 años".
+  const anios = Math.floor(meses / 12)
+  const resto = meses % 12
+  const textoAnios = anios === 1 ? '1 año' : `${anios} años`
+  if (resto === 0) return `en ${textoAnios}`
+  return `en ${textoAnios} y ${resto === 1 ? '1 mes' : `${resto} meses`}`
 }
 
 function etapa(emp) {
