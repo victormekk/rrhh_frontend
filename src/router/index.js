@@ -32,6 +32,7 @@ const CumpleanosIndex          = () => import('../views/cumpleanos/CumpleanosInd
 const EstadisticaLaboralIndex  = () => import('../views/estadistica-laboral/EstadisticaLaboralIndex.vue')
 const InformacionLaboralIndex  = () => import('../views/estadistica-laboral/InformacionLaboralIndex.vue')
 const SalariosDevengadosIndex  = () => import('../views/estadistica-laboral/SalariosDevengadosIndex.vue')
+const ListadoCumpleanosIndex   = () => import('../views/estadistica-laboral/ListadoCumpleanosIndex.vue')
 const MovimientosPersonalIndex = () => import('../views/estadistica-laboral/MovimientosPersonalIndex.vue')
 
 const router = createRouter({
@@ -196,6 +197,12 @@ const router = createRouter({
           name: 'estadistica-laboral',
           component: EstadisticaLaboralIndex,
           meta: { requiresAuth: true, permiso: 'estadistica.ver', title: 'Estadística Laboral' },
+        },
+        {
+          path: 'listado-cumpleanos',
+          name: 'listado-cumpleanos',
+          component: ListadoCumpleanosIndex,
+          meta: { requiresAuth: true, permiso: 'listado_cumpleanos.ver', title: 'Listado de Cumpleaños' },
         },
         {
           path: 'salarios-devengados',
