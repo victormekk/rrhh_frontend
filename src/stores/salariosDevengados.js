@@ -3,7 +3,7 @@ import api from '../services/api'
 import { useToast } from '../composables/useToast'
 import { nombreArchivo, descargarBlob } from '../utils/archivos'
 
-// Estadística Laboral → Salarios Devengados (varios o todos los empleados, en un rango de fechas).
+// Reportes → Salarios Devengados (varios o todos los empleados, en un rango de fechas).
 export const useSalariosDevengadosStore = defineStore('salariosDevengados', () => {
   const { info } = useToast()
 
