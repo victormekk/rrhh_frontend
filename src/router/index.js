@@ -31,7 +31,6 @@ const CamposVariablesIndex = () => import('../views/campos-variables/CamposVaria
 const CumpleanosIndex          = () => import('../views/cumpleanos/CumpleanosIndex.vue')
 const EstadisticaLaboralIndex  = () => import('../views/estadistica-laboral/EstadisticaLaboralIndex.vue')
 const InformacionLaboralIndex  = () => import('../views/estadistica-laboral/InformacionLaboralIndex.vue')
-const SalariosDevengadosIndex  = () => import('../views/estadistica-laboral/SalariosDevengadosIndex.vue')
 const ListadoCumpleanosIndex   = () => import('../views/estadistica-laboral/ListadoCumpleanosIndex.vue')
 const MovimientosPersonalIndex = () => import('../views/estadistica-laboral/MovimientosPersonalIndex.vue')
 
@@ -203,12 +202,6 @@ const router = createRouter({
           name: 'listado-cumpleanos',
           component: ListadoCumpleanosIndex,
           meta: { requiresAuth: true, permiso: 'listado_cumpleanos.ver', title: 'Listado de Cumpleaños' },
-        },
-        {
-          path: 'salarios-devengados',
-          name: 'salarios-devengados',
-          component: SalariosDevengadosIndex,
-          meta: { requiresAuth: true, permiso: 'salarios_devengados.ver', title: 'Salarios Devengados' },
         },
         {
           path: 'informacion-laboral',

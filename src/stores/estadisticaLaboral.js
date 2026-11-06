@@ -33,8 +33,8 @@ export const useEstadisticaLaboralStore = defineStore('estadisticaLaboral', () =
     }
   }
 
-  async function buscarEmpleados(search) {
-    const { data } = await api.get('/empleados', { params: { search, estado: 'Activo' } })
+  async function buscarEmpleados(search, estado = '') {
+    const { data } = await api.get('/empleados', { params: { search, estado: estado || undefined } })
     return data.data
   }
 

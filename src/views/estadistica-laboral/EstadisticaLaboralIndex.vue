@@ -1,14 +1,21 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useEstadisticaLaboralStore } from '../../stores/estadisticaLaboral'
+import { useInformacionLaboralStore } from '../../stores/informacionLaboral'
 import { useAuthStore } from '../../stores/auth'
 
 const store = useEstadisticaLaboralStore()
+const infoLaboral = useInformacionLaboralStore()
 const authStore = useAuthStore()
 
 // ── filtros ───────────────────────────────────────────────────────────────────
 
-const filtros       = ref({ search: '', fecha_inicio: '', fecha_fin: '' })
+// Vacíos = todos. Los departamentos solo se eligen al buscar por departamento.
+const filtrosVacios = () => ({
+  modo: 'empleado', search: '', fecha_inicio: '', fecha_fin: '',
+  tipo_contrato: '', estado: '', departamentos: [],
+})
+const filtros       = ref(filtrosVacios())
 const buscado       = ref(false)
 const idEmpleadoSel = ref(null)
 
@@ -29,7 +36,7 @@ function onEmpleadoInput() {
     debounceSugerencias = setTimeout(async () => {
       buscandoEmpleado.value = true
       try {
-        sugerencias.value = await store.buscarEmpleados(filtros.value.search)
+        sugerencias.value = await store.buscarEmpleados(filtros.value.search, filtros.value.estado)
       } finally {
         buscandoEmpleado.value = false
       }
@@ -48,11 +55,33 @@ function seleccionarSugerencia(emp) {
   buscar()
 }
 
+// ── departamentos ─────────────────────────────────────────────────────────────
+const departamentos = ref([])
+onMounted(async () => { departamentos.value = await infoLaboral.fetchDepartamentos() })
+
+function toggleDepto(id) {
+  const sel = filtros.value.departamentos
+  filtros.value.departamentos = sel.includes(id) ? sel.filter((d) => d !== id) : [...sel, id]
+}
+
+function cambiarModo(modo) {
+  if (filtros.value.modo === modo) return
+  filtros.value.modo = modo
+  filtros.value.search = ''
+  filtros.value.departamentos = []
+  idEmpleadoSel.value = null
+  sugerencias.value = []
+}
+
 function paramsActuales(page) {
   const p = {}
   if (page) p.page = page
-  if (idEmpleadoSel.value)       p.id_empleado   = idEmpleadoSel.value
-  else if (filtros.value.search) p.search        = filtros.value.search
+  if (filtros.value.modo === 'departamento') {
+    if (filtros.value.departamentos.length) p.departamentos = filtros.value.departamentos
+  } else if (idEmpleadoSel.value) p.id_empleado = idEmpleadoSel.value
+  else if (filtros.value.search)  p.search      = filtros.value.search
+  if (filtros.value.tipo_contrato) p.tipo_contrato = filtros.value.tipo_contrato
+  if (filtros.value.estado)        p.estado        = filtros.value.estado
   if (filtros.value.fecha_inicio) p.fecha_inicio = filtros.value.fecha_inicio
   if (filtros.value.fecha_fin)    p.fecha_fin    = filtros.value.fecha_fin
   return p
@@ -64,7 +93,7 @@ async function buscar(page) {
 }
 
 function limpiar() {
-  filtros.value       = { search: '', fecha_inicio: '', fecha_fin: '' }
+  filtros.value       = filtrosVacios()
   idEmpleadoSel.value = null
   sugerencias.value   = []
   store.rows       = []
@@ -170,8 +199,40 @@ function tipoBadge(tipo) {
     <!-- Filtros -->
     <div class="bg-white rounded-xl border border-gray-200 p-5">
       <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Filtros de búsqueda</p>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="relative">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Buscar por</label>
+          <div class="flex w-full rounded-lg border border-gray-300 p-0.5 bg-slate-50">
+            <button v-for="op in [{ v: 'empleado', t: 'Empleado' }, { v: 'departamento', t: 'Departamento' }]" :key="op.v"
+              type="button" @click="cambiarModo(op.v)"
+              class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
+              :class="filtros.modo === op.v ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
+              {{ op.t }}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Tipo de contrato</label>
+          <select v-model="filtros.tipo_contrato"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+            <option value="">Todos</option>
+            <option value="Fijo">Fijo</option>
+            <option value="Extra">Extra</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Estado</label>
+          <select v-model="filtros.estado"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+            <option value="">Todos</option>
+            <option value="Activo">Activo</option>
+            <option value="Suspendido">Suspendido</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 gap-3" :class="filtros.modo === 'empleado' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'">
+        <div v-if="filtros.modo === 'empleado'" class="relative">
           <label class="block text-xs font-medium text-slate-600 mb-1.5">Empleado</label>
           <input
             v-model="filtros.search"
@@ -216,6 +277,21 @@ function tipoBadge(tipo) {
           />
         </div>
       </div>
+      <div v-if="filtros.modo === 'departamento'" class="mt-3">
+        <label class="block text-xs font-medium text-slate-600 mb-1.5">Departamentos</label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" @click="filtros.departamentos = []"
+            class="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+            :class="filtros.departamentos.length === 0 ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-slate-600 hover:border-blue-300 hover:bg-slate-50'">
+            TODOS
+          </button>
+          <button v-for="dep in departamentos" :key="dep.id" type="button" @click="toggleDepto(dep.id)"
+            class="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+            :class="filtros.departamentos.includes(dep.id) ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-slate-600 hover:border-blue-300 hover:bg-slate-50'">
+            {{ dep.nombre }}
+          </button>
+        </div>
+      </div>
       <div class="flex items-center justify-between mt-4">
         <button v-if="buscado" @click="limpiar" class="text-sm text-slate-500 hover:text-slate-700 transition-colors">
           Limpiar búsqueda
@@ -246,7 +322,7 @@ function tipoBadge(tipo) {
         </svg>
       </div>
       <p class="text-slate-500 font-medium">Configura los filtros y genera la estadística</p>
-      <p class="text-slate-400 text-sm mt-1">Puedes buscar por empleado, por rango de fechas, o ambos.</p>
+      <p class="text-slate-400 text-sm mt-1">Puedes buscar por empleado o por departamento, y filtrar por contrato, estado y fechas.</p>
     </div>
 
     <!-- Resultados -->

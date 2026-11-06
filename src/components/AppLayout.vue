@@ -109,11 +109,10 @@ const configSubItems = [
   { name: 'Bitácora',          path: '/bitacora',         permiso: 'bitacora.ver' },
 ]
 
-const ESTADISTICA_PATHS = ['/estadistica-laboral', '/listado-cumpleanos', '/salarios-devengados', '/informacion-laboral', '/movimientos-personal']
+const ESTADISTICA_PATHS = ['/estadistica-laboral', '/listado-cumpleanos', '/informacion-laboral', '/movimientos-personal']
 
 const estadisticaSubItems = [
   { name: 'Estadística Laboral', path: '/estadistica-laboral', permiso: 'estadistica.ver' },
-  { name: 'Salarios Devengados', path: '/salarios-devengados', permiso: 'salarios_devengados.ver' },
   { name: 'Listado de Cumpleaños', path: '/listado-cumpleanos', permiso: 'listado_cumpleanos.ver' },
   { name: 'Información Laboral', path: '/informacion-laboral', permiso: 'informacion_laboral.ver' },
   { name: 'Movimientos de Personal', path: '/movimientos-personal', permiso: 'movimientos.ver' },
